@@ -9,7 +9,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     await this.connectWithRetry();
   }
 
-  async connectWithRetry(retries = 5, delay = 3000) {
+  async connectWithRetry(retries = 12, delay = 5000) {
     for (let i = 0; i < retries; i++) {
       try {
         await this.$connect();
