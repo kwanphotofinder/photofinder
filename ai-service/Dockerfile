@@ -19,7 +19,7 @@ COPY . .
 
 # Download InsightFace models during build to avoid runtime download
 # We run a tiny script to trigger the download
-RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l').prepare(ctx_id=0)"
+RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_s').prepare(ctx_id=0)"
 
 EXPOSE 8000
 
