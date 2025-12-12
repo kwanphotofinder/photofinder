@@ -45,15 +45,16 @@ export function SystemHealth() {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
                 // Fetch Prometheus metrics for AI confidence
-                const metricsResponse = await fetch("http://localhost:3000/metrics/json")
+                const metricsResponse = await fetch(`${apiUrl}/metrics/json`)
                 if (metricsResponse.ok) {
                     const metricsData = await metricsResponse.json()
                     setMetrics(metricsData)
                 }
 
                 // Fetch database stats
-                const statsResponse = await fetch("http://localhost:3000/admin/stats")
+                const statsResponse = await fetch(`${apiUrl}/admin/stats`)
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json()
                     setStats(statsData)
