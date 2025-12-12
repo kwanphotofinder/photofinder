@@ -17,7 +17,7 @@ Instrumentator().instrument(app).expose(app)
 
 # Initialize InsightFace
 # 'buffalo_l' is a good balance of speed and accuracy
-model = FaceAnalysis(name='buffalo_s', providers=['CPUExecutionProvider'])
+model = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
 model.prepare(ctx_id=0, det_size=(640, 640))
 
 class FaceEmbedding(BaseModel):
