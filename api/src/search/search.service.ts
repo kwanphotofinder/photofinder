@@ -11,8 +11,26 @@ export class SearchService implements OnModuleInit {
             host: process.env.WEAVIATE_HOST || 'localhost:8080',
         });
 
-        // Ensure schema exists
-        await this.ensureSchema();
+        // Ensure schema exists in background
+        this.initializeWeaviate().catch(error => {
+            console.error('Failed to initialize Weaviate schema:', error);
+        });
+    }
+
+    async initializeWeaviate() {
+        // Retry logic for schema initialization
+        let retries = 5;
+        while (retries > 0) {
+            try {
+                await this.ensureSchema();
+                return;
+            } catch (error) {
+                console.warn(`Weaviate schema init failed (retries left: ${retries}): ${error.message}`);
+                retries--;
+                if (retries === 0) console.error('Weaviate schema initialization gave up.');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
     }
 
     async ensureSchema() {

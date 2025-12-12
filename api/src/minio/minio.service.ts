@@ -7,7 +7,7 @@ export class MinioService implements OnModuleInit {
     private minioClient: Minio.Client;
     private readonly bucketName = process.env.MINIO_BUCKET || 'photos';
 
-    async onModuleInit() {
+    onModuleInit() {
         this.minioClient = new Minio.Client({
             endPoint: process.env.MINIO_ENDPOINT || 'localhost',
             port: parseInt(process.env.MINIO_PORT || '9000'),
@@ -16,34 +16,41 @@ export class MinioService implements OnModuleInit {
             secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
         });
 
-        // Ensure bucket exists
-        const exists = await this.minioClient.bucketExists(this.bucketName);
-        if (!exists) {
-            await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-            this.logger.log(`Created bucket: ${this.bucketName}`);
-        }
+        // Initialize bucket in background to avoid blocking startup
+        this.initializeMinio().catch(err => {
+            this.logger.error(`Failed to initialize MinIO: ${err.message}`);
+        });
+    }
 
-        // Set bucket policy to allow public read access
-        const policy = {
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Effect: 'Allow',
-                    Principal: { AWS: ['*'] },
-                    Action: ['s3:GetObject'],
-                    Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-                },
-            ],
-        };
-
+    private async initializeMinio() {
         try {
+            // Ensure bucket exists
+            const exists = await this.minioClient.bucketExists(this.bucketName);
+            if (!exists) {
+                await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
+                this.logger.log(`Created bucket: ${this.bucketName}`);
+            }
+
+            // Set bucket policy to allow public read access
+            const policy = {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Effect: 'Allow',
+                        Principal: { AWS: ['*'] },
+                        Action: ['s3:GetObject'],
+                        Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+                    },
+                ],
+            };
+
             await this.minioClient.setBucketPolicy(
                 this.bucketName,
                 JSON.stringify(policy),
             );
             this.logger.log(`Set public read policy for bucket: ${this.bucketName}`);
         } catch (error) {
-            this.logger.warn(`Failed to set bucket policy: ${error.message}`);
+            this.logger.warn(`MinIO initialization warning: ${error.message}`);
         }
     }
 
