@@ -72,7 +72,8 @@ export class MinioService implements OnModuleInit {
         );
 
         // Return the URL
-        return `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}/${this.bucketName}/${objectName}`;
+        const protocol = process.env.MINIO_USE_SSL === 'true' ? 'https' : 'http';
+        return `${protocol}://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || '9000'}/${this.bucketName}/${objectName}`;
     }
 
     async getFileUrl(objectName: string): Promise<string> {
