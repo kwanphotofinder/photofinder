@@ -261,12 +261,13 @@ export function SystemHealth() {
                     <p className="text-sm text-slate-500">Real-time metrics and performance monitoring</p>
                 </div>
                 <Button
-                    onClick={() => window.open(process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3002', '_blank')}
                     variant="outline"
-                    className="gap-2"
+                    className="gap-2 opacity-50 cursor-not-allowed"
+                    title="Grafana is disabled in Production to save resources (Free Tier limit krub)"
+                    onClick={(e) => e.preventDefault()}
                 >
                     <ExternalLink className="w-4 h-4" />
-                    Open Grafana
+                    Open Grafana (Disabled in Prod)
                 </Button>
             </div>
 
