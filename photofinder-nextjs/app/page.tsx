@@ -27,9 +27,9 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[500px] md:min-h-[600px] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 z-0"
           style={{
             backgroundImage: 'url(/background.jpg)',
@@ -41,32 +41,32 @@ export default function LandingPage() {
           {/* Overlay for better text readability */}
           <div className="absolute inset-0 bg-black/50" />
         </div>
-        
+
         {/* Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
           <div className="text-center space-y-6 mb-12">
-            <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight">Find Your Moments</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight">Find Your Moments</h1>
             <p className="text-xl text-white/90 max-w-2xl mx-auto">
               Discover and download your photos from campus events using AI-powered face recognition
             </p>
-          <div className="flex gap-4 justify-center pt-4">
-            <Button
-              onClick={() => router.push("/login")}
-              size="lg"
-              className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 font-semibold shadow-xl transition-all px-8 py-6 text-base"
-            >
-              Sign In with SSO
-            </Button>
-            <Button
-              onClick={() => router.push("/admin/login")}
-              size="lg"
-              variant="outline"
-              className="bg-white/10 backdrop-blur-md border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-all font-semibold shadow-xl px-8 py-6 text-base"
-            >
-              Admin Console
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <Button
+                onClick={() => router.push("/login")}
+                size="lg"
+                className="w-full sm:w-auto bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 font-semibold shadow-xl transition-all px-8 py-6 text-base"
+              >
+                Sign In with SSO
+              </Button>
+              <Button
+                onClick={() => router.push("/admin/login")}
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto bg-white/10 backdrop-blur-md border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 transition-all font-semibold shadow-xl px-8 py-6 text-base"
+              >
+                Admin Console
+              </Button>
+            </div>
           </div>
-        </div>
         </div>
       </section>
 
