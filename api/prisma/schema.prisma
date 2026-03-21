@@ -13,6 +13,7 @@ datasource db {
 enum Role {
   STUDENT
   ADMIN
+  SUPER_ADMIN
   PHOTOGRAPHER
 }
 
@@ -52,6 +53,7 @@ model User {
   id           String   @id @default(uuid())
   email        String   @unique
   name         String?
+  avatarUrl    String?
   role         Role     @default(STUDENT)
   pdpaConsent  Boolean  @default(false)
   createdAt    DateTime @default(now())

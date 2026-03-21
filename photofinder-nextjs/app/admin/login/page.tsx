@@ -1,44 +1,97 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle, Lock } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Header } from "@/components/header"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { AlertCircle, Lock } from "lucide-react"
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 export default function AdminLoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
+  const handleCredentialResponse = async (response: any) => {
+    setError(null);
     try {
-      // Simulate admin authentication
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const token = response.credential;
+      const res = await apiClient.loginWithGoogle(token);
 
-      if (email === "admin@university.edu" && password === "admin123") {
-        localStorage.setItem("admin_token", "admin_token_" + Date.now())
-        localStorage.setItem("admin_name", "Admin User")
-        router.push("/admin/dashboard")
-      } else {
-        setError("Invalid admin credentials")
+      if (res.error || !res.data) {
+        throw new Error(res.error || "Login failed");
       }
-    } catch (err) {
-      setError("Login failed. Please try again.")
-    } finally {
-      setIsLoading(false)
+
+      const { access_token, user } = res.data;
+
+      // Ensure they actually have admin privileges before logging them into the admin console
+      if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+        throw new Error("This Google Account does not have Admin access.");
+      }
+
+      // Populate unified auth state
+      localStorage.setItem("auth_token", access_token);
+      localStorage.setItem("user_id", user.id);
+      localStorage.setItem("user_data", JSON.stringify(user));
+      localStorage.setItem("user_name", user.name);
+      localStorage.setItem("user_email", user.email);
+      localStorage.setItem("user_role", user.role.toLowerCase());
+
+      // Populate admin specific state
+      localStorage.setItem("admin_token", access_token);
+      localStorage.setItem("admin_name", user.name);
+
+      router.push("/admin/dashboard");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Login failed. Please try again.");
     }
-  }
+  };
+
+  useEffect(() => {
+    const initGoogle = () => {
+      if (window.google && buttonRef.current) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
+          callback: handleCredentialResponse,
+        });
+
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "rectangular",
+          locale: "en",
+          width: 320,
+        });
+      }
+    };
+
+    if (window.google) {
+      initGoogle();
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (window.google) {
+        clearInterval(interval);
+        initGoogle();
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center px-4">
@@ -49,60 +102,27 @@ export default function AdminLoginPage() {
             <span className="text-sm font-semibold text-primary uppercase">Admin</span>
           </div>
           <CardTitle className="text-2xl">Admin Console</CardTitle>
-          <CardDescription>Sign in to manage events and photos</CardDescription>
+          <CardDescription>
+            Sign in with an authorized Google Account to manage events and photos
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className="flex gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="border-border"
-              />
+        <CardContent className="space-y-4">
+          {error && (
+            <div className="flex gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-border"
-              />
-            </div>
+          <div className="flex justify-center py-4">
+            <div ref={buttonRef} />
+          </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6"
-              size="lg"
-            >
-              {isLoading ? "Signing in..." : "Sign In"}
-            </Button>
-
-            <p className="text-xs text-muted-foreground text-center">
-              Demo credentials: admin@university.edu / admin123
-            </p>
-          </form>
+          <p className="text-xs text-muted-foreground text-center">
+            Only designated university administrators can access this console.
+          </p>
         </CardContent>
       </Card>
     </main>
-  )
+  );
 }

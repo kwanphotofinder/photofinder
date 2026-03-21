@@ -13,6 +13,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { RemovalRequestsModule } from './removal-requests/removal-requests.module';
 import { SavedPhotosModule } from './saved-photos/saved-photos.module';
 import { AdminModule } from './admin/admin.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -28,8 +29,9 @@ import { AdminModule } from './admin/admin.module';
     RemovalRequestsModule,
     SavedPhotosModule,
     AdminModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

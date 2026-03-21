@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, MapPin, Image as ImageIcon, Trash2, LogOut, Settings, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, XCircle, Pencil } from "lucide-react"
+import { Search, Plus, Calendar, MapPin, Image as ImageIcon, Trash2, LogOut, Settings, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, XCircle, Pencil, UserPlus, Crown, Camera } from "lucide-react"
 import { PhotoDetailModal } from "@/components/photo-detail-modal"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
@@ -21,6 +21,15 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [eventSearch, setEventSearch] = useState("")
   const [photoSearch, setPhotoSearch] = useState("")
+
+  // User management state
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [callerRole, setCallerRole] = useState("")
+  const [callerEmail, setCallerEmail] = useState("")
+  const [newPhotographerEmail, setNewPhotographerEmail] = useState("")
+  const [newAdminEmail, setNewAdminEmail] = useState("")
+  const [userMgmtLoading, setUserMgmtLoading] = useState(false)
+  const [userMgmtMessage, setUserMgmtMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
@@ -50,6 +59,14 @@ export default function AdminDashboardPage() {
         }
         if (requestsRes.data && Array.isArray(requestsRes.data)) {
           setRemovalRequests(requestsRes.data)
+        }
+
+        // Fetch users for user management
+        const usersRes = await apiClient.getAdminUsers()
+        if (usersRes.data) {
+          setAllUsers(usersRes.data.users || [])
+          setCallerRole(usersRes.data.callerRole || "")
+          setCallerEmail(usersRes.data.callerEmail || "")
         }
       } catch (error) {
         console.error("Failed to fetch data", error)
@@ -184,18 +201,31 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Tabs defaultValue="events" className="space-y-6">
-            <TabsList className="bg-card border border-border">
-              <TabsTrigger value="events">Events</TabsTrigger>
-              <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="requests">Removal Requests ({removalRequests.length})</TabsTrigger>
-              <TabsTrigger value="health">System Health</TabsTrigger>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 items-start">
+          <Tabs defaultValue="events" orientation="vertical" className="flex flex-col md:flex-row gap-8 w-full items-start">
+            <TabsList className="flex flex-col h-auto w-full md:w-64 lg:w-72 bg-card border border-border items-stretch p-3 gap-2 sticky top-24 shrink-0 rounded-xl shadow-sm !inline-flex !h-auto">
+              {[
+                { value: "events", icon: Calendar, label: "Events" },
+                { value: "photos", icon: ImageIcon, label: "Photos" },
+                { value: "requests", icon: Shield, label: `Removal Requests (${removalRequests.length})` },
+                { value: "users", icon: Users, label: "User Management" },
+                { value: "health", icon: BarChart3, label: "System Health" },
+              ].map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="w-full justify-start text-left px-4 py-3.5 !h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none !border-0 rounded-lg transition-colors hover:bg-muted font-medium text-sm"
+                >
+                  <tab.icon className="w-4.5 h-4.5 mr-3 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </TabsTrigger>
+              ))}
             </TabsList>
 
-            <TabsContent value="events">
-              <Card className="border border-border backdrop-blur-sm bg-card/80">
-                <CardHeader>
+            <div className="flex-1 w-full min-w-0">
+              <TabsContent value="events" className="mt-0 !outline-none border-0">
+                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                  <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle>Events</CardTitle>
@@ -267,7 +297,7 @@ export default function AdminDashboardPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="photos">
+            <TabsContent value="photos" className="mt-0">
               <Card className="border border-border backdrop-blur-sm bg-card/80">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -321,7 +351,7 @@ export default function AdminDashboardPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="requests">
+            <TabsContent value="requests" className="mt-0">
               <Card className="border border-border backdrop-blur-sm bg-card/80">
                 <CardHeader>
                   <CardTitle>Removal Requests</CardTitle>
@@ -388,9 +418,180 @@ export default function AdminDashboardPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="health">
+            <TabsContent value="users" className="mt-0">
+              <div className="space-y-6">
+                {userMgmtMessage && (
+                  <div className={`flex gap-3 p-4 rounded-lg border ${
+                    userMgmtMessage.type === "success" ? "bg-primary/10 border-primary/20" : "bg-destructive/10 border-destructive/20"
+                  }`}>
+                    {userMgmtMessage.type === "success" ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" /> : <AlertCircle className="w-5 h-5 text-destructive shrink-0" />}
+                    <p className={`text-sm ${userMgmtMessage.type === "success" ? "text-primary" : "text-destructive"}`}>{userMgmtMessage.text}</p>
+                  </div>
+                )}
+
+                {/* Add Photographer */}
+                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Camera className="w-5 h-5" /> Add Photographer</CardTitle>
+                    <CardDescription>Add a Gmail or MFU email. The user will be directed to the photographer page on their next login.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-3">
+                      <Input
+                        placeholder="photographer@gmail.com"
+                        value={newPhotographerEmail}
+                        onChange={(e) => setNewPhotographerEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        disabled={userMgmtLoading || !newPhotographerEmail}
+                        onClick={async () => {
+                          setUserMgmtLoading(true)
+                          setUserMgmtMessage(null)
+                          const res = await apiClient.setUserRole(newPhotographerEmail, "PHOTOGRAPHER")
+                          if (res.error) {
+                            setUserMgmtMessage({ type: "error", text: res.error })
+                          } else {
+                            setUserMgmtMessage({ type: "success", text: `${newPhotographerEmail} is now a Photographer` })
+                            setNewPhotographerEmail("")
+                            const usersRes = await apiClient.getAdminUsers()
+                            if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                          }
+                          setUserMgmtLoading(false)
+                        }}
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" /> Add Photographer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Add Admin (Super Admin only) */}
+                {callerRole === "SUPER_ADMIN" && (
+                  <Card className="border border-border backdrop-blur-sm bg-card/80">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5" /> Add Admin</CardTitle>
+                      <CardDescription>Only you (Super Admin) can add or remove admins.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-3">
+                        <Input
+                          placeholder="admin@gmail.com"
+                          value={newAdminEmail}
+                          onChange={(e) => setNewAdminEmail(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          disabled={userMgmtLoading || !newAdminEmail}
+                          onClick={async () => {
+                            setUserMgmtLoading(true)
+                            setUserMgmtMessage(null)
+                            const res = await apiClient.setUserRole(newAdminEmail, "ADMIN")
+                            if (res.error) {
+                              setUserMgmtMessage({ type: "error", text: res.error })
+                            } else {
+                              setUserMgmtMessage({ type: "success", text: `${newAdminEmail} is now an Admin` })
+                              setNewAdminEmail("")
+                              const usersRes = await apiClient.getAdminUsers()
+                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                            }
+                            setUserMgmtLoading(false)
+                          }}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" /> Add Admin
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* User List */}
+                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                  <CardHeader>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>{allUsers.length} registered users</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {allUsers.map((u) => {
+                        const isSuperAdmin = u.role === "SUPER_ADMIN"
+                        const isAdmin = u.role === "ADMIN"
+                        const isPhotographer = u.role === "PHOTOGRAPHER"
+                        const canRemove = (() => {
+                          if (isSuperAdmin) return false
+                          if (isAdmin && callerRole !== "SUPER_ADMIN") return false
+                          if (isPhotographer) return true
+                          return false
+                        })()
+
+                        const roleBadge = ({
+                          SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
+                          ADMIN: "bg-blue-500/20 text-blue-700 border-blue-500/30",
+                          PHOTOGRAPHER: "bg-green-500/20 text-green-700 border-green-500/30",
+                          STUDENT: "bg-gray-500/20 text-gray-700 border-gray-500/30",
+                        } as Record<string, string>)[u.role] || "bg-gray-500/20 text-gray-700 border-gray-500/30"
+
+                        const roleLabel = {
+                          SUPER_ADMIN: "Super Admin",
+                          ADMIN: "Admin",
+                          PHOTOGRAPHER: "Photographer",
+                          STUDENT: "Student",
+                        }[u.role as string] || u.role
+
+                        return (
+                          <div key={u.id} className="flex items-center justify-between p-3 border border-border rounded-lg bg-card/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground overflow-hidden">
+                                {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-foreground">{u.name || u.email}</div>
+                                <div className="text-xs text-muted-foreground">{u.email}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
+                                {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
+                                {roleLabel}
+                              </span>
+                              {canRemove && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  disabled={userMgmtLoading}
+                                  onClick={async () => {
+                                    if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
+                                    setUserMgmtLoading(true)
+                                    setUserMgmtMessage(null)
+                                    const res = await apiClient.removeUserRole(u.id)
+                                    if (res.error) {
+                                      setUserMgmtMessage({ type: "error", text: res.error })
+                                    } else {
+                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
+                                      const usersRes = await apiClient.getAdminUsers()
+                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                    }
+                                    setUserMgmtLoading(false)
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="health" className="mt-0">
               <SystemHealth />
             </TabsContent>
+            </div>
           </Tabs>
         </div>
       </main>

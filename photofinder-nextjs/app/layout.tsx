@@ -1,16 +1,17 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import "./globals.css"
+import type React from "react";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import Script from "next/script";
+import "./globals.css";
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const _geist = Geist({ subsets: ["latin"] });
+const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const _notoSansThai = Noto_Sans_Thai({
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-noto-sans-thai",
-})
+});
 
 export const metadata: Metadata = {
   title: "Campus Event & Photo Finder",
@@ -24,18 +25,18 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-}
+};
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
@@ -43,9 +44,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#82181a" />
       </head>
       <body className={`${_notoSansThai.variable} font-sans antialiased`}>
+        <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
         {children}
         <Analytics />
       </body>
     </html>
-  )
+  );
 }
+

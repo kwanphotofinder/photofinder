@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 
 interface HeaderProps {
   showLogout?: boolean
@@ -23,18 +24,23 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
   const router = useRouter()
   const [userName, setUserName] = useState("")
   const [userEmail, setUserEmail] = useState("")
+  const [userAvatar, setUserAvatar] = useState("")
 
   useEffect(() => {
-    if (userRole === "admin") {
-      const storedName = localStorage.getItem("admin_name")
-      const storedEmail = "admin@university.edu" // Default or from storage if you add it
-      if (storedName) setUserName(storedName)
-      setUserEmail(storedEmail)
-    } else {
-      const storedName = localStorage.getItem("user_name")
-      const storedEmail = localStorage.getItem("user_email") || "student@mfu.ac.th"
-      if (storedName) setUserName(storedName)
-      setUserEmail(storedEmail)
+    // Both admin and regular users now use the same Google login flow, 
+    // so we can read from user_data and user_email for everyone
+    const storedName = localStorage.getItem("user_name") || localStorage.getItem("admin_name")
+    const storedEmail = localStorage.getItem("user_email") || (userRole === "admin" ? "admin@university.edu" : "student@mfu.ac.th")
+    const storedData = localStorage.getItem("user_data")
+    
+    if (storedName) setUserName(storedName)
+    setUserEmail(storedEmail)
+    
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData)
+        if (parsed.avatarUrl) setUserAvatar(parsed.avatarUrl)
+      } catch (e) {}
     }
   }, [userRole])
 
@@ -67,26 +73,30 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 h-auto py-2 px-3 hover:bg-primary/10">
-                <div className="text-right">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={userAvatar} alt={userName} referrerPolicy="no-referrer" />
+                  <AvatarFallback>{userName ? userName[0].toUpperCase() : "U"}</AvatarFallback>
+                </Avatar>
+                <div className="text-right hidden sm:block">
                   <div className="text-sm font-semibold text-foreground">{userName}</div>
-                  <div className="text-xs text-muted-foreground">{userEmail}</div>
+                  <div className="text-xs text-muted-foreground truncate max-w-[150px]">{userEmail}</div>
                 </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex items-start gap-2 py-2 hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground">
-                <User className="w-4 h-4 mt-0.5" />
-                <div>
-                  <div className="font-medium">{userName}</div>
+              <div className="flex items-start gap-3 py-3 px-2 cursor-default">
+                <Avatar className="w-12 h-12 mt-0.5">
+                  <AvatarImage src={userAvatar} alt={userName} referrerPolicy="no-referrer" />
+                  <AvatarFallback>{userName ? userName[0].toUpperCase() : "U"}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col space-y-1">
+                  <div className="text-sm font-medium leading-none">{userName}</div>
+                  <div className="text-xs text-muted-foreground truncate max-w-[180px]">{userEmail}</div>
                 </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground">
-                <Mail className="w-4 h-4" />
-                <span className="text-sm">{userEmail}</span>
-              </DropdownMenuItem>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => router.push("/settings")}
