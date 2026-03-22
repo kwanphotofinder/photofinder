@@ -203,21 +203,35 @@ export default function AdminDashboardPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 items-start">
           <Tabs defaultValue="events" orientation="vertical" className="flex flex-col md:flex-row gap-8 w-full items-start">
-            <TabsList className="flex flex-col h-auto w-full md:w-64 lg:w-72 bg-card border border-border items-stretch p-3 gap-2 sticky top-24 shrink-0 rounded-xl shadow-sm !inline-flex !h-auto">
+            <TabsList className="flex flex-col h-auto w-full md:w-64 lg:w-72 bg-card/50 backdrop-blur-md border border-border items-stretch p-4 gap-2 sticky top-24 shrink-0 rounded-2xl shadow-sm !inline-flex !h-auto">
+              <div className="px-2 pb-2 mb-2 border-b border-border/50">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Dashboard Menu
+                </h3>
+              </div>
               {[
-                { value: "events", icon: Calendar, label: "Events" },
-                { value: "photos", icon: ImageIcon, label: "Photos" },
-                { value: "requests", icon: Shield, label: `Removal Requests (${removalRequests.length})` },
-                { value: "users", icon: Users, label: "User Management" },
-                { value: "health", icon: BarChart3, label: "System Health" },
+                { value: "events", icon: Calendar, label: "Events", desc: "Manage campus events" },
+                { value: "photos", icon: ImageIcon, label: "Photos", desc: "View all uploads" },
+                { value: "requests", icon: Shield, label: `Removal Requests`, badge: removalRequests.length, desc: "Pending review" },
+                { value: "users", icon: Users, label: "User Management", desc: "Roles & access" },
+                { value: "health", icon: BarChart3, label: "System Health", desc: "Metrics & logs" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="w-full justify-start text-left px-4 py-3.5 !h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none !border-0 rounded-lg transition-colors hover:bg-muted font-medium text-sm"
+                  className="group relative w-full justify-start text-left px-4 py-3 !h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none !border-0 rounded-xl transition-all duration-200 hover:bg-muted font-medium overflow-hidden"
                 >
-                  <tab.icon className="w-4.5 h-4.5 mr-3 shrink-0" />
-                  <span className="truncate">{tab.label}</span>
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary scale-y-0 group-data-[state=active]:scale-y-100 transition-transform origin-left rounded-r-md"></div>
+                  <tab.icon className="w-5 h-5 mr-3 shrink-0 text-muted-foreground group-data-[state=active]:text-primary transition-colors" />
+                  <div className="flex flex-col flex-1 truncate">
+                    <span className="text-sm font-semibold truncate">{tab.label}</span>
+                    <span className="text-xs font-normal text-muted-foreground group-data-[state=active]:text-primary/70 truncate">{tab.desc}</span>
+                  </div>
+                  {tab.badge !== undefined && tab.badge > 0 && (
+                    <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                      {tab.badge}
+                    </span>
+                  )}
                 </TabsTrigger>
               ))}
             </TabsList>
