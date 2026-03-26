@@ -1,9 +1,10 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import * as Minio from 'minio';
+import { StorageService } from '../storage.service';
 
 @Injectable()
-export class MinioService implements OnModuleInit {
-    private readonly logger = new Logger(MinioService.name);
+export class MinioProviderService implements StorageService, OnModuleInit {
+    private readonly logger = new Logger(MinioProviderService.name);
     private minioClient: Minio.Client;
     private readonly bucketName = process.env.MINIO_BUCKET || 'photos';
 
@@ -80,7 +81,11 @@ export class MinioService implements OnModuleInit {
         return await this.minioClient.presignedGetObject(this.bucketName, objectName, 24 * 60 * 60);
     }
 
-    async deleteFile(objectName: string): Promise<void> {
+    async deleteFile(urlOrName: string): Promise<void> {
+        let objectName = urlOrName;
+        if (urlOrName.includes('http')) {
+            objectName = urlOrName.split('/').pop() || urlOrName;
+        }
         await this.minioClient.removeObject(this.bucketName, objectName);
         this.logger.log(`Deleted file: ${objectName}`);
     }

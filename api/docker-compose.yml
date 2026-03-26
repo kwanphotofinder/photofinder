@@ -61,7 +61,7 @@ services:
       dockerfile: Dockerfile
     container_name: face_search_ai
     ports:
-      - '8000:8000'
+      - '8000:7860'
     networks:
       - face_search_net
 

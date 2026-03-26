@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MinioService } from '../minio/minio.service';
+import { StorageService } from '../storage/storage.service';
 import { AiService } from '../ai/ai.service';
 import { SearchService } from '../search/search.service';
 import { Prisma } from '@prisma/client';
@@ -14,7 +14,7 @@ export class PhotosService {
 
     constructor(
         private prisma: PrismaService,
-        private minioService: MinioService,
+        private storageService: StorageService,
         private aiService: AiService,
         private searchService: SearchService,
         private metricsService: MetricsService,
@@ -30,11 +30,10 @@ export class PhotosService {
         });
     }
 
-    async uploadAndProcessPhoto(file: Express.Multer.File, eventId: string) {
+    async uploadAndProcessPhoto(file: Express.Multer.File, eventId: string, uploaderId?: string) {
         this.logger.log(`Processing photo upload for event ${eventId}`);
 
-        // 1. Upload to MinIO
-        const storageUrl = await this.minioService.uploadFile(
+        const storageUrl = await this.storageService.uploadFile(
             file.originalname,
             file.buffer,
             file.mimetype,
@@ -55,6 +54,7 @@ export class PhotosService {
         const photo = await this.prisma.photo.create({
             data: {
                 eventId,
+                uploaderId: uploaderId || null,
                 storageUrl,
                 mimeType: file.mimetype,
                 processingStatus: 'PROCESSING',
@@ -161,16 +161,21 @@ export class PhotosService {
             where: { id },
         });
 
-        // 5. Delete from MinIO
+        // 5. Delete from Storage Provider
         try {
-            const objectName = photo.storageUrl.split('/').pop();
-            if (objectName) {
-                await this.minioService.deleteFile(objectName);
-            }
+            await this.storageService.deleteFile(photo.storageUrl);
         } catch (error) {
-            this.logger.warn(`Failed to delete file from MinIO:`, error);
+            this.logger.warn(`Failed to delete file from Storage Provider:`, error);
         }
 
         return { message: 'Photo deleted successfully', id };
+    }
+
+    findByUploader(uploaderId: string) {
+        return this.prisma.photo.findMany({
+            where: { uploaderId },
+            include: { event: true },
+            orderBy: { createdAt: 'desc' },
+        });
     }
 }

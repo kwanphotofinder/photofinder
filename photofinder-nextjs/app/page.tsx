@@ -55,7 +55,7 @@ export default function LandingPage() {
                 size="lg"
                 className="w-full sm:w-auto bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 font-semibold shadow-xl transition-all px-8 py-6 text-base"
               >
-                Sign In with SSO
+                Explore the App
               </Button>
               <Button
                 onClick={() => router.push("/admin/login")}

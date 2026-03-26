@@ -55,7 +55,7 @@ export default function PhotographerPage() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
   // Fetch real events and photos from backend
-  const loadData = async () => {
+  const loadData = async (photographerId?: string) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
       const eventsRes = await fetch(`${apiUrl}/events`);
@@ -66,7 +66,11 @@ export default function PhotographerPage() {
       }
       setEvents(safeEvents);
 
-      const photosRes = await fetch(`${apiUrl}/photos`);
+      // Fetch only THIS photographer's photos
+      const photoEndpoint = photographerId
+        ? `${apiUrl}/photos/my/${photographerId}`
+        : `${apiUrl}/photos`;
+      const photosRes = await fetch(photoEndpoint);
       const photosData = await photosRes.json();
 
       if (Array.isArray(photosData)) {
@@ -76,7 +80,7 @@ export default function PhotographerPage() {
           return {
             id: photo.id,
             filename: photo.storageUrl.split('/').pop() || 'unknown',
-            eventName: event?.name || 'Unknown Event',
+            eventName: event?.name || photo.event?.name || 'Unknown Event',
             uploadDate: photo.createdAt,
             status: photo.processingStatus.toLowerCase(),
             size: dimensions,
@@ -87,7 +91,7 @@ export default function PhotographerPage() {
           };
         });
 
-        // Remove duplicates by ID (just in case)
+        // Remove duplicates by ID
         const uniquePhotos = Array.from(
           new Map(transformedPhotos.map(p => [p.id, p])).values()
         );
@@ -120,24 +124,18 @@ export default function PhotographerPage() {
 
     if (userData) {
       try {
-        setPhotographerUser(JSON.parse(userData))
+        const parsed = JSON.parse(userData)
+        setPhotographerUser(parsed)
+        // Load only this photographer's data
+        loadData(parsed.id);
       } catch (e) {
         console.error("[v0] Failed to parse user data:", e)
-        setPhotographerUser({
-          name: "Alex Thompson",
-          email: "photographer@mfu.ac.th",
-          id: "photographer-1",
-        })
+        setPhotographerUser(null)
+        loadData();
       }
     } else {
-      setPhotographerUser({
-        name: "Alex Thompson",
-        email: "photographer@mfu.ac.th",
-        id: "photographer-1",
-      })
+      loadData();
     }
-
-    loadData();
 
     setIsAuthenticated(true)
     setIsLoading(false)
@@ -192,6 +190,10 @@ export default function PhotographerPage() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("eventId", selectedEvent)
+      // Attach the photographer's user ID so ownership is tracked
+      if (photographerUser?.id) {
+        formData.append("uploaderId", photographerUser.id)
+      }
 
       try {
         setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }))
@@ -232,8 +234,8 @@ export default function PhotographerPage() {
     await Promise.all(uploadPromises)
     setIsUploading(false)
 
-    // After all uploads are attempted, refetch all data using the existing loadData function
-    await loadData();
+    // After all uploads, reload only this photographer's photos
+    await loadData(photographerUser?.id);
 
     setTimeout(() => {
       clearAllFiles()

@@ -8,7 +8,7 @@ import { UsersModule } from './users/users.module';
 import { SearchModule } from './search/search.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { AiModule } from './ai/ai.module';
-import { MinioModule } from './minio/minio.module';
+import { StorageModule } from './storage/storage.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { RemovalRequestsModule } from './removal-requests/removal-requests.module';
 import { SavedPhotosModule } from './saved-photos/saved-photos.module';
@@ -25,7 +25,7 @@ import { AuthModule } from './auth/auth.module';
     SearchModule,
     DeliveryModule,
     AiModule,
-    MinioModule,
+    StorageModule,
     RemovalRequestsModule,
     SavedPhotosModule,
     AdminModule,

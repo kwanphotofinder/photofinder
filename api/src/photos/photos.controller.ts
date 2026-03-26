@@ -26,6 +26,7 @@ export class PhotosController {
     async uploadPhoto(
         @UploadedFile() file: Express.Multer.File,
         @Body('eventId') eventId: string,
+        @Body('uploaderId') uploaderId?: string,
     ) {
         if (!file) {
             throw new BadRequestException('File is required');
@@ -35,8 +36,7 @@ export class PhotosController {
         }
 
         try {
-            const result = await this.photosService.uploadAndProcessPhoto(file, eventId);
-            // Increment success counter
+            const result = await this.photosService.uploadAndProcessPhoto(file, eventId, uploaderId);
             this.metricsService.photoUploadsTotal.inc({ event_id: eventId, status: 'success' });
             return result;
         } catch (error) {
@@ -49,5 +49,10 @@ export class PhotosController {
     @Delete(':id')
     async deletePhoto(@Param('id') id: string) {
         return this.photosService.deletePhoto(id);
+    }
+
+    @Get('my/:uploaderId')
+    async getMyPhotos(@Param('uploaderId') uploaderId: string) {
+        return this.photosService.findByUploader(uploaderId);
     }
 }

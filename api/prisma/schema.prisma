@@ -63,6 +63,7 @@ model User {
   abuseReports    AbuseReport[]
   savedPhotos     SavedPhoto[]
   removalRequests RemovalRequest[]
+  uploadedPhotos  Photo[]
 
   @@map("users")
 }
@@ -87,6 +88,7 @@ model Event {
 model Photo {
   id               String           @id @default(uuid())
   eventId          String
+  uploaderId       String?          // photographer who uploaded this
   storageUrl       String
   thumbnailUrl     String?
   processingStatus ProcessingStatus @default(PENDING)
@@ -97,6 +99,7 @@ model Photo {
   updatedAt        DateTime         @updatedAt
 
   event        Event         @relation(fields: [eventId], references: [id])
+  uploader     User?         @relation(fields: [uploaderId], references: [id])
   faces        Face[]
   abuseReports AbuseReport[]
   savedBy      SavedPhoto[]

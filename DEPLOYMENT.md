@@ -1,37 +1,57 @@
 # Deployment Guide - PhotoFinder Testing Environment
 
 ## Overview
-Deploy to Render (backend services) + Vercel (frontend) for free testing.
+Deploy the backend architecture across multiple free-tier services (Render, Neon, Hugging Face, Cloudinary) and the frontend on Vercel.
 
 ## Prerequisites
 - GitHub account
-- Render account (sign up at render.com - no card needed)
-- Vercel account (sign up at vercel.com - no card needed)
+- Accounts on: Render, Neon, Cloudinary, Hugging Face, Vercel
 - Your code pushed to GitHub
 
 ---
 
-## Part 1: Deploy Backend Services to Render
+## Part 1: Deploy Storage & AI Services
 
-### 1. PostgreSQL Database
-1. Go to Render Dashboard → "New +" → "PostgreSQL"
+### 1. PostgreSQL Database (Neon)
+1. Go to [neon.tech](https://neon.tech/) → "Sign Up" → "Create Project"
 2. Settings:
-   - Name: `photofinder-db`
-   - Database: `photofinder`
-   - User: `photofinder_user`
+   - Name: `photofinder`
    - Region: Choose closest to you
-   - Plan: **Free**
-3. Click "Create Database"
-4. **Save the Internal Database URL** (starts with `postgresql://`)
+3. On the Dashboard, go to **Connection Details**.
+4. Set the dropdown to **Node.js** (or keep standard string). Ensure **Connection pooling** is turned ON.
+5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech...`)
 
-### 2. Weaviate (Vector Database)
-1. Dashboard → "New +" → "Web Service"
+### 2. Photo Storage (Cloudinary)
+1. Go to [cloudinary.com](https://cloudinary.com/) → Sign up
+2. Go to your Dashboard → "Product Environment Credentials"
+3. **Save your credentials:**
+   - Cloud Name
+   - API Key
+   - API Secret
+
+### 3. AI Service (Hugging Face Spaces)
+1. Go to [huggingface.co/spaces](https://huggingface.co/spaces) → "Create new Space"
 2. Settings:
-   - Name: `photofinder-weaviate`
-   - Runtime: **Docker**
+   - Space Name: `photofinder-ai`
+   - License: MIT (or your choice)
+   - Space SDK: **Docker**
+   - Hardware: **Free** (CPU basic)
+3. Connect your GitHub repository (or upload the contents of your `ai-service` folder).
+4. Hugging Face will automatically build the Dockerfile.
+5. **Save the Space URL** (e.g., `https://yourusername-photofinder-ai.hf.space`)
+
+---
+
+## Part 2: Deploy Infrastructure on Render
+
+### 1. Weaviate (Vector Database)
+1. Go to [Render Dashboard](https://dashboard.render.com/) → "New +" → "Web Service"
+2. Select "Deploy an existing image from a registry"
+3. Settings:
    - Image URL: `semitechnologies/weaviate:1.24.1`
+   - Name: `photofinder-weaviate`
    - Plan: **Free**
-3. Environment Variables:
+4. Environment Variables:
    ```
    QUERY_DEFAULTS_LIMIT=25
    AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
@@ -40,151 +60,68 @@ Deploy to Render (backend services) + Vercel (frontend) for free testing.
    ENABLE_MODULES=
    CLUSTER_HOSTNAME=node1
    ```
-4. Click "Create Web Service"
-5. **Save the service URL** (e.g., `https://photofinder-weaviate.onrender.com`)
-
-### 3. MinIO (Object Storage)
-1. Dashboard → "New +" → "Web Service"
-2. Settings:
-   - Name: `photofinder-minio`
-   - Runtime: **Docker**
-   - Image URL: `minio/minio`
-   - Plan: **Free**
-3. Add Disk:
-   - Mount Path: `/data`
-   - Size: 1GB
-4. Environment Variables:
-   ```
-   MINIO_ROOT_USER=admin123
-   MINIO_ROOT_PASSWORD=admin123456
-   ```
-5. Start Command: `server /data --console-address :9001`
-6. Click "Create Web Service"
-7. **Save the service URL**
-
-### 4. AI Service (Python)
-1. Dashboard → "New +" → "Web Service"
-2. Connect your GitHub repository
-3. Settings:
-   - Name: `photofinder-ai`
-   - Root Directory: `ai-service`
-   - Runtime: **Docker** (auto-detected from Dockerfile)
-   - Plan: **Free**
-4. Environment Variables:
-   ```
-   PORT=8000
-   ```
 5. Click "Create Web Service"
-6. Wait 10-15 minutes for build (downloads face recognition model)
-7. **Save the service URL**
+6. **Save the service URL** (e.g., `photofinder-weaviate.onrender.com` - *No https://*)
 
-### 5. API Service (NestJS)
+### 2. API Service (NestJS)
 1. Dashboard → "New +" → "Web Service"
 2. Connect your GitHub repository
 3. Settings:
    - Name: `photofinder-api`
    - Root Directory: `api`
-   - Runtime: **Docker** (auto-detected from Dockerfile)
    - Plan: **Free**
-4. Environment Variables (replace with YOUR URLs from above):
+4. Environment Variables:
    ```
-   DATABASE_URL=<Your PostgreSQL Internal URL from step 1>
-   WEAVIATE_HOST=<Your Weaviate URL without https://>
-   WEAVIATE_SCHEME=https
-   MINIO_ENDPOINT=<Your MinIO URL without https://>
-   MINIO_PORT=443
-   MINIO_ACCESS_KEY=admin123
-   MINIO_SECRET_KEY=admin123456
-   MINIO_BUCKET=photos
-   MINIO_USE_SSL=true
-   AI_SERVICE_URL=<Your AI Service URL>
    PORT=3000
-   JWT_SECRET=your-secret-key-change-me
+   DATABASE_URL=<Your Neon Connection String from Part 1>
+   WEAVIATE_HOST=<Your Weaviate URL from Step 1, without https://>
+   WEAVIATE_SCHEME=https
+   AI_SERVICE_URL=<Your Hugging Face Space URL from Part 1>
+   STORAGE_PROVIDER=cloudinary
+   CLOUDINARY_CLOUD_NAME=<From Cloudinary>
+   CLOUDINARY_API_KEY=<From Cloudinary>
+   CLOUDINARY_API_SECRET=<From Cloudinary>
+   CLOUDINARY_FOLDER=photos
+   JWT_SECRET=<Create a random secure string>
+   GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
+   GOOGLE_CLIENT_SECRET=<Your Google Auth Secret>
    ```
 5. Click "Create Web Service"
-6. Wait for build to complete
-7. Once deployed, run migration:
-   - Go to service → Shell tab
-   - Run: `npx prisma migrate deploy`
-8. **Save the API service URL** (e.g., `https://photofinder-api.onrender.com`)
+6. Wait for build to complete. The database tables will be created automatically via Prisma on startup.
+7. **Save the API service URL** (e.g., `https://photofinder-api.onrender.com`)
 
 ---
 
-## Part 2: Deploy Frontend to Vercel
+## Part 3: Deploy Frontend to Vercel
 
 ### 1. Deploy Next.js App
 1. Go to vercel.com → "New Project"
 2. Import your GitHub repository
 3. Settings:
-   - Framework Preset: **Next.js** (auto-detected)
-   - Root Directory: `photofinder-nextjs`
+   - Framework Preset: **Next.js**
+   - Root Directory: `web` (or `photofinder-nextjs`, select where your frontend code lives)
    - Build Command: `npm run build`
-   - Output Directory: `.next`
 4. Environment Variables:
    ```
-   NEXT_PUBLIC_API_URL=<Your API URL from Part 1, step 5>
-   NEXT_PUBLIC_GRAFANA_URL=<Leave blank for testing>
+   NEXT_PUBLIC_API_URL=<Your Render API URL from Part 2, Step 2>
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
    ```
 5. Click "Deploy"
 6. Wait 2-3 minutes
-7. Your app is live! Copy the Vercel URL
+7. Your app is live!
 
 ---
 
-## Part 3: Test Your Deployment
+## Part 4: Testing & Known Limits
 
-### 1. Access Your App
-Visit your Vercel URL (e.g., `https://photofinder-xyz.vercel.app`)
+### First Load Delay
+- **Render API & Weaviate** go to sleep after 15 minutes of inactivity. First request takes 30-60 seconds.
+- **Hugging Face Spaces** also pause when idle. 
+- *Crucial note:* Weaviate's data on Render Free Tier clears upon sleep. Face search will require re-uploading photos per session.
 
-### 2. First Load Delay
-- **Important**: First load after 15 min idle = 30-60 sec wait (free tier limitation)
-- Tell testers to expect this
-
-### 3. Test Features
-1. Login as student → Search with selfie
-2. Login as photographer → Upload photos to events
-3. Login as admin → View dashboard
-
-### 4. Known Issues on Free Tier
-- ⏱️ Cold starts after 15 min idle
-- 💾 Limited storage (1GB MinIO)
-- 🐌 Slower than localhost
-- 📊 Skip Prometheus/Grafana (save resources)
-
----
-
-## Troubleshooting
-
-### "Service Unavailable" Error
-- Service is waking up from sleep, wait 60 seconds and refresh
-
-### Photos not loading
-- Check MinIO URL in API environment variables
-- Ensure MINIO_USE_SSL=true
-
-### Face search not working
-- Check AI Service logs on Render
-- Ensure AI_SERVICE_URL is correct in API env vars
-
-### Database connection errors
-- Verify DATABASE_URL is the **Internal Database URL** from Render PostgreSQL
-- Run migrations: `npx prisma migrate deploy` in API shell
-
----
-
-## Costs
-- **Render**: 100% FREE (with sleep limitations)
-- **Vercel**: 100% FREE
-- **Total**: $0/month for testing
-
----
-
-## After Testing
-If you want to keep it running 24/7 without sleep:
-- Render Paid Plan: ~$7-15/month
-- Or migrate to Railway, Fly.io, or Oracle Cloud
-
----
-
-## Need Help?
-Check service logs in Render dashboard → Click service → "Logs" tab
+### Costs
+- **Render**: $0/month
+- **Neon**: $0/month (Permanent)
+- **Cloudinary**: $0/month (Permanent, up to 25 credits)
+- **Hugging Face**: $0/month
+- **Vercel**: $0/month
