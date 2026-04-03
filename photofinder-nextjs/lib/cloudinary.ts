@@ -23,7 +23,7 @@ export async function uploadToCloudinary(fileName: string, mimeType: string, fil
       {
         folder: 'photofinder', // Optional: creates a folder named 'photofinder' in your Cloudinary account
         resource_type: 'auto', // Automatically detect whether it's an image or video
-        public_id: fileName.split('.')[0], // Use filename without extension
+        public_id: `${fileName.split('.')[0]}_${Date.now()}`, // Make it unique to prevent overwriting/accidental deletion of shared filenames
       },
       (error, result) => {
         if (error) {
@@ -67,7 +67,7 @@ export async function deleteFromCloudinary(url: string) {
     const publicId = endPath.split('.').slice(0, -1).join('.');
     
     if (publicId) {
-      await cloudinary.uploader.destroy(publicId);
+      await cloudinary.uploader.destroy(publicId, { invalidate: true });
       console.log(`Deleted from Cloudinary: ${publicId}`);
     }
   } catch (error) {

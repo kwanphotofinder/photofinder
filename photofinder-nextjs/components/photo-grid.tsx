@@ -18,9 +18,10 @@ interface Photo {
 interface PhotoGridProps {
   photos: Photo[]
   onRemove?: (photoId: string) => void
+  showRank?: boolean
 }
 
-export function PhotoGrid({ photos, onRemove }: PhotoGridProps) {
+export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
@@ -123,6 +124,24 @@ export function PhotoGrid({ photos, onRemove }: PhotoGridProps) {
                 fill
                 className="object-cover group-hover:scale-105 transition-transform"
               />
+
+              {/* Rank Badge - Top Left */}
+              {showRank && (
+                <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md z-10">
+                  #{photos.indexOf(photo) + 1}
+                </div>
+              )}
+
+              {/* Confidence Percentage Badge - Top Right */}
+              {photo.confidence !== undefined && photo.confidence > 0 && (
+                <div className={`absolute top-2 right-2 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md z-10 ${
+                  photo.confidence * 100 >= 80 ? 'bg-green-500' :
+                  photo.confidence * 100 >= 60 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}>
+                  {Math.round(photo.confidence * 100)}%
+                </div>
+              )}
 
               {/* Desktop: Overlay on hover - Only works with mouse */}
               <div className="hidden 2xl:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-2">
