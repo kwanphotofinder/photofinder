@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # Supabase-compatible local PostgreSQL with pgvector natively installed
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: photofinder_postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: facesearch
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - photofinder_net
+
+  # Your Python Face Extraction Model
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: photofinder_ai
+    ports:
+      - '8000:7860'
+    networks:
+      - photofinder_net
+
+networks:
+  photofinder_net:
+    driver: bridge
+
+volumes:
+  postgres_data:

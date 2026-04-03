@@ -1,42 +1,68 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server';
+import { extractFaces } from '@/lib/ai';
+import prisma from '@/lib/prisma';
 
-export async function POST(request: NextRequest) {
+export const maxDuration = 60;
+
+export async function POST(req: NextRequest) {
   try {
-    const { imageData, eventId } = await request.json()
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
 
-    if (!imageData) {
-      return NextResponse.json({ error: "No image data provided" }, { status: 400 })
+    if (!file) {
+      return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
-    // In production:
-    // 1. Extract face embeddings locally (client-side)
-    // 2. Send only embeddings (not image) to backend
-    // 3. Query vector DB (Milvus/Weaviate) for matches
-    // 4. Return matched photos with confidence scores
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Mock matching results
-    const mockResults = [
-      {
-        id: "photo_1",
-        eventId: eventId || "all",
-        eventName: "Spring Orientation 2024",
-        confidence: 0.98,
-        url: "/placeholder.svg?key=av3kp",
-      },
-      {
-        id: "photo_2",
-        eventId: eventId || "all",
-        eventName: "Sports Day 2024",
-        confidence: 0.92,
-        url: "/placeholder.svg?key=k99b3",
-      },
-    ]
+    // 1. Get embedding from AI Service
+    const faces = await extractFaces(fileBuffer, file.name);
+
+    if (!faces || faces.length === 0) {
+      return NextResponse.json({ message: 'No face detected', results: [] });
+    }
+
+    // 2. We use the first detected face for searching
+    const vector = faces[0].embedding;
+    const vectorString = `[${vector.join(',')}]`;
+
+    // 3. Search Postgres using pgvector's Cosine Distance (<=>)
+    // We fetch the top 20 nearest faces to give room for deduplication.
+    const rawResults = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      confidence: number;
+      url: string;
+      eventName: string;
+      eventDate: Date;
+    }>>(`
+      SELECT 
+        f."photoId" as "id", 
+        (1 - (f.embedding <=> $1::vector)) as "confidence",
+        p."storageUrl" as "url",
+        e."name" as "eventName",
+        e."date" as "eventDate"
+      FROM "faces" f
+      JOIN "photos" p ON f."photoId" = p."id"
+      JOIN "events" e ON p."eventId" = e."id"
+      ORDER BY f.embedding <=> $1::vector ASC
+      LIMIT 20
+    `, vectorString);
+
+    // 4. Filter out duplicates by photo ID (in case one photo has multiple matching faces)
+    const uniqueResults = Array.from(
+      new Map(rawResults.map(r => [r.id, r])).values()
+    );
+
+    // Limit the final output to 10 like the original NestJS logic
+    const finalResults = uniqueResults.slice(0, 10);
 
     return NextResponse.json({
-      matches: mockResults,
-      latency: "245ms",
-    })
+      message: `Found ${finalResults.length} matches`,
+      results: finalResults,
+    });
+
   } catch (error) {
-    return NextResponse.json({ error: "Face search failed" }, { status: 500 })
+    console.error('Search Face Error:', error);
+    return NextResponse.json({ error: 'Search failed', results: [] }, { status: 500 });
   }
 }

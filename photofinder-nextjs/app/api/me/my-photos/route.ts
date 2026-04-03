@@ -1,43 +1,29 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // In production: Validate auth token, fetch user's opted-in photos
-    const authHeader = request.headers.get("authorization")
+    const user = await getUserFromRequest(req);
+    // In production, uncomment the auth guard
+    // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Mock header fallback for dev
+    const uploaderId = user?.sub || req.headers.get('user-id');
+
+    if (!uploaderId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 401 });
     }
 
-    // Mock photos for authenticated user
-    const userPhotos = [
-      {
-        id: "1",
-        eventName: "Spring Orientation 2024",
-        eventDate: "2024-03-15",
-        eventId: "event_1",
-        confidence: 0.95,
-        url: "/placeholder.svg?key=av3kp",
-        downloadUrl: "/downloads/photo_1.jpg",
-        canRequestRemoval: true,
-      },
-      {
-        id: "2",
-        eventName: "Sports Day 2024",
-        eventDate: "2024-04-20",
-        eventId: "event_2",
-        confidence: 0.88,
-        url: "/placeholder.svg?key=k99b3",
-        downloadUrl: "/downloads/photo_2.jpg",
-        canRequestRemoval: true,
-      },
-    ]
+    const myPhotos = await prisma.photo.findMany({
+      where: { uploaderId },
+      include: { event: true },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    return NextResponse.json({
-      total: userPhotos.length,
-      photos: userPhotos,
-    })
+    return NextResponse.json(myPhotos);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch photos" }, { status: 500 })
+    console.error('GET /api/me/my-photos error:', error);
+    return NextResponse.json({ error: 'Failed to fetch your photos' }, { status: 500 });
   }
 }

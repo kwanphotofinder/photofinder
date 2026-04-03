@@ -56,8 +56,9 @@ export default function PhotographerPage() {
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
   // Fetch real events and photos from backend
   const loadData = async (photographerId?: string) => {
+    // Fetch events separately so a photo error doesn't wipe the event list
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
       const eventsRes = await fetch(`${apiUrl}/events`);
       const eventsData = await eventsRes.json();
       const safeEvents = Array.isArray(eventsData) ? eventsData : [];
@@ -65,15 +66,27 @@ export default function PhotographerPage() {
         console.error('Events API returned non-array:', eventsData);
       }
       setEvents(safeEvents);
+    } catch (err) {
+      console.error('Failed to load events:', err);
+      setEvents([]);
+    }
 
-      // Fetch only THIS photographer's photos
-      const photoEndpoint = photographerId
-        ? `${apiUrl}/photos/my/${photographerId}`
-        : `${apiUrl}/photos`;
-      const photosRes = await fetch(photoEndpoint);
+    // Fetch this photographer's photos separately
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
+      // Use /me/my-photos which reads uploaderId from the JWT token
+      const photosRes = await fetch(`${apiUrl}/me/my-photos`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+        },
+      });
       const photosData = await photosRes.json();
 
       if (Array.isArray(photosData)) {
+        const eventsRes = await fetch(`${apiUrl}/events`);
+        const eventsData = await eventsRes.json();
+        const safeEvents = Array.isArray(eventsData) ? eventsData : [];
+
         const transformedPhotos = photosData.map((photo: any) => {
           const event = safeEvents.find((e: any) => e.id === photo.eventId);
           const dimensions = photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A';
@@ -82,7 +95,7 @@ export default function PhotographerPage() {
             filename: photo.storageUrl.split('/').pop() || 'unknown',
             eventName: event?.name || photo.event?.name || 'Unknown Event',
             uploadDate: photo.createdAt,
-            status: photo.processingStatus.toLowerCase(),
+            status: photo.processingStatus?.toLowerCase() || 'pending',
             size: dimensions,
             thumbnail: photo.storageUrl,
             metadata: {
@@ -93,7 +106,7 @@ export default function PhotographerPage() {
 
         // Remove duplicates by ID
         const uniquePhotos = Array.from(
-          new Map(transformedPhotos.map(p => [p.id, p])).values()
+          new Map(transformedPhotos.map((p: any) => [p.id, p])).values()
         );
 
         setUploadedPhotos(uniquePhotos);
@@ -102,8 +115,7 @@ export default function PhotographerPage() {
         setUploadedPhotos([]);
       }
     } catch (err) {
-      console.error('Failed to load data:', err);
-      setEvents([]);
+      console.error('Failed to load photos:', err);
       setUploadedPhotos([]);
     }
   };
