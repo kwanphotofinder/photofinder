@@ -46,15 +46,21 @@ export function SystemHealth() {
         const fetchData = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+                const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
                 // Fetch Prometheus metrics for AI confidence
-                const metricsResponse = await fetch(`${apiUrl}/metrics/json`)
+                const metricsResponse = await fetch(`${apiUrl}/metrics/json`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {}
+                })
                 if (metricsResponse.ok) {
                     const metricsData = await metricsResponse.json()
                     setMetrics(metricsData)
                 }
 
                 // Fetch database stats
-                const statsResponse = await fetch(`${apiUrl}/admin/stats`)
+                const statsResponse = await fetch(`${apiUrl}/admin/stats`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {}
+                })
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json()
                     setStats(statsData)

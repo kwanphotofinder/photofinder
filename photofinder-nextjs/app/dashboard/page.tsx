@@ -40,7 +40,7 @@ export default function DashboardPage() {
       }
 
       setUserName(localStorage.getItem("user_name") || "")
-      setUniversityId(localStorage.getItem("university_id") || "")
+      setUniversityId(localStorage.getItem("user_id") || "")
 
       try {
         // 1. Fetch Reference Face status
@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
         // 3. Keep old behavior: Load manually saved photos
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const storedId = localStorage.getItem("university_id") || 'guest'
+        const storedId = localStorage.getItem("user_id") || 'guest'
         const savedRes = await fetch(`${apiUrl}/saved-photos/${storedId}`)
         if (savedRes.ok) {
            const savedData = await savedRes.json()

@@ -52,7 +52,7 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
     } else {
       localStorage.removeItem("auth_token")
       localStorage.removeItem("user_name")
-      localStorage.removeItem("university_id")
+      localStorage.removeItem("user_id")
       localStorage.removeItem("user_email")
       router.push("/")
     }
