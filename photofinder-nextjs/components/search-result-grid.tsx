@@ -28,7 +28,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
     // Load saved photos from API
     const loadSavedPhotos = async () => {
       try {
-        const userId = localStorage.getItem("university_id") || 'guest'
+        const userId = localStorage.getItem("user_id") || 'guest'
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
         const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
         if (response.ok) {
@@ -46,7 +46,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleSavePhoto = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    const userId = localStorage.getItem("university_id") || 'guest'
+    const userId = localStorage.getItem("user_id") || 'guest'
     const isSaved = savedPhotoIds.includes(photoId)
 
     try {

@@ -30,7 +30,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
     // Load saved photos from API
     const loadSavedPhotos = async () => {
       try {
-        const userId = localStorage.getItem('university_id') || 'guest'
+        const userId = localStorage.getItem('user_id') || 'guest'
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
         const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
         if (response.ok) {
@@ -47,7 +47,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
   const handleSavePhoto = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      const userId = localStorage.getItem('university_id') || 'guest'
+      const userId = localStorage.getItem('user_id') || 'guest'
 
       if (savedPhotoIds.includes(photoId)) {
         // Unsave
