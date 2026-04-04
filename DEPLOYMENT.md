@@ -1,33 +1,31 @@
-# Deployment Guide - PhotoFinder Testing Environment
+# Deployment Guide - Photo Finder
 
 ## Overview
-Deploy the backend architecture across multiple free-tier services (Render, Neon, Hugging Face, Cloudinary) and the frontend on Vercel.
+This guide explains how to deploy the unified Next.js full-stack application. The new architecture is significantly simpler, deploying everything to **Vercel** while relying on external free-tier services for the database (Neon), image storage (Cloudinary), and AI processing (Hugging Face).
 
 ## Prerequisites
 - GitHub account
-- Accounts on: Render, Neon, Cloudinary, Hugging Face, Vercel
-- Your code pushed to GitHub
+- Accounts on: Neon, Cloudinary, Hugging Face, Vercel
+- Your code pushed to a GitHub repository
 
 ---
 
-## Part 1: Deploy Storage & AI Services
+## Part 1: Prepare External Services
 
-### 1. PostgreSQL Database (Neon)
+### 1. PostgreSQL Database with pgvector (Neon)
 1. Go to [neon.tech](https://neon.tech/) → "Sign Up" → "Create Project"
 2. Settings:
    - Name: `photofinder`
-   - Region: Choose closest to you
+   - Region: Choose the region closest to your users.
 3. On the Dashboard, go to **Connection Details**.
 4. Set the dropdown to **Node.js** (or keep standard string). Ensure **Connection pooling** is turned ON.
-5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech...`)
+5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech/neondb?sslmode=require`)
+6. **Important:** Your Next.js app will automatically enable the `pgvector` extension via Prisma when you deploy, so no manual SQL commands are required.
 
 ### 2. Photo Storage (Cloudinary)
 1. Go to [cloudinary.com](https://cloudinary.com/) → Sign up
-2. Go to your Dashboard → "Product Environment Credentials"
-3. **Save your credentials:**
-   - Cloud Name
-   - API Key
-   - API Secret
+2. Go to your Dashboard and locate your API Environment Variable.
+3. **Save your CLOUDINARY_URL** (It looks like: `cloudinary://1234567890:AbCdEfGhIjKlMnOpQrStUvWxYz@cloudname`)
 
 ### 3. AI Service (Hugging Face Spaces)
 1. Go to [huggingface.co/spaces](https://huggingface.co/spaces) → "Create new Space"
@@ -36,92 +34,52 @@ Deploy the backend architecture across multiple free-tier services (Render, Neon
    - License: MIT (or your choice)
    - Space SDK: **Docker**
    - Hardware: **Free** (CPU basic)
-3. Connect your GitHub repository (or upload the contents of your `ai-service` folder).
-4. Hugging Face will automatically build the Dockerfile.
+3. Upload the contents of your Python AI microservice folder.
+4. Hugging Face will automatically build the Dockerfile and start the FastAPI server.
 5. **Save the Space URL** (e.g., `https://yourusername-photofinder-ai.hf.space`)
 
 ---
 
-## Part 2: Deploy Infrastructure on Render
+## Part 2: Deploy to Vercel
 
-### 1. Weaviate (Vector Database)
-1. Go to [Render Dashboard](https://dashboard.render.com/) → "New +" → "Web Service"
-2. Select "Deploy an existing image from a registry"
-3. Settings:
-   - Image URL: `semitechnologies/weaviate:1.24.1`
-   - Name: `photofinder-weaviate`
-   - Plan: **Free**
-4. Environment Variables:
-   ```
-   QUERY_DEFAULTS_LIMIT=25
-   AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
-   PERSISTENCE_DATA_PATH=/var/lib/weaviate
-   DEFAULT_VECTORIZER_MODULE=none
-   ENABLE_MODULES=
-   CLUSTER_HOSTNAME=node1
-   ```
-5. Click "Create Web Service"
-6. **Save the service URL** (e.g., `photofinder-weaviate.onrender.com` - *No https://*)
+Since the backend API routes are now built directly into Next.js, you only need to deploy one Vercel project!
 
-### 2. API Service (NestJS)
-1. Dashboard → "New +" → "Web Service"
-2. Connect your GitHub repository
-3. Settings:
-   - Name: `photofinder-api`
-   - Root Directory: `api`
-   - Plan: **Free**
-4. Environment Variables:
-   ```
-   PORT=3000
-   DATABASE_URL=<Your Neon Connection String from Part 1>
-   WEAVIATE_HOST=<Your Weaviate URL from Step 1, without https://>
-   WEAVIATE_SCHEME=https
-   AI_SERVICE_URL=<Your Hugging Face Space URL from Part 1>
-   STORAGE_PROVIDER=cloudinary
-   CLOUDINARY_CLOUD_NAME=<From Cloudinary>
-   CLOUDINARY_API_KEY=<From Cloudinary>
-   CLOUDINARY_API_SECRET=<From Cloudinary>
-   CLOUDINARY_FOLDER=photos
-   JWT_SECRET=<Create a random secure string>
-   GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
-   GOOGLE_CLIENT_SECRET=<Your Google Auth Secret>
-   ```
-5. Click "Create Web Service"
-6. Wait for build to complete. The database tables will be created automatically via Prisma on startup.
-7. **Save the API service URL** (e.g., `https://photofinder-api.onrender.com`)
+### 1. Connect Repository
+1. Go to [vercel.com](https://vercel.com) → "Add New..." → "Project"
+2. Import your GitHub repository.
+3. If your code is in a subfolder (like `photofinder-nextjs`), set the **Root Directory** to that folder.
+4. Framework Preset should automatically detect **Next.js**.
+
+### 2. Configure Environment Variables
+Expand the "Environment Variables" section and add the following keys. Make sure to use the values you saved from Part 1.
+
+| Name | Value |
+| :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | `/api` |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
+| `JWT_SECRET` | `A long, random, secure string (e.g., generate one with openssl rand -base64 32)` |
+| `GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
+| `GOOGLE_CLIENT_SECRET` | `Your Google OAuth Secret` |
+| `DATABASE_URL` | `Your Neon Connection String (Pooler URL)` |
+| `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL, required by Prisma for migrations)` |
+| `CLOUDINARY_URL` | `Your Cloudinary URL` |
+| `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
+
+### 3. Deploy
+1. Click **Deploy**.
+2. Vercel will build the Next.js application.
+3. During the build step, Vercel will automatically run `prisma generate` to build the database client.
+4. *(Optional but Recommended):* If this is your first time deploying and your Neon DB is empty, you will need to push your database schema. You can add a `postinstall` script to your `package.json` (`"postinstall": "prisma generate && prisma db push"`) so Vercel does this automatically, or you can run `npx prisma db push` locally against your Neon connection string.
 
 ---
 
-## Part 3: Deploy Frontend to Vercel
+## Part 3: Known Limits & Free Tier Behavior
 
-### 1. Deploy Next.js App
-1. Go to vercel.com → "New Project"
-2. Import your GitHub repository
-3. Settings:
-   - Framework Preset: **Next.js**
-   - Root Directory: `web` (or `photofinder-nextjs`, select where your frontend code lives)
-   - Build Command: `npm run build`
-4. Environment Variables:
-   ```
-   NEXT_PUBLIC_API_URL=<Your Render API URL from Part 2, Step 2>
-   NEXT_PUBLIC_GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
-   ```
-5. Click "Deploy"
-6. Wait 2-3 minutes
-7. Your app is live!
+### Cold Starts
+- **Hugging Face Spaces:** The free tier goes to sleep after 48 hours of inactivity. If a photographer tries to upload a photo after the space has slept, the first photo might take up to 2-3 minutes to process while the container wakes up. Subsequent photos will be fast.
+- **Vercel Serverless Functions:** Next.js API routes run on serverless functions. The very first request after a period of inactivity might take an extra 1-2 seconds (a "cold start").
 
----
+### Storage
+- **Neon:** Free tier includes 500MB of storage. Vector embeddings (`pgvector`) can take up space, but 500MB is enough for hundreds of thousands of faces.
+- **Cloudinary:** Free tier includes generous bandwidth and storage credits, more than enough for a university pilot program.
 
-## Part 4: Testing & Known Limits
-
-### First Load Delay
-- **Render API & Weaviate** go to sleep after 15 minutes of inactivity. First request takes 30-60 seconds.
-- **Hugging Face Spaces** also pause when idle. 
-- *Crucial note:* Weaviate's data on Render Free Tier clears upon sleep. Face search will require re-uploading photos per session.
-
-### Costs
-- **Render**: $0/month
-- **Neon**: $0/month (Permanent)
-- **Cloudinary**: $0/month (Permanent, up to 25 credits)
-- **Hugging Face**: $0/month
-- **Vercel**: $0/month
