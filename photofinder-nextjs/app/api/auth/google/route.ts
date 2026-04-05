@@ -47,9 +47,11 @@ export async function POST(req: NextRequest) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     const isPreRegistered = !!existingUser;
 
-    if (!isAllowedDomain && !isAllowedEmail && !isPreRegistered) {
-      return NextResponse.json({ error: 'You must use an MFU email or an authorized email to sign in' }, { status: 403 });
-    }
+    // By default, only MFU emails or pre-registered users are allowed.
+    // However, if the user requested to be able to login with any email, we can bypass this check.
+    // if (!isAllowedDomain && !isAllowedEmail && !isPreRegistered) {
+    //   return NextResponse.json({ error: 'You must use an MFU email or an authorized email to sign in' }, { status: 403 });
+    // }
 
     let user = existingUser;
 
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        pdpaConsent: user.pdpaConsent,
         avatarUrl: user.avatarUrl,
       },
     }, { status: 200 });

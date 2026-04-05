@@ -173,6 +173,11 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ optOutType, reason }),
     }),
+  updateMyConsent: (accepted: boolean) =>
+    apiCall<{ status: string; pdpaConsent: boolean }>("/me/consent", {
+      method: "POST",
+      body: JSON.stringify({ accepted }),
+    }),
 
   // Analytics
   getAnalytics: () => apiCall("/analytics"),

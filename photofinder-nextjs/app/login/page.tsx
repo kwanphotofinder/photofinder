@@ -49,7 +49,11 @@ export default function LoginPage() {
         localStorage.setItem("admin_name", user.name);
         router.push("/admin/dashboard");
       } else {
-        router.push("/consent");
+        if (user.pdpaConsent) {
+          router.push("/dashboard");
+        } else {
+          router.push("/consent");
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -94,19 +98,27 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-md border border-border">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>
-            Sign in with your university account
+    <main
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        backgroundImage: 'url(/background.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <Card className="relative z-10 w-full max-w-md bg-white/10 dark:bg-black/10 border-white/20 text-white animate-in fade-in-0 zoom-in-95 duration-500">
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-3xl font-bold">Sign In</CardTitle>
+          <CardDescription className="text-white/80">
+            Sign in with your Google account to continue
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {error && (
-            <div className="flex gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+            <div className="flex gap-3 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
@@ -114,7 +126,7 @@ export default function LoginPage() {
             <div ref={buttonRef} />
           </div>
 
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-xs text-white/60 text-center">
             Your first login will take you through our consent process to enable
             AI-powered photo discovery.
           </p>
