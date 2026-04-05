@@ -26,17 +26,26 @@ export async function DELETE(
     // 1. Delete faces from Weaviate -> Wait! We are using pgvector now. 
     // They are natively deleted when we delete them from Postgres!
 
-    // 2. Delete faces from Postgres
-    await prisma.face.deleteMany({
-      where: { photoId: p.id }
-    });
+    // 2. Remove dependent records first so photo deletion cannot fail on FK constraints.
+    await prisma.$transaction([
+      prisma.removalRequest.deleteMany({
+        where: { photoId: p.id },
+      }),
+      prisma.savedPhoto.deleteMany({
+        where: { photoId: p.id },
+      }),
+      prisma.abuseReport.deleteMany({
+        where: { photoId: p.id },
+      }),
+      prisma.face.deleteMany({
+        where: { photoId: p.id },
+      }),
+      prisma.photo.delete({
+        where: { id: p.id },
+      }),
+    ]);
 
-    // 3. Delete Photo
-    await prisma.photo.delete({
-      where: { id: p.id }
-    });
-
-    // 4. Delete original file from Cloudinary 
+    // 3. Delete original file from Cloudinary 
     await deleteFromCloudinary(photo.storageUrl);
 
     return NextResponse.json({ message: 'Photo deleted successfully', id: p.id });

@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api-client"
 
 
@@ -47,6 +48,7 @@ export default function PhotographerPage() {
     name: string
     email: string
     id: string
+    avatarUrl?: string
   } | null>(null)
 
   const [selectedEvent, setSelectedEvent] = useState("")
@@ -137,7 +139,12 @@ export default function PhotographerPage() {
     if (userData) {
       try {
         const parsed = JSON.parse(userData)
-        setPhotographerUser(parsed)
+        setPhotographerUser({
+          id: parsed.id || "",
+          name: parsed.name || localStorage.getItem("user_name") || "Photographer",
+          email: parsed.email || localStorage.getItem("user_email") || "",
+          avatarUrl: parsed.avatarUrl || parsed.picture || "",
+        })
         // Load only this photographer's data
         loadData(parsed.id);
       } catch (e) {
@@ -352,17 +359,35 @@ export default function PhotographerPage() {
               {photographerUser && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 hover:bg-primary/10">
-                      <span className="text-sm font-medium text-foreground">{photographerUser.name}</span>
+                    <Button variant="ghost" className="flex items-center gap-2 h-auto py-2 px-3 hover:bg-primary/10">
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={photographerUser.avatarUrl} alt={photographerUser.name} referrerPolicy="no-referrer" />
+                        <AvatarFallback>
+                          {(photographerUser.name?.[0] || photographerUser.email?.[0] || "P").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="text-right hidden sm:block">
+                        <div className="text-sm font-semibold text-foreground">{photographerUser.name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{photographerUser.email}</div>
+                      </div>
                       <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled>
-                      <span className="text-sm text-muted-foreground">{photographerUser.email}</span>
-                    </DropdownMenuItem>
+                    <div className="flex items-start gap-3 py-3 px-2 cursor-default">
+                      <Avatar className="w-11 h-11 mt-0.5">
+                        <AvatarImage src={photographerUser.avatarUrl} alt={photographerUser.name} referrerPolicy="no-referrer" />
+                        <AvatarFallback>
+                          {(photographerUser.name?.[0] || photographerUser.email?.[0] || "P").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col space-y-1">
+                        <div className="text-sm font-medium leading-none">{photographerUser.name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{photographerUser.email}</div>
+                      </div>
+                    </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => {

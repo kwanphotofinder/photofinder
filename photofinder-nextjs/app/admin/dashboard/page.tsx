@@ -108,10 +108,10 @@ export default function AdminDashboardPage() {
     if (!confirm("Are you sure you want to approve this removal request and delete the photo?")) return
 
     try {
-      // Delete the photo
-      await apiClient.deletePhoto(photoId)
-      // Delete the request
+      // Delete the request first to avoid foreign-key constraint conflicts when deleting the photo.
       await apiClient.deleteRemovalRequest(requestId)
+      // Then delete the photo
+      await apiClient.deletePhoto(photoId)
       // Update local state
       setPhotos(photos.filter(p => p.id !== photoId))
       setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
