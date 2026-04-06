@@ -1,13 +1,14 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PhotoGrid } from "@/components/photo-grid"
-import { Search, X, SlidersHorizontal } from "lucide-react"
+import { CalendarDays, Images, Search, SlidersHorizontal, Sparkles, X } from "lucide-react"
 
 interface Photo {
   id: string
@@ -34,7 +35,6 @@ export default function BrowsePhotosPage() {
       return
     }
 
-    // Fetch real events and photos from backend
     const loadData = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
@@ -44,7 +44,6 @@ export default function BrowsePhotosPage() {
         const photosRes = await fetch(`${apiUrl}/photos`)
         const photosData = await photosRes.json()
 
-        // Transform backend data to match frontend format
         const transformedPhotos = photosData.map((photo: any) => {
           const event = eventsData.find((e: any) => e.id === photo.eventId)
           return {
@@ -52,7 +51,7 @@ export default function BrowsePhotosPage() {
             url: photo.storageUrl,
             eventName: event?.name || 'Unknown Event',
             eventDate: event?.date || photo.createdAt,
-            confidence: 0.95, // Placeholder
+            confidence: 0.95,
           }
         })
 
@@ -69,7 +68,7 @@ export default function BrowsePhotosPage() {
 
   // Apply filters
   useEffect(() => {
-    let results = allPhotos
+    let results = [...allPhotos]
 
     // Filter by event
     if (selectedEvents.length > 0) {
@@ -95,6 +94,9 @@ export default function BrowsePhotosPage() {
 
   const events = [...new Set(allPhotos.map((p) => p.eventName))]
 
+  const totalEvents = useMemo(() => events.length, [events])
+  const totalPhotos = allPhotos.length
+
   const handleToggleEvent = (eventName: string) => {
     setSelectedEvents((prev) => (prev.includes(eventName) ? prev.filter((e) => e !== eventName) : [...prev, eventName]))
   }
@@ -110,117 +112,163 @@ export default function BrowsePhotosPage() {
   return (
     <>
       <Header showLogout />
-      <main className="min-h-screen bg-gradient-to-b from-background to-secondary/5">
-        {/* Header Section */}
-        <div className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Browse All Photos</h1>
-            <p className="text-muted-foreground">
-              {filteredPhotos.length} photo{filteredPhotos.length !== 1 ? "s" : ""} found
-            </p>
-          </div>
-        </div>
+      <main className="min-h-screen relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.12),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_30%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
+        <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+        <div className="absolute -top-20 right-8 h-64 w-64 rounded-full bg-[#82181a]/10 blur-3xl pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Search and Filter Bar */}
-          <div className="mb-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search events..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/85 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-lg">
+            <div className="absolute inset-0 bg-[linear-gradient(130deg,rgba(130,24,26,0.10),rgba(255,255,255,0)_45%,rgba(130,24,26,0.06))]" />
+            <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
+              <div className="space-y-4">
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium">
+                  Browse gallery
+                </Badge>
+                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+                  Explore all campus event photos in one place
+                </h1>
+                <p className="max-w-2xl text-muted-foreground leading-7">
+                  Filter by event, search by event name, and sort by date to quickly discover the photos you need.
+                </p>
               </div>
-              <div className="flex gap-3">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="date-newest">Newest First</option>
-                  <option value="date-oldest">Oldest First</option>
-                  <option value="confidence">Best Match</option>
-                </select>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="gap-2"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  Filters
-                  {selectedEvents.length > 0 && (
-                    <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                      {selectedEvents.length}
-                    </span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="border-border/60 bg-background/90">
+                  <CardContent className="p-4">
+                    <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Total Photos</p>
+                    <p className="mt-1 text-2xl font-semibold">{totalPhotos}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-background/90">
+                  <CardContent className="p-4">
+                    <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Events</p>
+                    <p className="mt-1 text-2xl font-semibold">{totalEvents}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+
+          <div className="mt-6 space-y-4">
+            <Card className="border-border/60 bg-card/80 backdrop-blur-md">
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                <div className="flex flex-col lg:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by event name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 h-11"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="h-11 min-w-[170px] px-4 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="date-newest">Newest First</option>
+                      <option value="date-oldest">Oldest First</option>
+                      <option value="confidence">Best Match</option>
+                    </select>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="h-11 gap-2"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      Filters
+                      {selectedEvents.length > 0 && (
+                        <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
+                          {selectedEvents.length}
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <Images className="w-4 h-4" />
+                    {filteredPhotos.length} shown
+                  </span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <CalendarDays className="w-4 h-4" />
+                    {totalEvents} events
+                  </span>
+                  {isFiltered && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearFilters}
+                      className="ml-auto text-primary hover:text-primary/80"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Clear filters
+                    </Button>
                   )}
-                </Button>
-              </div>
-            </div>
+                </div>
 
-            {/* Collapsible Filter Section */}
-            {showFilters && (
-              <Card className="border border-border">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-foreground">Filter by Event</h3>
-                    {isFiltered && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="text-primary hover:text-primary/80"
-                      >
-                        Clear All
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {events.map((event) => (
-                      <label
-                        key={event}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedEvents.includes(event)
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
+                {showFilters && (
+                  <div className="border border-border/70 rounded-xl p-4 bg-background/70">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">Filter by Event</h3>
+                      <span className="text-xs text-muted-foreground">{events.length} options</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {events.map((event) => (
+                        <label
+                          key={event}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedEvents.includes(event)
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/40"
                           }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedEvents.includes(event)}
-                          onChange={() => handleToggleEvent(event)}
-                          className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm text-foreground block truncate">{event}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {allPhotos.filter((p) => p.eventName === event).length} photos
-                          </span>
-                        </div>
-                      </label>
-                    ))}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEvents.includes(event)}
+                            onChange={() => handleToggleEvent(event)}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-foreground block truncate">{event}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {allPhotos.filter((p) => p.eventName === event).length} photos
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Photo Grid or Empty State */}
           {isLoading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading photos...</p>
-            </div>
+            <Card className="border-dashed border-border/70 bg-card/70 mt-6">
+              <CardContent className="p-12 text-center text-muted-foreground">Loading photos...</CardContent>
+            </Card>
           ) : filteredPhotos.length > 0 ? (
             <>
-              <PhotoGrid photos={filteredPhotos} />
+              <div className="mt-6">
+                <PhotoGrid photos={filteredPhotos} />
+              </div>
               <div className="mt-8 text-center text-sm text-muted-foreground">
                 Showing {filteredPhotos.length} of {allPhotos.length} photos
               </div>
             </>
           ) : (
-            <Card className="border border-border">
+            <Card className="border border-border/70 bg-card/70 mt-6">
               <CardContent className="py-12 text-center space-y-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
                 <p className="text-muted-foreground">No photos match your filters</p>
                 {isFiltered && (
                   <Button variant="outline" onClick={handleClearFilters}>

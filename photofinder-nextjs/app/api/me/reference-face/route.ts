@@ -28,9 +28,22 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let storageUrl: string | null = null;
   try {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!process.env.CLOUDINARY_URL) {
+      return NextResponse.json({ error: 'CLOUDINARY_URL is not configured' }, { status: 500 });
+    }
+
+    if (process.env.CLOUDINARY_URL.includes('api_key:api_secret@cloud_name')) {
+      return NextResponse.json({ error: 'CLOUDINARY_URL is still using placeholder values' }, { status: 500 });
+    }
+
+    if (!process.env.AI_SERVICE_URL) {
+      return NextResponse.json({ error: 'AI_SERVICE_URL is not configured' }, { status: 500 });
+    }
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -39,17 +52,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
-    // 1. Delete old reference face if they already have one
+    // 1. Read old reference face (we only delete old assets after new one is saved)
     const existingFace = await prisma.userFace.findUnique({ where: { userId: user.sub } });
-    if (existingFace && existingFace.imageUrl) {
-      await deleteFromCloudinary(existingFace.imageUrl);
-      await prisma.userFace.delete({ where: { userId: user.sub } });
-    }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     // 2. Upload the new selfie to storage
-    const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer);
+    storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer);
 
     // 3. Extract face math using AI
     const faces = await extractFaces(fileBuffer, file.name);
@@ -70,16 +79,37 @@ export async function POST(req: NextRequest) {
     const vectorString = `[${faces[0].embedding.join(',')}]`;
     
     // We must use a raw query because of pgvector's custom types 
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO "user_faces" ("id", "userId", "imageUrl", "embedding", "updatedAt") 
-      VALUES (gen_random_uuid(), $1, $2, $3::vector, NOW())
-    `, user.sub, storageUrl, vectorString);
+    const nextId = existingFace?.id || crypto.randomUUID();
+    await prisma.$executeRawUnsafe(
+      `
+      INSERT INTO "user_faces" ("id", "userId", "imageUrl", "embedding", "updatedAt")
+      VALUES ($1, $2, $3, $4::vector, NOW())
+      ON CONFLICT ("userId")
+      DO UPDATE SET
+        "imageUrl" = EXCLUDED."imageUrl",
+        "embedding" = EXCLUDED."embedding",
+        "updatedAt" = NOW()
+      `,
+      nextId,
+      user.sub,
+      storageUrl,
+      vectorString
+    );
+
+    // 5. Remove previous image only after new save succeeds
+    if (existingFace?.imageUrl && existingFace.imageUrl !== storageUrl) {
+      await deleteFromCloudinary(existingFace.imageUrl);
+    }
 
     return NextResponse.json({ message: 'Reference face saved successfully!', imageUrl: storageUrl });
 
   } catch (error) {
     console.error('POST /api/me/reference-face error:', error);
-    return NextResponse.json({ error: 'Failed to save reference face' }, { status: 500 });
+    if (storageUrl) {
+      await deleteFromCloudinary(storageUrl);
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save reference face';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
