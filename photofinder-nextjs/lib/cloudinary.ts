@@ -12,18 +12,24 @@ cloudinary.config({
  * @param fileBuffer the file data
  * @returns the secure URL of the uploaded image on Cloudinary
  */
-export async function uploadToCloudinary(fileName: string, mimeType: string, fileBuffer: Buffer): Promise<string> {
+export async function uploadToCloudinary(fileName: string, mimeType: string, fileBuffer: Buffer, eventId?: string): Promise<string> {
   if (!process.env.CLOUDINARY_URL) {
     throw new Error('CLOUDINARY_URL environment variable is missing.');
   }
+
+  // Use a specific folder for events to make bulk deletion easy, or fallback to the root photofinder folder
+  const folderPath = eventId ? `photofinder/${eventId}` : 'photofinder';
 
   return new Promise((resolve, reject) => {
     // Cloudinary's upload stream accepts a buffer
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: 'photofinder', // Optional: creates a folder named 'photofinder' in your Cloudinary account
+        folder: folderPath, 
         resource_type: 'auto', // Automatically detect whether it's an image or video
         public_id: `${fileName.split('.')[0]}_${Date.now()}`, // Make it unique to prevent overwriting/accidental deletion of shared filenames
+        transformation: [
+          { quality: "auto", fetch_format: "auto" }
+        ]
       },
       (error, result) => {
         if (error) {
@@ -41,6 +47,27 @@ export async function uploadToCloudinary(fileName: string, mimeType: string, fil
     // End the stream with the buffer
     uploadStream.end(fileBuffer);
   });
+}
+
+/**
+ * Deletes an entire folder from Cloudinary
+ * Useful for bulk deleting an expired event's photos
+ */
+export async function deleteFolderFromCloudinary(eventId: string) {
+  if (!process.env.CLOUDINARY_URL || !eventId) return;
+  try {
+    const folderPath = `photofinder/${eventId}`;
+    
+    // Cloudinary requires deleting all resources in a folder before the folder itself can be deleted.
+    // delete_resources_by_prefix handles the files
+    await cloudinary.api.delete_resources_by_prefix(folderPath);
+    // delete_folder removes the empty directory
+    await cloudinary.api.delete_folder(folderPath);
+    
+    console.log(`Deleted Cloudinary folder: ${folderPath}`);
+  } catch (error) {
+    console.error(`Error deleting Cloudinary folder ${eventId}:`, error);
+  }
 }
 
 /**

@@ -80,6 +80,7 @@ model Event {
   status      EventStatus @default(DRAFT)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  expiresAt   DateTime?
 
   photos      Photo[]
   deliveries  Delivery[]
@@ -100,8 +101,8 @@ model Photo {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  event        Event         @relation(fields: [eventId], references: [id])
-  uploader     User?         @relation(fields: [uploaderId], references: [id])
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploader     User?         @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
   faces        Face[]
   abuseReports AbuseReport[]
   savedBy      SavedPhoto[]
@@ -126,7 +127,7 @@ model Face {
   w          Float?
   h          Float?
 
-  photo Photo @relation(fields: [photoId], references: [id])
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
 
   @@map("faces")
 }
@@ -157,8 +158,8 @@ model Delivery {
   sentAt    DateTime?
   createdAt DateTime       @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@map("deliveries")
 }
@@ -172,8 +173,8 @@ model AbuseReport {
   resolved    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  photo    Photo @relation(fields: [photoId], references: [id])
-  reporter User  @relation(fields: [reporterId], references: [id])
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  reporter User  @relation(fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@map("abuse_reports")
 }
@@ -184,8 +185,8 @@ model SavedPhoto {
   photoId   String
   createdAt DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
-  photo Photo @relation(fields: [photoId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
 
   @@unique([userId, photoId])
   @@map("saved_photos")
@@ -201,8 +202,8 @@ model RemovalRequest {
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
-  photo Photo @relation(fields: [photoId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("removal_requests")
 }

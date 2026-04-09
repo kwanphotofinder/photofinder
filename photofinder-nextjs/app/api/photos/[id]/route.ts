@@ -12,7 +12,7 @@ export async function DELETE(
     const user = await getUserFromRequest(req);
     
     // Optional: Protect route
-    // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const photo = await prisma.photo.findUnique({
       where: { id: p.id },
@@ -23,27 +23,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    // 1. Delete faces from Weaviate -> Wait! We are using pgvector now. 
-    // They are natively deleted when we delete them from Postgres!
+    // Check if the user is authorized to delete this photo
+    // ADMIN and SUPER_ADMIN can delete anything, otherwise only the uploader
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && photo.uploaderId !== user.sub) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    // 2. Remove dependent records first so photo deletion cannot fail on FK constraints.
-    await prisma.$transaction([
-      prisma.removalRequest.deleteMany({
-        where: { photoId: p.id },
-      }),
-      prisma.savedPhoto.deleteMany({
-        where: { photoId: p.id },
-      }),
-      prisma.abuseReport.deleteMany({
-        where: { photoId: p.id },
-      }),
-      prisma.face.deleteMany({
-        where: { photoId: p.id },
-      }),
-      prisma.photo.delete({
-        where: { id: p.id },
-      }),
-    ]);
+    // 1. Delete the photo from Postgres.
+    // Thanks to Prisma Cascade deletes, all connected faces, reports, and saved records will be wiped automatically.
+    await prisma.photo.delete({
+      where: { id: p.id },
+    });
 
     // 3. Delete original file from Cloudinary 
     await deleteFromCloudinary(photo.storageUrl);

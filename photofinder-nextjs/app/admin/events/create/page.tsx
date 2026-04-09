@@ -24,7 +24,8 @@ export default function CreateEventPage() {
   const [formData, setFormData] = useState({
     name: "",
     date: "",
-    status: "DRAFT" as "DRAFT" | "PUBLISHED" | "ARCHIVED",
+    status: "DRAFT" as "DRAFT" | "PUBLISHED",
+    expiryDays: 30, // Default to max 30 days
   })
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function CreateEventPage() {
     setIsLoading(false)
   }, [router])
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean | number) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -74,12 +75,21 @@ export default function CreateEventPage() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)+/g, "") + "-" + Date.now().toString().slice(-4)
 
+      // Calculate expiry date based on days selected
+      let expiryDate = null;
+      if (formData.expiryDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + formData.expiryDays);
+        expiryDate = d.toISOString();
+      }
+
       // Call API to create event
       const response = await apiClient.createEvent({
         name: formData.name.trim(),
         date: new Date(formData.date).toISOString(),
         status: formData.status,
         slug: slug,
+        expiresAt: expiryDate,
       })
 
       if (response.error) {
@@ -197,12 +207,58 @@ export default function CreateEventPage() {
                     <SelectContent>
                       <SelectItem value="DRAFT">Draft</SelectItem>
                       <SelectItem value="PUBLISHED">Published</SelectItem>
-                      <SelectItem value="ARCHIVED">Archived</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Draft: Not visible | Published: Visible to users | Archived: Read-only
+                    Draft: Not visible | Published: Visible to users
                   </p>
+                </div>
+
+                {/* Expiry Settings */}
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <div className="space-y-1">
+                    <Label className="text-foreground font-medium flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-primary" />
+                      Auto-Deletion Timer
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      For privacy compliance, events and their photos will be automatically deleted after this many days.
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {[7, 14, 30].map((days) => (
+                      <Button
+                        key={days}
+                        type="button"
+                        variant={formData.expiryDays === days ? "default" : "outline"}
+                        className="flex-1"
+                        onClick={() => handleInputChange("expiryDays", days)}
+                      >
+                        {days} Days
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor="customDays" className="text-sm whitespace-nowrap">Custom Days:</Label>
+                    <Input
+                      id="customDays"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={formData.expiryDays}
+                      onChange={(e) => {
+                        let val = parseInt(e.target.value) || 0;
+                        if (val > 30) val = 30;
+                        if (val < 0) val = 0;
+                        handleInputChange("expiryDays", val);
+                      }}
+                      className="w-24 border-border"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-xs text-muted-foreground">(Max 30 days)</span>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-6 border-t border-border">

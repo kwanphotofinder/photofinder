@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // 1. Upload to Cloudinary
-    const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer);
+    // 1. Upload to Cloudinary into event-specific folder
+    const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer, eventId);
 
     // 2. Extract image dimensions using Sharp
     let width: number | null = null;

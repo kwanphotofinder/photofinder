@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, Image, Scan, CalendarCheck, ExternalLink } from "lucide-react"
+import { Users, Calendar, Image, Scan, CalendarCheck, ExternalLink, Trash2 } from "lucide-react"
 import ReactECharts from 'echarts-for-react'
 import * as echarts from 'echarts'
 
@@ -266,15 +266,50 @@ export function SystemHealth() {
                     <h2 className="text-2xl font-bold text-slate-800">System Health</h2>
                     <p className="text-sm text-slate-500">Real-time metrics and performance monitoring</p>
                 </div>
-                <Button
-                    variant="outline"
-                    className="gap-2 opacity-50 cursor-not-allowed"
-                    title="Grafana is disabled in Production to save resources (Free Tier limit krub)"
-                    onClick={(e) => e.preventDefault()}
-                >
-                    <ExternalLink className="w-4 h-4" />
-                    Open Grafana (Disabled in Prod)
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="destructive"
+                        className="gap-2"
+                        onClick={async () => {
+                            if (confirm("Run the auto-cleanup cron job now? This will permanently delete any expired events and their photos.")) {
+                                try {
+                                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+                                    
+                                    // Make sure we pass the auth token so the backend knows we are an admin!
+                                    const token = localStorage.getItem("auth_token") || localStorage.getItem("admin_token");
+                                    
+                                    const res = await fetch(`${apiUrl}/cron/cleanup`, {
+                                        headers: {
+                                            'Authorization': `Bearer ${token}` // Use Admin Token instead of Cron Secret
+                                        }
+                                    });
+                                    const data = await res.json();
+                                    
+                                    if (res.ok) {
+                                      alert(data.message || 'Cleanup completed');
+                                      window.location.reload();
+                                    } else {
+                                      alert(data.error || 'Unauthorized or error running cleanup');
+                                    }
+                                } catch (err) {
+                                    alert('Error running cleanup');
+                                }
+                            }
+                        }}
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Run Manual Cleanup
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-2 opacity-50 cursor-not-allowed"
+                        title="Grafana is disabled in Production to save resources (Free Tier limit krub)"
+                        onClick={(e) => e.preventDefault()}
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                        Open Grafana (Disabled in Prod)
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

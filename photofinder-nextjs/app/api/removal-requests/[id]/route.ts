@@ -9,7 +9,9 @@ export async function DELETE(
   try {
     const p = await params;
     const user = await getUserFromRequest(req);
-    // if (!user || user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     await prisma.removalRequest.delete({
       where: { id: p.id },

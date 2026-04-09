@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         location: body.location || null,
         description: body.description || null,
         status: body.status || 'DRAFT',
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
       }
     });
 

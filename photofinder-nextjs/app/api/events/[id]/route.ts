@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFolderFromCloudinary } from "@/lib/cloudinary"
 
 // Get single event
 export async function GET(
@@ -65,24 +65,12 @@ export async function DELETE(
   try {
     const p = await params;
     
-    // 1. Fetch photos to safely delete them from storage before removing event
-    // This allows you to delete from Cloudinary too.
-    const photos = await prisma.photo.findMany({
-      where: { eventId: p.id },
-    });
+    // 1. Delete physical folder from Cloudinary instantly (much faster than individual deletion)
+    await deleteFolderFromCloudinary(p.id);
 
-    // Delete from Cloudinary
-    for (const photo of photos) {
-      await deleteFromCloudinary(photo.storageUrl); 
-    }
-
-    // 2. Since we delete the event and its relations, we use transaction or Prisma's onDelete: cascade
-    // Assuming onDelete: cascade isn't in your schema yet, we manually delete photos first
-    await prisma.photo.deleteMany({
-      where: { eventId: p.id }
-    });
-
-    // 3. Delete the event
+    // 2. Delete the event from Database
+    // Thanks to Prisma's onDelete: cascade, this single command instantly wipes:
+    // the event, photos, pgvector faces, saved photos, and abuse reports!
     await prisma.event.delete({
       where: { id: p.id },
     });

@@ -16,7 +16,7 @@ import { apiClient } from "@/lib/api-client"
 interface EventData {
     name: string
     date: string
-    status: "DRAFT" | "PUBLISHED" | "ARCHIVED"
+    status: "DRAFT" | "PUBLISHED"
 }
 
 export default function EditEventPage() {
@@ -210,7 +210,6 @@ export default function EditEventPage() {
                                         <SelectContent>
                                             <SelectItem value="DRAFT">Draft</SelectItem>
                                             <SelectItem value="PUBLISHED">Published</SelectItem>
-                                            <SelectItem value="ARCHIVED">Archived</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

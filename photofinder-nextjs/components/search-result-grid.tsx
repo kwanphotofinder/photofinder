@@ -86,7 +86,8 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      const response = await fetch(photo.url)
+      const downloadUrl = photo.url.endsWith('.jpg') ? photo.url : `${photo.url}.jpg`
+      const response = await fetch(downloadUrl)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

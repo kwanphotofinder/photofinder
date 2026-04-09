@@ -40,7 +40,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(photo.url)
+      const downloadUrl = photo.url.endsWith('.jpg') ? photo.url : `${photo.url}.jpg`
+      const response = await fetch(downloadUrl)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

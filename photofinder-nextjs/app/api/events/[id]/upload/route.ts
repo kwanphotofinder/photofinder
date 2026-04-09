@@ -47,8 +47,8 @@ export async function POST(
     for (const file of files) {
       const fileBuffer = Buffer.from(await file.arrayBuffer())
 
-      // 1. Upload to Cloudinary
-      const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer)
+      // 1. Upload to Cloudinary using event-specific folder
+      const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer, eventId)
 
       // 2. Extract dimensions
       let width: number | null = null
