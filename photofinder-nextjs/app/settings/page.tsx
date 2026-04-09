@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Lock, Bell, Shield, CheckCircle2 } from "lucide-react"
 import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
+import { apiClient } from "@/lib/api-client"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -19,14 +20,48 @@ export default function SettingsPage() {
   const [showSuccess, setShowSuccess] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem("consent_preferences")
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      setConsent({
-        globalFaceSearch: parsed.globalFaceSearch ?? true,
-        dataProcessing: parsed.dataProcessing ?? true,
-      })
+    const loadConsent = async () => {
+      try {
+        const authToken = localStorage.getItem("auth_token")
+        if (!authToken) return
+
+        // Fetch current consent status from server
+        const consentRes = await fetch("/api/me/consent", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const consentData = await consentRes.json()
+
+        if (consentRes.ok && typeof consentData.pdpaConsent === "boolean") {
+          setConsent({
+            globalFaceSearch: consentData.pdpaConsent,
+            dataProcessing: consentData.pdpaConsent,
+          })
+        } else {
+          // Fallback to localStorage
+          const saved = localStorage.getItem("consent_preferences")
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            setConsent({
+              globalFaceSearch: parsed.globalFaceSearch ?? true,
+              dataProcessing: parsed.dataProcessing ?? true,
+            })
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load consent:", error)
+        // Fallback to localStorage
+        const saved = localStorage.getItem("consent_preferences")
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          setConsent({
+            globalFaceSearch: parsed.globalFaceSearch ?? true,
+            dataProcessing: parsed.dataProcessing ?? true,
+          })
+        }
+      }
     }
+
+    loadConsent()
   }, [])
 
   const handleConsentChange = (key: keyof ConsentData) => {
@@ -40,23 +75,44 @@ export default function SettingsPage() {
     console.log("[v0] Starting save preferences")
     setIsSaving(true)
     setShowSuccess(false)
-    await new Promise((resolve) => setTimeout(resolve, 500))
 
-    localStorage.setItem(
-      "consent_preferences",
-      JSON.stringify({
-        ...consent,
-        accepted: true,
-        timestamp: new Date().toISOString(),
-      }),
-    )
-    setIsSaving(false)
-    console.log("[v0] Setting showSuccess to true")
-    setShowSuccess(true)
-    setTimeout(() => {
-      console.log("[v0] Hiding success banner")
-      setShowSuccess(false)
-    }, 3000)
+    try {
+      const authToken = localStorage.getItem("auth_token")
+      if (!authToken) {
+        router.push("/login")
+        return
+      }
+
+      // Call API to save consent status
+      const consentAccepted = consent.globalFaceSearch && consent.dataProcessing
+      const result = await apiClient.updateMyConsent(consentAccepted)
+
+      if (result.error) {
+        console.error("Failed to save consent:", result.error)
+        setIsSaving(false)
+        return
+      }
+
+      localStorage.setItem(
+        "consent_preferences",
+        JSON.stringify({
+          ...consent,
+          accepted: consentAccepted,
+          timestamp: new Date().toISOString(),
+        }),
+      )
+
+      setIsSaving(false)
+      console.log("[v0] Setting showSuccess to true")
+      setShowSuccess(true)
+      setTimeout(() => {
+        console.log("[v0] Hiding success banner")
+        setShowSuccess(false)
+      }, 3000)
+    } catch (error) {
+      console.error("Error saving preferences:", error)
+      setIsSaving(false)
+    }
   }
 
   useEffect(() => {

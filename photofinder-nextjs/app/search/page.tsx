@@ -7,7 +7,16 @@ import { useEffect, useState, useRef } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader, AlertCircle, Camera, Sparkles } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Loader, AlertCircle, Camera, Sparkles, CheckCircle2 } from "lucide-react"
 import { SearchResultGrid } from "@/components/search-result-grid"
 import { apiClient } from "@/lib/api-client"
 
@@ -27,6 +36,8 @@ export default function FaceSearchPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
+  const [hasConsentedToFaceSearch, setHasConsentedToFaceSearch] = useState(true)
+  const [showConsentNotice, setShowConsentNotice] = useState(false)
 
   useEffect(() => {
     const authToken = localStorage.getItem("auth_token")
@@ -34,11 +45,44 @@ export default function FaceSearchPage() {
       router.push("/login")
       return
     }
+
+    // Check consent status
+    const checkConsent = async () => {
+      try {
+        const consentRes = await fetch("/api/me/consent", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const consentData = await consentRes.json()
+        const consented = consentRes.ok && consentData.pdpaConsent
+        console.log("[Search] Consent status:", consented)
+        setHasConsentedToFaceSearch(consented)
+      } catch (err) {
+        console.error("Failed to check consent:", err)
+      }
+    }
+
+    checkConsent()
+
+    // Also recheck consent when page becomes visible (tab refocus)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Search page refocused, rechecking consent...")
+        checkConsent()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [router])
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+
+    if (!hasConsentedToFaceSearch) {
+      setError("You need to consent to face search to upload images. Please update your privacy settings.")
+      return
+    }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -62,7 +106,21 @@ export default function FaceSearchPage() {
     reader.readAsDataURL(file)
   }
 
+  const triggerUpload = () => {
+    if (!hasConsentedToFaceSearch) {
+      setShowConsentNotice(true)
+      return
+    }
+
+    fileInputRef.current?.click()
+  }
+
   const handleSearch = async () => {
+    if (!hasConsentedToFaceSearch) {
+      setShowConsentNotice(true)
+      return
+    }
+
     if (!uploadedImage) {
       setError("Please upload an image first")
       return
@@ -108,7 +166,44 @@ export default function FaceSearchPage() {
   return (
     <>
       <Header showLogout />
-      <main className="min-h-screen bg-gradient-to-b from-background to-secondary/5">
+      <AlertDialog open={showConsentNotice} onOpenChange={setShowConsentNotice}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              Consent Required
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>You must agree to both items before using manual face search:</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
+                  <div className="text-xs text-foreground">
+                    <p className="font-semibold">Enable AI Face Search</p>
+                    <p className="text-muted-foreground">Allow the system to identify your face in event photos and create a personal photo album.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
+                  <div className="text-xs text-foreground">
+                    <p className="font-semibold">Data Processing Agreement</p>
+                    <p className="text-muted-foreground">I understand my biometric data will be processed and stored securely in compliance with GDPR and PDPA regulations.</p>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center gap-2">
+            <AlertDialogCancel>Dismiss</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/settings")}>Go to Settings</AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+      <main className="min-h-screen relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+        <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#82181a]/12 blur-3xl pointer-events-none" />
+        <div className="absolute top-48 left-0 h-64 w-64 rounded-full bg-[#82181a]/10 blur-3xl pointer-events-none" />
+        <div className="relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full border border-primary/20 mb-4">
@@ -122,6 +217,17 @@ export default function FaceSearchPage() {
           </div>
 
           <div className="max-w-4xl mx-auto">
+          {!hasConsentedToFaceSearch && (
+            <Card className="border-2 border-yellow-500/50 mb-8 bg-yellow-500/10">
+              <CardContent className="p-4 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-900">Face search disabled</p>
+                  <p className="text-sm text-yellow-800">You need to consent to biometric data processing to use face search. Please update your privacy settings.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card className="border-2 border-primary/30 mb-8 bg-gradient-to-br from-card to-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -140,10 +246,10 @@ export default function FaceSearchPage() {
 
               {/* Upload Area */}
               <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors bg-card/50"
+                onClick={triggerUpload}
+                className={`border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-all duration-200 bg-card/50 ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
               >
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" disabled={!hasConsentedToFaceSearch} />
 
                 {uploadedImage ? (
                   <div className="space-y-4">
@@ -170,7 +276,7 @@ export default function FaceSearchPage() {
               <Button
                 onClick={handleSearch}
                 disabled={!uploadedImage || isSearching}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground py-6"
+                className={`w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground py-6 transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50" : ""}`}
                 size="lg"
               >
                 {isSearching ? (
@@ -256,6 +362,7 @@ export default function FaceSearchPage() {
             </Card>
             </div>
           )}
+        </div>
         </div>
       </main>
     </>

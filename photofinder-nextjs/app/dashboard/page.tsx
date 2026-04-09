@@ -6,8 +6,17 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
-import { Camera, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react"
+import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react"
 
 interface Photo {
   id: string
@@ -40,8 +49,11 @@ export default function DashboardPage() {
   const [hasReferenceFace, setHasReferenceFace] = useState(false)
   const [referenceFaceUrl, setReferenceFaceUrl] = useState("")
   const [isUploading, setIsUploading] = useState(false)
+  const [isDeletingReference, setIsDeletingReference] = useState(false)
   const [autoMatches, setAutoMatches] = useState<Photo[]>([])
   const [savedPhotos, setSavedPhotos] = useState<Photo[]>([])
+  const [hasConsentedToFaceSearch, setHasConsentedToFaceSearch] = useState(true)
+  const [showConsentNotice, setShowConsentNotice] = useState(false)
 
   const displayName = userName || "Student"
 
@@ -76,6 +88,40 @@ export default function DashboardPage() {
     setUserName(localStorage.getItem("user_name") || "")
 
     try {
+      // Check consent status
+      const consentRes = await fetch("/api/me/consent", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      const consentData = await consentRes.json()
+      const consented = consentRes.ok && consentData.pdpaConsent
+      
+      console.log("[Dashboard] Consent status:", { ok: consentRes.ok, consented, pdpaConsent: consentData.pdpaConsent })
+      setHasConsentedToFaceSearch(consented)
+
+      // If consent withdrawn, delete reference photo
+      if (!consented) {
+        console.log("[Dashboard] Consent withdrawn, checking for reference photo to delete...")
+        const existingFaceRes = await fetch("/api/me/reference-face", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const existingFaceData = await existingFaceRes.json()
+        console.log("[Dashboard] Existing reference face check:", { ok: existingFaceRes.ok, hasReference: existingFaceData.hasReference })
+        
+        if (existingFaceData.hasReference) {
+          console.log("[Dashboard] Deleting reference photo...")
+          const deleteRes = await fetch("/api/me/reference-face", {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+          console.log("[Dashboard] Delete response:", { ok: deleteRes.ok, status: deleteRes.status })
+        }
+        setHasReferenceFace(false)
+        setReferenceFaceUrl("")
+        setAutoMatches([])
+        setIsLoading(false)
+        return
+      }
+
       const faceRes = await fetch("/api/me/reference-face", {
         headers: { Authorization: `Bearer ${authToken}` },
       })
@@ -124,11 +170,27 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData()
+
+    // Also recheck consent when page becomes visible (tab refocus)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Dashboard refocused, rechecking consent...")
+        fetchDashboardData()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [router])
 
   const handleUploadSelfie = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!hasConsentedToFaceSearch) {
+      alert("You need to consent to face search to upload a reference photo. Please update your privacy settings.")
+      return
+    }
 
     setIsUploading(true)
     const formData = new FormData()
@@ -160,19 +222,40 @@ export default function DashboardPage() {
   const handleDeleteSelfie = async () => {
     if (!confirm("Are you sure you want to delete your auto-search default face?")) return
 
+    setIsDeletingReference(true)
     try {
       const authToken = localStorage.getItem("auth_token")
-      await fetch("/api/me/reference-face", {
+      const response = await fetch("/api/me/reference-face", {
         method: "DELETE",
         headers: { Authorization: `Bearer ${authToken}` },
       })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        alert(data?.error || "Failed to delete reference photo.")
+        return
+      }
+
+      // Immediately reflect deactivated state in dashboard UI.
+      setHasReferenceFace(false)
+      setReferenceFaceUrl("")
+      setAutoMatches([])
+
       await fetchDashboardData()
     } catch (e) {
       console.error(e)
+      alert("Network error. Please try again.")
+    } finally {
+      setIsDeletingReference(false)
     }
   }
 
   const openFilePicker = () => {
+    if (!hasConsentedToFaceSearch) {
+      setShowConsentNotice(true)
+      return
+    }
+
     if (!fileInputRef.current) return
     // Allow selecting the same file again after a previous upload.
     fileInputRef.current.value = ""
@@ -183,6 +266,39 @@ export default function DashboardPage() {
     <>
       <Header userRole="student" />
       <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleUploadSelfie} />
+      <AlertDialog open={showConsentNotice} onOpenChange={setShowConsentNotice}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              Consent Required
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>You must agree to both items before using AI face search:</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
+                  <div className="text-xs text-foreground">
+                    <p className="font-semibold">Enable AI Face Search</p>
+                    <p className="text-muted-foreground">Allow the system to identify your face in event photos and create a personal photo album.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
+                  <div className="text-xs text-foreground">
+                    <p className="font-semibold">Data Processing Agreement</p>
+                    <p className="text-muted-foreground">I understand my biometric data will be processed and stored securely in compliance with GDPR and PDPA regulations.</p>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center gap-2">
+            <AlertDialogCancel>Dismiss</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/settings")}>Go to Settings</AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
       <main className="min-h-screen relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent pointer-events-none" />
         <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#82181a]/12 blur-3xl pointer-events-none" />
@@ -211,16 +327,60 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`relative transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50" : ""}`}>
+                      <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-[#82181a]/45 via-primary/40 to-[#a8252d]/45 blur-lg" />
+                      <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-56 lg:w-56 rounded-full bg-gradient-to-br from-[#82181a] to-[#a8252d] p-[4px] shadow-[0_18px_36px_rgba(130,24,26,0.35)]">
+                        <div className="h-full w-full overflow-hidden rounded-full border border-white/70 bg-muted/30">
+                          {hasReferenceFace && referenceFaceUrl ? (
+                            <img src={referenceFaceUrl} alt="Reference selfie" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                              <Camera className="h-8 w-8 sm:h-10 sm:w-10 lg:h-14 lg:w-14" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        onClick={openFilePicker}
+                        variant="outline"
+                        size="lg"
+                        className={`h-12 rounded-full border-border/70 px-6 font-medium transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={isUploading || isDeletingReference}
+                      >
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        {hasReferenceFace ? "Update reference selfie" : "Upload reference selfie"}
+                      </Button>
+
+                      {hasReferenceFace && (
+                        <Button
+                          onClick={handleDeleteSelfie}
+                          variant="destructive"
+                          size="sm"
+                          className={`h-10 rounded-full transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
+                          disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
+                        >
+                          {isDeletingReference ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                          )}
+                          Delete Reference photo
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <Button
-                    onClick={openFilePicker}
-                    variant="outline"
+                    onClick={() => router.push("/search")}
                     size="lg"
-                    className="h-12 rounded-full border-border/70 px-6 font-medium"
-                    disabled={isUploading}
+                    className="h-12 rounded-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 px-6 font-medium text-primary-foreground transition-all duration-300 hover:opacity-90"
                   >
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                    {hasReferenceFace ? "Update reference selfie" : "Upload reference selfie"}
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Manual Photo Search
                   </Button>
                 </div>
 
