@@ -11,8 +11,6 @@ import {
   AlertCircle,
   Upload,
   Loader2,
-  Camera,
-  LogOut,
   ImageIcon,
   CheckCircle,
   XCircle,
@@ -20,20 +18,15 @@ import {
   FolderUp,
   Trash2,
   Trash,
-  ChevronDown,
+  Sparkles,
+  Images,
+  FolderOpen,
+  ArrowUpRight,
+  Album,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api-client"
 
 
@@ -304,6 +297,8 @@ export default function PhotographerPage() {
     }
   }
 
+  const activeUploads = Object.values(uploadProgress).filter((value) => value > 0 && value < 100).length
+
   if (isLoading) {
     return (
       <>
@@ -345,116 +340,110 @@ export default function PhotographerPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-background border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <Camera className="w-8 h-8 text-primary" />
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Photographer Portal</h1>
-                <p className="text-xs text-muted-foreground">Campus Event Photo Management System</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {photographerUser && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 h-auto py-2 px-3 hover:bg-primary/10">
-                      <Avatar className="w-9 h-9">
-                        <AvatarImage src={photographerUser.avatarUrl} alt={photographerUser.name} referrerPolicy="no-referrer" />
-                        <AvatarFallback>
-                          {(photographerUser.name?.[0] || photographerUser.email?.[0] || "P").toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="text-right hidden sm:block">
-                        <div className="text-sm font-semibold text-foreground">{photographerUser.name}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{photographerUser.email}</div>
-                      </div>
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <div className="flex items-start gap-3 py-3 px-2 cursor-default">
-                      <Avatar className="w-11 h-11 mt-0.5">
-                        <AvatarImage src={photographerUser.avatarUrl} alt={photographerUser.name} referrerPolicy="no-referrer" />
-                        <AvatarFallback>
-                          {(photographerUser.name?.[0] || photographerUser.email?.[0] || "P").toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col space-y-1">
-                        <div className="text-sm font-medium leading-none">{photographerUser.name}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{photographerUser.email}</div>
-                      </div>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        localStorage.removeItem("auth_token")
-                        localStorage.removeItem("user_role")
-                        localStorage.removeItem("user_data")
-                        router.push("/")
-                      }}
-                      className="text-destructive focus:text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </div>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(130,24,26,0.12),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(130,24,26,0.08),_transparent_22%),linear-gradient(to_bottom,_#fff,_#faf7f7_58%,_#f8f5f5)]">
+        <div className="sticky top-0 z-40 border-b border-white/60 bg-white/70 backdrop-blur-xl shadow-sm">
+          <Header showLogout userRole="photographer" />
         </div>
-      </header>
 
-      <div className="flex">
-        <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col">
-          <div className="p-4 border-b border-border">
-            <h2 className="font-semibold text-sm text-foreground">Upload Portal</h2>
-          </div>
-          <nav className="flex-1 p-4 space-y-4">
-            <div>
-              <div className="text-xs font-semibold text-muted-foreground mb-4">WORKFLOW</div>
-              <div className="text-sm text-foreground p-2 bg-primary/10 rounded border border-primary/20">
-                Step 1: Select Event
-              </div>
-              <div className="text-sm text-muted-foreground p-2">Step 2: Upload Files</div>
-              <div className="text-sm text-muted-foreground p-2">Step 3: Review & Process</div>
-            </div>
-          </nav>
-        </aside>
-
-        <main className="flex-1">
-          <div className="p-4 md:p-8">
-            <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="mb-8">
-                <TabsTrigger value="upload">Upload Photos</TabsTrigger>
-                <TabsTrigger value="my-photos">My Uploaded Photos ({uploadedPhotos.length})</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="upload">
-                <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Photo Upload Portal</h1>
-                  <p className="text-muted-foreground">Upload your photos from campus events</p>
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/90 p-6 shadow-[0_20px_60px_rgba(130,24,26,0.08)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(130,24,26,0.12),_transparent_34%),linear-gradient(135deg,_rgba(255,255,255,0.6),_transparent_45%)]" />
+            <div className="relative grid gap-6 lg:grid-cols-[1.3fr_0.9fr] lg:items-end">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Photographer workspace
+                </div>
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                    Upload, review, and manage event photos in one polished workflow.
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Keep your event uploads organized, monitor processing status, and remove anything you no longer need from a clean, focused dashboard.
+                  </p>
                 </div>
 
-                <div className="grid gap-6">
-                  <Card className="border border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Upload className="w-5 h-5" />
-                        Select Event
-                      </CardTitle>
-                      <CardDescription>Choose the event you photographed</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                <Card className="border-border/60 bg-white/80 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="text-xs uppercase tracking-wide">Events</span>
+                      <Album className="h-4 w-4" />
+                    </div>
+                    <div className="mt-3 text-2xl font-semibold text-foreground">{events.length}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Available to upload</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-white/80 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="text-xs uppercase tracking-wide">Selected</span>
+                      <FolderOpen className="h-4 w-4" />
+                    </div>
+                    <div className="mt-3 text-2xl font-semibold text-foreground">{selectedFiles.length}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Ready to upload</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-white/80 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="text-xs uppercase tracking-wide">Library</span>
+                      <Images className="h-4 w-4" />
+                    </div>
+                    <div className="mt-3 text-2xl font-semibold text-foreground">{uploadedPhotos.length}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Uploaded photos</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-white/80 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="text-xs uppercase tracking-wide">Active</span>
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
+                    <div className="mt-3 text-2xl font-semibold text-foreground">{activeUploads}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">In progress</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+
+          <Tabs defaultValue="upload" className="mt-8 w-full">
+            <TabsList className="mb-8 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-lg shadow-slate-100/50 backdrop-blur-xl sm:w-fit">
+              <TabsTrigger value="upload" className="rounded-xl px-6 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
+                Upload Photos
+              </TabsTrigger>
+              <TabsTrigger value="my-photos" className="rounded-xl px-6 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
+                My Uploaded Photos ({uploadedPhotos.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upload" className="space-y-8">
+              <div className="grid gap-8 xl:grid-cols-[0.85fr_1.15fr]">
+                <Card id="upload-panel" className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50">
+                  <CardHeader className="space-y-3 border-b border-white/40 bg-gradient-to-r from-slate-50/80 to-white/60 p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                        <Upload className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-light text-slate-900">Upload Setup</CardTitle>
+                        <CardDescription className="text-slate-600">Choose the event and prepare your files before sending them to the library.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6 p-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-sm font-medium text-slate-700">Event Selection</label>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Step 1 of 3</span>
+                      </div>
                       <select
                         value={selectedEvent}
                         onChange={(e) => setSelectedEvent(e.target.value)}
-                        className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 hover:border-slate-300"                      >
                         <option value="">-- Select an Event --</option>
                         {events.map((event) => (
                           <option key={event.id} value={event.id}>
@@ -462,28 +451,22 @@ export default function PhotographerPage() {
                           </option>
                         ))}
                       </select>
-                    </CardContent>
-                  </Card>
+                    </div>
 
-                  <Card className="border border-border">
-                    <CardHeader>
-                      <CardTitle>Upload Photos</CardTitle>
-                      <CardDescription>
-                        Drag and drop or select your photo files (supports multiple files)
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <div className="rounded-2xl border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 via-white to-slate-50/30 p-6 transition-all duration-300 hover:border-slate-400/60 hover:shadow-lg hover:shadow-slate-100/50">
                       <div
                         onDragOver={handleDragOver}
                         onDrop={handleDrop}
-                        className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/30 hover:bg-muted/50 transition-colors"
+                        className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-white/60 bg-white/80 px-8 py-10 text-center shadow-inner transition-all duration-200 hover:bg-white/90"
                       >
-                        <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-sm font-medium text-foreground mb-1">Drag photos here or click to select</p>
-                        <p className="text-xs text-muted-foreground mb-4">
-                          Supports JPG, PNG, HEIC (Max 100MB per file)
+                        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 shadow-lg">
+                          <Upload className="h-8 w-8" />
+                        </div>
+                        <p className="text-lg font-medium text-slate-900">Drag photos here or click to select</p>
+                        <p className="mt-3 max-w-sm text-sm text-slate-600 leading-relaxed">
+                          Supports JPG, PNG, HEIC. You can also upload an entire folder to speed up event delivery.
                         </p>
-                        <div className="flex gap-2 justify-center">
+                        <div className="mt-8 flex flex-wrap justify-center gap-4">
                           <input
                             type="file"
                             multiple
@@ -493,7 +476,7 @@ export default function PhotographerPage() {
                             id="file-input"
                           />
                           <label htmlFor="file-input">
-                            <Button variant="outline" asChild>
+                            <Button className="gap-2 rounded-full px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:shadow-xl hover:shadow-slate-300/60 hover:-translate-y-0.5" asChild>
                               <span>Select Files</span>
                             </Button>
                           </label>
@@ -507,172 +490,219 @@ export default function PhotographerPage() {
                             id="folder-input"
                           />
                           <label htmlFor="folder-input">
-                            <Button variant="outline" asChild>
+                            <Button variant="outline" className="gap-2 rounded-full border-slate-300 px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:shadow-xl hover:shadow-slate-300/60 hover:-translate-y-0.5 hover:bg-slate-50" asChild>
                               <span className="flex items-center gap-2">
-                                <FolderUp className="w-4 h-4" />
+                                <FolderUp className="h-4 w-4" />
                                 Select Folder
                               </span>
                             </Button>
                           </label>
                         </div>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                      {selectedFiles.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-foreground">
-                              Selected Files ({selectedFiles.length})
-                            </p>
-                            <Button variant="ghost" size="sm" onClick={clearAllFiles}>
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Clear All
-                            </Button>
+                <Card className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50">
+                  <CardHeader className="space-y-3 border-b border-white/40 bg-gradient-to-r from-slate-50/80 to-white/60 p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                        <Images className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-light text-slate-900">Selected Files</CardTitle>
+                        <CardDescription className="text-slate-600">Review the queue before upload. Files are tracked individually for progress and errors.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-5 p-6">
+                    {selectedFiles.length > 0 ? (
+                      <>
+                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/60 bg-slate-50/50 px-5 py-4 shadow-sm">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{selectedFiles.length} files queued</p>
+                            <p className="text-xs text-slate-600">{activeUploads} currently uploading</p>
                           </div>
-                          <div className="max-h-64 overflow-y-auto space-y-2 border border-border rounded-lg p-2">
-                            {selectedFiles.map((file, index) => {
-                              const progress = uploadProgress[file.name]
-                              const hasError = progress === -1
-                              const isComplete = progress === 100
+                          <Button variant="ghost" size="sm" onClick={clearAllFiles} className="rounded-full text-slate-700 hover:bg-slate-200/60 hover:text-slate-900">
+                            <Trash className="mr-2 h-4 w-4" />
+                            Clear All
+                          </Button>
+                        </div>
 
-                              return (
-                                <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
-                                  <ImageIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
-                                    <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                        <div className="max-h-[32rem] space-y-4 overflow-y-auto pr-2">
+                          {selectedFiles.map((file, index) => {
+                            const progress = uploadProgress[file.name]
+                            const hasError = progress === -1
+                            const isComplete = progress === 100
+
+                            return (
+                              <div key={index} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-200 hover:border-slate-300/60 hover:shadow-md">
+                                <div className="flex items-start gap-4">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                                    <ImageIcon className="h-6 w-6" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-slate-900">{file.name}</p>
+                                        <p className="mt-1 text-xs text-slate-600">{formatFileSize(file.size)}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        {isComplete && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                        {hasError && <XCircle className="h-5 w-5 text-red-500" />}
+                                        {!isUploading && !isComplete && !hasError && (
+                                          <Button variant="ghost" size="sm" onClick={() => removeFile(index)} className="h-9 w-9 rounded-full p-0 text-slate-500 hover:bg-slate-200/60 hover:text-slate-700">
+                                            <XCircle className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
                                     {progress !== undefined && (
-                                      <Progress
-                                        value={hasError ? 100 : progress}
-                                        className={`h-1 mt-1 ${hasError ? "bg-destructive/20" : ""}`}
-                                      />
+                                      <Progress value={hasError ? 100 : progress} className={`mt-4 h-2 shadow-inner ${hasError ? "bg-red-100" : ""}`} />
                                     )}
                                   </div>
-                                  {isComplete && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
-                                  {hasError && <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />}
-                                  {!isUploading && !isComplete && !hasError && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeFile(index)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <XCircle className="w-4 h-4" />
-                                    </Button>
-                                  )}
                                 </div>
-                              )
-                            })}
-                          </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </>
+                    ) : (
+                      <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300/60 bg-slate-50/30 px-8 py-12 text-center">
+                        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-lg">
+                          <FolderOpen className="h-7 w-7" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900">No files selected yet</h3>
+                        <p className="mt-3 max-w-sm text-sm text-slate-600 leading-relaxed">
+                          Choose a folder or individual images to build your upload queue. Progress will appear here once files are added.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
-
-
+              <Card className="border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+                <CardContent className="flex flex-col gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-2">
+                    <p className="text-base font-medium text-slate-900">Ready to publish your selected photos?</p>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Make sure an event is selected before uploading. The button below will send every queued file.
+                    </p>
+                  </div>
                   <Button
                     onClick={handleBatchUpload}
                     disabled={isUploading || selectedFiles.length === 0 || !selectedEvent}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6"
+                    className="gap-3 rounded-full px-8 py-4 text-base font-medium shadow-xl shadow-slate-900/20 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 hover:-translate-y-1"
                   >
                     {isUploading ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                         Uploading {selectedFiles.length} photos...
                       </>
                     ) : (
                       <>
-                        <Upload className="w-5 h-5 mr-2" />
+                        <Upload className="h-5 w-5" />
                         Upload {selectedFiles.length > 0 ? `${selectedFiles.length} ` : ""}Photos
                       </>
                     )}
                   </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="my-photos" className="space-y-8">
+              <div className="flex items-end justify-between gap-6">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-light tracking-tight text-slate-900">My Uploaded Photos</h2>
+                  <p className="text-lg text-slate-600 leading-relaxed">View and manage your uploaded event photos from a curated gallery view.</p>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="my-photos">
-                <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-foreground mb-2">My Uploaded Photos</h1>
-                  <p className="text-muted-foreground">View and manage your uploaded event photos</p>
+                <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200/60 bg-white/80 px-5 py-3 text-sm text-slate-700 shadow-lg shadow-slate-100/50 backdrop-blur">
+                  <Images className="h-5 w-5 text-slate-600" />
+                  <span className="font-medium">{uploadedPhotos.length} photos in library</span>
                 </div>
+              </div>
 
-                <div className="grid gap-4">
-                  {uploadedPhotos.map((photo) => {
-                    const statusDisplay = getStatusDisplay(photo.status)
-                    return (
-                      <Card key={photo.id} className="border border-border hover:border-primary/50 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex gap-4">
-                            <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                              <img
-                                src={photo.thumbnail || "/placeholder.svg"}
-                                alt={photo.filename}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute top-2 right-2">
-                                <Badge variant={statusDisplay.variant} className="text-xs flex items-center gap-1">
-                                  {statusDisplay.icon}
-                                  {statusDisplay.label}
-                                </Badge>
-                              </div>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <div>
-                                  <h3 className="font-semibold text-foreground text-base leading-tight mb-1">
-                                    {photo.filename}
-                                  </h3>
-                                  <p className="text-sm text-primary font-medium">{photo.eventName}</p>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeletePhoto(photo.id)}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mt-3">
-                                <div>
-                                  <span className="text-muted-foreground">Uploaded:</span>
-                                  <span className="ml-2 text-foreground">
-                                    {new Date(photo.uploadDate).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Dimensions:</span>
-                                  <span className="ml-2 text-foreground">{photo.size}</span>
-                                </div>
-                              </div>
-
-                              <div className="mt-3 pt-3 border-t border-border">
-                                <span className="text-xs text-muted-foreground">
-                                  Captured: {photo.metadata.datetime}
-                                </span>
-                              </div>
+              <div id="photo-library" className="grid gap-6 xl:grid-cols-2">
+                {uploadedPhotos.map((photo) => {
+                  const statusDisplay = getStatusDisplay(photo.status)
+                  return (
+                    <Card key={photo.id} className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/95 to-white/80 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-slate-300/60 hover:shadow-2xl hover:shadow-slate-300/60">
+                      <CardContent className="p-0">
+                        <div className="grid gap-0 md:grid-cols-[260px_1fr]">
+                          <div className="relative min-h-[240px] bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                            <img
+                              src={photo.thumbnail || "/placeholder.svg"}
+                              alt={photo.filename}
+                              className="h-full w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:rotate-1"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                            <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
+                              <Badge variant={statusDisplay.variant} className="flex items-center gap-2 rounded-full border border-white/20 bg-white/90 px-4 py-2 text-xs font-medium text-slate-900 shadow-lg backdrop-blur-xl">
+                                {statusDisplay.icon}
+                                {statusDisplay.label}
+                              </Badge>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleDeletePhoto(photo.id)}
+                                className="h-10 w-10 rounded-full bg-white/90 p-0 text-slate-700 shadow-lg backdrop-blur-xl transition-all duration-200 hover:bg-red-50 hover:text-red-600 hover:scale-110"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
 
-                {uploadedPhotos.length === 0 && (
-                  <Card className="border border-dashed border-border">
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <ImageIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold text-foreground mb-2">No photos uploaded yet</h3>
-                      <p className="text-sm text-muted-foreground">Start uploading photos from the Upload tab</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
+                          <div className="flex min-w-0 flex-col justify-between p-6">
+                            <div className="space-y-5">
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Filename</p>
+                                <h3 className="truncate text-xl font-light text-slate-900 leading-tight">{photo.filename}</h3>
+                                <p className="text-sm font-medium text-slate-700">{photo.eventName}</p>
+                              </div>
+
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-inner">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Uploaded</span>
+                                  <p className="mt-2 text-sm font-medium text-slate-900">{new Date(photo.uploadDate).toLocaleDateString()}</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-inner">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Dimensions</span>
+                                  <p className="mt-2 text-sm font-medium text-slate-900">{photo.size}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-6 flex items-center justify-between gap-4 border-t border-slate-200/60 pt-5">
+                              <span className="text-xs text-slate-500">Captured: {photo.metadata.datetime}</span>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeletePhoto(photo.id)} className="rounded-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100/60 hover:text-red-600 transition-all duration-200">
+                                <Trash className="mr-2 h-4 w-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {uploadedPhotos.length === 0 && (
+                <Card className="border-dashed border-slate-300/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+                  <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 shadow-lg">
+                      <ImageIcon className="h-9 w-9" />
+                    </div>
+                    <h3 className="text-xl font-light text-slate-900">No photos uploaded yet</h3>
+                    <p className="mt-3 max-w-md text-base text-slate-600 leading-relaxed">
+                      Start by uploading photos from the Upload tab. Your curated gallery will appear here once files are processed.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
     </>
