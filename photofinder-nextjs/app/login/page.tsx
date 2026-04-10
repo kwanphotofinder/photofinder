@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
 declare global {
@@ -21,10 +21,12 @@ declare global {
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
 
   const handleCredentialResponse = async (response: any) => {
     setError(null);
+    setIsLoading(true);
     try {
       const token = response.credential;
       const res = await apiClient.loginWithGoogle(token);
@@ -58,6 +60,7 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Login failed. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -122,8 +125,15 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="flex justify-center py-4">
-            <div ref={buttonRef} />
+          <div className="flex justify-center py-4 min-h-[60px]">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <Loader2 className="w-8 h-8 animate-spin text-white/80" />
+                <span className="text-sm font-medium text-white/80">Signing you in...</span>
+              </div>
+            ) : (
+              <div ref={buttonRef} />
+            )}
           </div>
 
           <p className="text-xs text-white/60 text-center">

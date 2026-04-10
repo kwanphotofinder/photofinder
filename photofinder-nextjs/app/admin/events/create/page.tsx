@@ -31,7 +31,7 @@ export default function CreateEventPage() {
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
     if (!adminToken) {
-      router.push("/admin/login")
+      router.push("/login")
       return
     }
     setIsLoading(false)

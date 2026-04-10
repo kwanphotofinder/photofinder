@@ -34,7 +34,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
     if (!adminToken) {
-      router.push("/admin/login")
+      router.push("/login")
       return
     }
 
