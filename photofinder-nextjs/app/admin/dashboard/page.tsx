@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, MapPin, Image as ImageIcon, Trash2, LogOut, Settings, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, XCircle, Pencil, UserPlus, Crown, Camera } from "lucide-react"
-import { PhotoDetailModal } from "@/components/photo-detail-modal"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 
@@ -25,7 +24,6 @@ export default function AdminDashboardPage() {
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [callerRole, setCallerRole] = useState("")
-  const [callerEmail, setCallerEmail] = useState("")
   const [newPhotographerEmail, setNewPhotographerEmail] = useState("")
   const [newAdminEmail, setNewAdminEmail] = useState("")
   const [userMgmtLoading, setUserMgmtLoading] = useState(false)
@@ -66,7 +64,6 @@ export default function AdminDashboardPage() {
         if (usersRes.data) {
           setAllUsers(usersRes.data.users || [])
           setCallerRole(usersRes.data.callerRole || "")
-          setCallerEmail(usersRes.data.callerEmail || "")
         }
       } catch (error) {
         console.error("Failed to fetch data", error)
@@ -145,6 +142,8 @@ export default function AdminDashboardPage() {
   }
 
   const activeEvents = events.filter((e) => e.status === "PUBLISHED").length
+  const pendingRequests = removalRequests.length
+  const totalUsers = allUsers.length
 
   const filteredEvents = events.filter(e =>
     e.name.toLowerCase().includes(eventSearch.toLowerCase())
@@ -158,10 +157,13 @@ export default function AdminDashboardPage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="bg-card border-b border-border">
+      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
+        <div className="pointer-events-none absolute -top-20 -left-12 h-64 w-64 rounded-full bg-[#82181a]/12 blur-3xl" />
+        <div className="pointer-events-none absolute top-36 right-0 h-72 w-72 rounded-full bg-[#82181a]/10 blur-3xl" />
+
+        <div className="relative border-b border-border/60 bg-card/75 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
                 <p className="text-muted-foreground mt-1">Welcome back, {adminName}</p>
@@ -169,7 +171,7 @@ export default function AdminDashboardPage() {
               <div className="flex gap-3">
                 <Button
                   onClick={() => router.push("/admin/events/create")}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground shadow-md shadow-[#82181a]/25 hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Event
@@ -177,10 +179,13 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="border border-border backdrop-blur-sm bg-card/80">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Active Events</CardTitle>
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+                    Active Events
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-foreground">{activeEvents}</div>
@@ -188,13 +193,42 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-border backdrop-blur-sm bg-card/80">
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Events</CardTitle>
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+                    Total Events
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-foreground">{events.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">all time</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+                    Pending Requests
+                    <Bell className="h-4 w-4 text-primary" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-foreground">{pendingRequests}</div>
+                  <p className="text-xs text-muted-foreground mt-1">awaiting moderation</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+                    Registered Users
+                    <Users className="h-4 w-4 text-primary" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-foreground">{totalUsers}</div>
+                  <p className="text-xs text-muted-foreground mt-1">all roles combined</p>
                 </CardContent>
               </Card>
             </div>
@@ -202,16 +236,16 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 items-start">
-          <Tabs defaultValue="events" orientation="vertical" className="flex flex-col md:flex-row gap-8 w-full items-start">
-            <TabsList className="flex flex-col h-auto w-full md:w-64 lg:w-72 bg-card/50 backdrop-blur-md border border-border items-stretch p-4 gap-2 sticky top-24 shrink-0 rounded-2xl shadow-sm !inline-flex !h-auto">
-              <div className="px-2 pb-2 mb-2 border-b border-border/50">
+          <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-8 md:flex-row md:items-start">
+            <TabsList className="!inline-flex !h-auto sticky top-24 h-auto w-full shrink-0 flex-col items-stretch gap-2 rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-md md:w-64 lg:w-72">
+              <div className="mb-2 border-b border-border/60 px-2 pb-2">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Dashboard Menu
                 </h3>
               </div>
               {[
-                { value: "events", icon: Calendar, label: "Events", desc: "Manage campus events" },
-                { value: "photos", icon: ImageIcon, label: "Photos", desc: "View all uploads" },
+                { value: "events", icon: Calendar, label: "Events", badge: events.length, desc: "Manage campus events" },
+                { value: "photos", icon: ImageIcon, label: "Photos", badge: photos.length, desc: "View all uploads" },
                 { value: "requests", icon: Shield, label: `Removal Requests`, badge: removalRequests.length, desc: "Pending review" },
                 { value: "users", icon: Users, label: "User Management", desc: "Roles & access" },
                 { value: "health", icon: BarChart3, label: "System Health", desc: "Metrics & logs" },
@@ -219,7 +253,7 @@ export default function AdminDashboardPage() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="group relative w-full justify-start text-left px-4 py-3 !h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none !border-0 rounded-xl transition-all duration-200 hover:bg-muted font-medium overflow-hidden"
+                  className="group relative !h-auto w-full overflow-hidden rounded-xl border border-transparent px-4 py-3 text-left font-medium transition-all duration-200 hover:bg-muted data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary scale-y-0 group-data-[state=active]:scale-y-100 transition-transform origin-left rounded-r-md"></div>
                   <tab.icon className="w-5 h-5 mr-3 shrink-0 text-muted-foreground group-data-[state=active]:text-primary transition-colors" />
@@ -227,8 +261,8 @@ export default function AdminDashboardPage() {
                     <span className="text-sm font-semibold truncate">{tab.label}</span>
                     <span className="text-xs font-normal text-muted-foreground group-data-[state=active]:text-primary/70 truncate">{tab.desc}</span>
                   </div>
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                  {tab.badge !== undefined && (
+                    <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tab.value === "requests" && tab.badge > 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
                       {tab.badge}
                     </span>
                   )}
@@ -238,20 +272,20 @@ export default function AdminDashboardPage() {
 
             <div className="flex-1 w-full min-w-0">
               <TabsContent value="events" className="mt-0 !outline-none border-0">
-                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                   <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <CardTitle>Events</CardTitle>
                       <CardDescription>Manage your campus events</CardDescription>
                     </div>
-                    <div className="relative w-64">
+                    <div className="relative w-full sm:w-64">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search events..."
                         value={eventSearch}
                         onChange={(e) => setEventSearch(e.target.value)}
-                        className="pl-8"
+                        className="border-border/70 bg-background/80 pl-8"
                       />
                     </div>
                   </div>
@@ -260,11 +294,19 @@ export default function AdminDashboardPage() {
                   {isLoading ? (
                     <div className="text-center py-8 text-muted-foreground">Loading events...</div>
                   ) : filteredEvents.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No events found.</div>
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
+                      <Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">No events found</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Try another keyword or create a new event.</p>
+                      <Button onClick={() => router.push("/admin/events/create")} className="mt-4 bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Event
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-4">
-                      {filteredEvents.map((event) => (
-                        <div key={event.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border border-border rounded-lg bg-card/50">
+                      {filteredEvents.map((event, index) => (
+                        <div key={event.id} className="animate-in fade-in-0 slide-in-from-bottom-2 flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 duration-300 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm md:flex-row md:items-center md:justify-between" style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}>
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="font-semibold text-foreground">{event.name}</h3>
@@ -290,6 +332,7 @@ export default function AdminDashboardPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => router.push(`/admin/events/${event.id}/edit`)}
+                              className="border-border/70 bg-background/80"
                             >
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit
@@ -298,6 +341,7 @@ export default function AdminDashboardPage() {
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDeleteEvent(event.id)}
+                              className="shadow-sm"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               Delete
@@ -312,20 +356,20 @@ export default function AdminDashboardPage() {
             </TabsContent>
 
             <TabsContent value="photos" className="mt-0">
-              <Card className="border border-border backdrop-blur-sm bg-card/80">
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <CardTitle>All Photos</CardTitle>
                       <CardDescription>Manage all uploaded photos ({filteredPhotos.length})</CardDescription>
                     </div>
-                    <div className="relative w-64">
+                    <div className="relative w-full sm:w-64">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search by event or filename..."
                         value={photoSearch}
                         onChange={(e) => setPhotoSearch(e.target.value)}
-                        className="pl-8"
+                        className="border-border/70 bg-background/80 pl-8"
                       />
                     </div>
                   </div>
@@ -334,27 +378,31 @@ export default function AdminDashboardPage() {
                   {isLoading ? (
                     <div className="text-center py-8 text-muted-foreground">Loading photos...</div>
                   ) : filteredPhotos.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No photos found.</div>
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
+                      <ImageIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">No photos found</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Uploaded photos will appear here for moderation.</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {filteredPhotos.map((photo) => (
-                        <div key={photo.id} className="group relative aspect-square rounded-lg overflow-hidden bg-muted border border-border">
+                      {filteredPhotos.map((photo, index) => (
+                        <div key={photo.id} className="animate-in fade-in-0 zoom-in-95 group relative aspect-square overflow-hidden rounded-xl border border-border/70 bg-muted shadow-sm duration-300 transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}>
                           <img
                             src={photo.thumbnailUrl || photo.storageUrl}
                             alt="Event photo"
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/70 to-black/35 opacity-0 transition-opacity group-hover:opacity-100">
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDeletePhoto(photo.id)}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 shadow-md"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                          <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-white text-xs truncate">
+                          <div className="absolute bottom-0 left-0 right-0 truncate bg-black/60 p-2 text-xs text-white">
                             {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
                           </div>
                         </div>
@@ -366,7 +414,7 @@ export default function AdminDashboardPage() {
             </TabsContent>
 
             <TabsContent value="requests" className="mt-0">
-              <Card className="border border-border backdrop-blur-sm bg-card/80">
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                 <CardHeader>
                   <CardTitle>Removal Requests</CardTitle>
                   <CardDescription>Review and manage photo removal requests from users</CardDescription>
@@ -375,13 +423,17 @@ export default function AdminDashboardPage() {
                   {isLoading ? (
                     <div className="text-center py-8 text-muted-foreground">Loading requests...</div>
                   ) : removalRequests.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No pending removal requests.</div>
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
+                      <Shield className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">No pending removal requests</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Requests submitted by users will appear in this queue.</p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       {removalRequests.map((request) => (
-                        <div key={request.id} className="flex flex-col md:flex-row gap-4 p-4 border border-border rounded-lg bg-card/50">
+                        <div key={request.id} className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-sm md:flex-row">
                           {request.photo && (
-                            <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-muted border border-border">
+                            <div className="h-32 w-32 flex-shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
                               <img
                                 src={request.photo.url}
                                 alt="Requested photo"
@@ -411,7 +463,7 @@ export default function AdminDashboardPage() {
                             <Button
                               size="sm"
                               onClick={() => handleApproveRequest(request.id, request.photoId)}
-                              className="flex-1 md:flex-none bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              className="flex-1 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 md:flex-none"
                             >
                               Approve & Delete
                             </Button>
@@ -444,7 +496,7 @@ export default function AdminDashboardPage() {
                 )}
 
                 {/* Add Photographer */}
-                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Camera className="w-5 h-5" /> Add Photographer</CardTitle>
                     <CardDescription>Add a Gmail or MFU email. The user will be directed to the photographer page on their next login.</CardDescription>
@@ -455,10 +507,11 @@ export default function AdminDashboardPage() {
                         placeholder="photographer@gmail.com"
                         value={newPhotographerEmail}
                         onChange={(e) => setNewPhotographerEmail(e.target.value)}
-                        className="flex-1"
+                        className="flex-1 border-border/70 bg-background/80"
                       />
                       <Button
                         disabled={userMgmtLoading || !newPhotographerEmail}
+                        className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
                         onClick={async () => {
                           setUserMgmtLoading(true)
                           setUserMgmtMessage(null)
@@ -482,7 +535,7 @@ export default function AdminDashboardPage() {
 
                 {/* Add Admin (Super Admin only) */}
                 {callerRole === "SUPER_ADMIN" && (
-                  <Card className="border border-border backdrop-blur-sm bg-card/80">
+                  <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5" /> Add Admin</CardTitle>
                       <CardDescription>Only you (Super Admin) can add or remove admins.</CardDescription>
@@ -493,10 +546,11 @@ export default function AdminDashboardPage() {
                           placeholder="admin@gmail.com"
                           value={newAdminEmail}
                           onChange={(e) => setNewAdminEmail(e.target.value)}
-                          className="flex-1"
+                          className="flex-1 border-border/70 bg-background/80"
                         />
                         <Button
                           disabled={userMgmtLoading || !newAdminEmail}
+                          className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
                           onClick={async () => {
                             setUserMgmtLoading(true)
                             setUserMgmtMessage(null)
@@ -520,7 +574,7 @@ export default function AdminDashboardPage() {
                 )}
 
                 {/* User List */}
-                <Card className="border border-border backdrop-blur-sm bg-card/80">
+                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                   <CardHeader>
                     <CardTitle>All Users</CardTitle>
                     <CardDescription>{allUsers.length} registered users</CardDescription>
@@ -553,7 +607,7 @@ export default function AdminDashboardPage() {
                         }[u.role as string] || u.role
 
                         return (
-                          <div key={u.id} className="flex items-center justify-between p-3 border border-border rounded-lg bg-card/50">
+                          <div key={u.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:border-primary/30 hover:shadow-sm">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground overflow-hidden">
                                 {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
