@@ -12,8 +12,8 @@ export default function ConsentPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [consent, setConsent] = useState<ConsentData>({
-    globalFaceSearch: true,
-    dataProcessing: true,
+    globalFaceSearch: false,
+    dataProcessing: false,
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -90,7 +90,7 @@ export default function ConsentPage() {
               </div>
             )}
 
-            <div className="bg-background/50 rounded-xl p-1 border border-border/50 shadow-sm">
+            <div className="bg-background/50 rounded-xl p-2 sm:p-4 border border-border/50 shadow-sm">
               <PrivacyConsentForm
                 consent={consent}
                 onChange={handleConsentChange}
@@ -119,14 +119,23 @@ export default function ConsentPage() {
             <div className="space-y-4 pt-2 mt-4 border-t border-border/40">
               <Button
                 onClick={() => handleConsent(true)}
-                disabled={isLoading}
+                disabled={isLoading || !consent.globalFaceSearch || !consent.dataProcessing}
                 className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 py-6 text-lg font-semibold hover:scale-[1.01]"
                 size="lg"
               >
                 {isLoading ? "Processing..." : "Accept & Continue"}
               </Button>
+              <Button
+                onClick={() => handleConsent(false)}
+                disabled={isLoading}
+                variant="outline"
+                className="w-full py-6 text-lg font-semibold border-2"
+                size="lg"
+              >
+                Decline & Browse Manually
+              </Button>
               <p className="text-xs text-muted-foreground text-center">
-                By continuing, you agree to our Terms of Service and Privacy Policy
+                By continuing, you agree to our Terms of Service and <a href="/privacy" className="text-primary hover:underline font-medium">Privacy Policy</a>
               </p>
             </div>
           </CardContent>

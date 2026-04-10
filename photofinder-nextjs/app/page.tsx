@@ -54,6 +54,14 @@ export default function LandingPage() {
               >
                 Explore the App
               </Button>
+              <Button
+                onClick={() => router.push("/privacy")}
+                size="lg"
+                variant="ghost"
+                className="w-full sm:w-auto hover:bg-white/10 text-white border border-transparent hover:border-white/20 font-semibold transition-all duration-300 px-8 py-6 text-base"
+              >
+                Privacy Policy
+              </Button>
             </div>
           </div>
         </div>

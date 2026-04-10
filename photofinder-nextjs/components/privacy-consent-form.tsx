@@ -17,14 +17,14 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
     return (
         <div className="space-y-4">
             {/* Face Search Consent */}
-            <div className="space-y-3 p-4 border border-border/50 rounded-lg bg-card/30">
-                <div className="flex items-start gap-3">
+            <div className={`space-y-3 p-4 border rounded-lg transition-all duration-300 ${consent.globalFaceSearch ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-card/30 border-border/50 hover:border-primary/20'}`}>
+                <div className="flex items-start gap-4">
                     <Checkbox
                         id="globalFaceSearch"
                         checked={consent.globalFaceSearch}
                         onCheckedChange={() => onChange("globalFaceSearch")}
                         disabled={disabled}
-                        className="mt-1"
+                        className="mt-1 w-6 h-6 border-2 flex-shrink-0 transition-colors data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                     <div className="flex-1 min-w-0">
                         <label
@@ -42,14 +42,14 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
             </div>
 
             {/* Data Processing Consent */}
-            <div className="space-y-3 p-4 border border-border/50 rounded-lg bg-card/30">
-                <div className="flex items-start gap-3">
+            <div className={`space-y-3 p-4 border rounded-lg transition-all duration-300 ${consent.dataProcessing ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-card/30 border-border/50 hover:border-primary/20'}`}>
+                <div className="flex items-start gap-4">
                     <Checkbox
                         id="dataProcessing"
                         checked={consent.dataProcessing}
                         onCheckedChange={() => onChange("dataProcessing")}
                         disabled={disabled}
-                        className="mt-1"
+                        className="mt-1 w-6 h-6 border-2 flex-shrink-0 transition-colors data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                     <div className="flex-1 min-w-0">
                         <label

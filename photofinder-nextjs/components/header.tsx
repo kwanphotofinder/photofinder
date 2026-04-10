@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Camera, ChevronDown, User, Mail, LogOut, Settings } from "lucide-react"
+import { Camera, ChevronDown, User, Mail, LogOut, Settings, Shield } from "lucide-react"
 import { Navigation } from "./navigation"
 import { Button } from "./ui/button"
 import {
@@ -103,6 +103,13 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/privacy")}
+                className="hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Privacy Policy
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleLogout}

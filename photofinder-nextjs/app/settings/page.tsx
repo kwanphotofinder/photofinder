@@ -13,8 +13,8 @@ import { apiClient } from "@/lib/api-client"
 export default function SettingsPage() {
   const router = useRouter()
   const [consent, setConsent] = useState<ConsentData>({
-    globalFaceSearch: true,
-    dataProcessing: true,
+    globalFaceSearch: false,
+    dataProcessing: false,
   })
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -42,8 +42,8 @@ export default function SettingsPage() {
           if (saved) {
             const parsed = JSON.parse(saved)
             setConsent({
-              globalFaceSearch: parsed.globalFaceSearch ?? true,
-              dataProcessing: parsed.dataProcessing ?? true,
+              globalFaceSearch: parsed.globalFaceSearch ?? false,
+              dataProcessing: parsed.dataProcessing ?? false,
             })
           }
         }
@@ -54,8 +54,8 @@ export default function SettingsPage() {
         if (saved) {
           const parsed = JSON.parse(saved)
           setConsent({
-            globalFaceSearch: parsed.globalFaceSearch ?? true,
-            dataProcessing: parsed.dataProcessing ?? true,
+            globalFaceSearch: parsed.globalFaceSearch ?? false,
+            dataProcessing: parsed.dataProcessing ?? false,
           })
         }
       }
