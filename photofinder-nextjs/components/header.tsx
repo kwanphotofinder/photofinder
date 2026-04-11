@@ -62,7 +62,10 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
     <header className="sticky top-0 z-40 bg-white/30 dark:bg-black/30 backdrop-blur-md border-b border-white/20 shadow-sm transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <div className="cursor-pointer" onClick={() => router.push("/dashboard")}>
+          <div
+            className={userRole === "admin" ? "cursor-default pointer-events-none" : "cursor-pointer"}
+            onClick={userRole === "admin" ? undefined : () => router.push("/dashboard")}
+          >
             <img src="/Logo.png" alt="Photo Finder" className="h-14 w-auto" />
           </div>
           <Navigation userRole={userRole} />
@@ -98,7 +101,7 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => router.push("/settings")}
+                onClick={() => router.push(userRole === "admin" ? "/admin/settings" : "/settings")}
                 className="hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground"
               >
                 <Settings className="w-4 h-4 mr-2" />
