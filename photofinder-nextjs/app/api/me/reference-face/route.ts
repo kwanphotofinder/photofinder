@@ -3,6 +3,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { extractFaces } from '@/lib/ai';
+import { optimizeForStorage } from '@/lib/image';
 
 export const maxDuration = 60; // Allow AI to wake up 
 
@@ -57,10 +58,11 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // 2. Upload the new selfie to storage
-    storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer);
+    // 2. Optimize and upload the new selfie to storage (resize + WebP)
+    const optimized = await optimizeForStorage(fileBuffer);
+    storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer);
 
-    // 3. Extract face math using AI
+    // 3. Extract face math using AI (send ORIGINAL buffer for best accuracy)
     const faces = await extractFaces(fileBuffer, file.name);
     
     if (!faces || faces.length === 0) {

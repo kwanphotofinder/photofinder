@@ -27,9 +27,6 @@ export async function uploadToCloudinary(fileName: string, mimeType: string, fil
         folder: folderPath, 
         resource_type: 'auto', // Automatically detect whether it's an image or video
         public_id: `${fileName.split('.')[0]}_${Date.now()}`, // Make it unique to prevent overwriting/accidental deletion of shared filenames
-        transformation: [
-          { quality: "auto", fetch_format: "auto" }
-        ]
       },
       (error, result) => {
         if (error) {

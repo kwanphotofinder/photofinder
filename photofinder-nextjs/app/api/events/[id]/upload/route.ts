@@ -3,7 +3,7 @@ import { uploadToCloudinary } from "@/lib/cloudinary"
 import { extractFaces } from "@/lib/ai"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import sharp from "sharp"
+import { optimizeForStorage } from "@/lib/image"
 
 // POST /api/events/:id/upload - Upload multiple photos to an event
 // This mirrors the photographer upload flow which sends files per event
@@ -47,28 +47,22 @@ export async function POST(
     for (const file of files) {
       const fileBuffer = Buffer.from(await file.arrayBuffer())
 
-      // 1. Upload to Cloudinary using event-specific folder
-      const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer, eventId)
+      // 1. Optimize image for storage (resize to 2048px + WebP quality 85)
+      const optimized = await optimizeForStorage(fileBuffer)
 
-      // 2. Extract dimensions
-      let width: number | null = null
-      let height: number | null = null
-      try {
-        const metadata = await sharp(fileBuffer).metadata()
-        width = metadata.width || null
-        height = metadata.height || null
-      } catch {}
+      // 2. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
+      const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId)
 
-      // 3. Create Photo Record
+      // 3. Create Photo Record (dimensions from optimized version)
       const photo = await prisma.photo.create({
         data: {
           eventId,
           uploaderId: uploaderId || null,
           storageUrl: storageUrl || file.name,
-          mimeType: file.type,
+          mimeType: 'image/webp',
           processingStatus: "PROCESSING",
-          width,
-          height,
+          width: optimized.width,
+          height: optimized.height,
         },
       })
 

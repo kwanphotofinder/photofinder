@@ -3,7 +3,7 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
 import { extractFaces } from '@/lib/ai';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import sharp from 'sharp';
+import { optimizeForStorage } from '@/lib/image';
 
 // Allow Vercel Hobby tier to wait up to 60 seconds for Hugging Face AI to wake up
 export const maxDuration = 60;
@@ -28,30 +28,22 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // 1. Upload to Cloudinary into event-specific folder
-    const storageUrl = await uploadToCloudinary(file.name, file.type, fileBuffer, eventId);
+    // 1. Optimize image for storage (resize to 2048px + WebP quality 85)
+    const optimized = await optimizeForStorage(fileBuffer);
 
-    // 2. Extract image dimensions using Sharp
-    let width: number | null = null;
-    let height: number | null = null;
-    try {
-      const metadata = await sharp(fileBuffer).metadata();
-      width = metadata.width || null;
-      height = metadata.height || null;
-    } catch (error) {
-      console.warn('Failed to extract image dimensions:', error);
-    }
+    // 2. Upload the OPTIMIZED version to Cloudinary (saves ~70-80% storage)
+    const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId);
 
-    // 3. Create Photo Record in Prisma
+    // 3. Create Photo Record in Prisma (dimensions from the optimized version)
     const photo = await prisma.photo.create({
       data: {
         eventId,
         uploaderId,
         storageUrl,
-        mimeType: file.type,
+        mimeType: 'image/webp',
         processingStatus: 'PROCESSING',
-        width,
-        height,
+        width: optimized.width,
+        height: optimized.height,
       },
     });
 
