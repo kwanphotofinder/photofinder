@@ -5,7 +5,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { extractFaces } from '@/lib/ai';
 import { optimizeForStorage } from '@/lib/image';
 
-export const maxDuration = 60; // Allow AI to wake up 
+export const maxDuration = 180; // Allow AI to wake up 
 
 export async function GET(req: NextRequest) {
   try {
@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: 'File is required' }, { status: 400 });
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 15MB)' }, { status: 413 });
     }
 
     // 1. Read old reference face (we only delete old assets after new one is saved)

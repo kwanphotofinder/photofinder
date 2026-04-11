@@ -5,14 +5,16 @@ import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { optimizeForStorage } from '@/lib/image';
 
-// Allow Vercel Hobby tier to wait up to 60 seconds for Hugging Face AI to wake up
-export const maxDuration = 60;
+// Allow Vercel Hobby tier to wait up to 180 seconds for Hugging Face AI to wake up
+export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
-    // You can enforce authentication here
-    // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'PHOTOGRAPHER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -21,6 +23,9 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 15MB)' }, { status: 413 });
     }
     if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });

@@ -110,7 +110,18 @@ Assuming ~400 MB is reserved for Photos and Face Vectors (100 MB for Users, Even
 ### 3.3 Connection Pooling
 - **Built-in Pooling:** Neon includes PgBouncer-based connection pooling, supporting up to **10,000 pooled connections**.
 - **Practical Limit:** While the pool is generous, the Free tier's 2 CU maximum means a burst of ~50+ simultaneous face-search queries (each involving a `vector <=> vector` cosine distance computation across thousands of rows) will queue up and potentially cause Vercel function timeouts.
-- **Prisma Configuration:** This project uses `@prisma/adapter-pg` with the pooled `DATABASE_URL` for runtime queries and `DIRECT_URL` for migrations — this is the correct Neon-optimized setup.
+  - **Prisma Configuration:** This project uses `@prisma/adapter-pg` with the pooled `DATABASE_URL` for runtime queries and `DIRECT_URL` for migrations — this is the correct Neon-optimized setup.
+
+### 3.4 Production Setup (SQL Required)
+*Important:* Vercel's `prisma db push` won't automatically configure your vector indexes or extensions upon deployment. When setting up a new Neon Database or pushing to production for the first time, you **must run these SQL commands manually** in the Neon console's "SQL Editor":
+
+```sql
+-- 1. Enable the pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 2. Create the High-Dimensional Search Index (speeds up face searches from seconds to milliseconds)
+CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
+```
 
 ---
 

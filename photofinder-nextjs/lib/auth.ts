@@ -16,7 +16,11 @@ export async function getUserFromRequest(req: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1];
-    const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_for_development';
+    const jwtSecret = process.env.JWT_SECRET;
+    
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is missing');
+    }
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     

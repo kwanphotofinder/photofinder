@@ -20,7 +20,14 @@ This guide explains how to deploy the unified Next.js full-stack application. Th
 3. On the Dashboard, go to **Connection Details**.
 4. Set the dropdown to **Node.js** (or keep standard string). Ensure **Connection pooling** is turned ON.
 5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech/neondb?sslmode=require`)
-6. **Important:** Your Next.js app will automatically enable the `pgvector` extension via Prisma when you deploy, so no manual SQL commands are required.
+6. **Important:** When setting up a new Neon Database or pushing to production for the first time, you **must run these SQL commands manually** in the Neon console's "SQL Editor". `prisma db push` alone will not configure the pgvector dependencies correctly:
+```sql
+-- 1. Enable the pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 2. Create the High-Dimensional Search Index (speeds up face searches from seconds to milliseconds)
+CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
+```
 
 ### 2. Photo Storage (Cloudinary)
 1. Go to [cloudinary.com](https://cloudinary.com/) → Sign up

@@ -20,7 +20,11 @@ export async function POST(
     const eventId = p.id;
 
     const user = await getUserFromRequest(request);
-    const uploaderId = user?.sub || undefined;
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'PHOTOGRAPHER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const uploaderId = user.sub;
 
     const formData = await request.formData()
     const files = formData.getAll("files") as File[]
@@ -29,13 +33,15 @@ export async function POST(
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
     }
 
-    // Validate file types
+    // Validate file types and size
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
         return NextResponse.json({ error: "Invalid file type. Only images are allowed." }, { status: 400 })
       }
+      if (file.size > 15 * 1024 * 1024) {
+        return NextResponse.json({ error: "One or more files exceed the 15MB size limit." }, { status: 413 })
+      }
     }
-
     // Verify the event exists
     const event = await prisma.event.findUnique({ where: { id: eventId } })
     if (!event) {

@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Download, Trash2, AlertCircle } from "lucide-react"
+import { format } from 'date-fns'
+import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 
 interface Photo {
@@ -39,25 +41,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   if (!photo) return null
 
   const handleDownload = async () => {
-    try {
-      const downloadUrl = photo.url.endsWith('.jpg') ? photo.url : `${photo.url}.jpg`
-      const response = await fetch(downloadUrl)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const date = new Date(photo.eventDate).toISOString().split('T')[0]
-      const timestamp = Date.now()
-      a.download = `${photo.eventName.replace(/\s+/g, '_')}_${date}_${timestamp}.jpg`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Failed to download photo:', err)
-      alert('Unable to download automatically. Opening photo in new tab...')
-      window.open(photo.url, '_blank')
-    }
+    await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
   }
 
   const handleSubmitRemovalRequest = async () => {

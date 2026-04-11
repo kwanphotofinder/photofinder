@@ -76,6 +76,13 @@ Push the Prisma schema to your database to create the tables:
 npx prisma db push
 ```
 
+**Important:** Because Prisma does not automatically handle vector math indexes dynamically, you must manually run the following SQL command against your database to enable `pgvector` and index the faces:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
+```
+
 ### 5. Start the Development Server
 
 ```bash

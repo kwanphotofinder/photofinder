@@ -1,12 +1,18 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Camera, Upload, Shield } from "lucide-react"
 
 export default function LandingPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    // Silently wake up the AI service in the background
+    fetch('/api/ai-health').catch(() => {})
+  }, [])
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20">

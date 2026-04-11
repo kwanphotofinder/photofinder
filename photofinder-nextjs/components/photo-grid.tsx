@@ -5,7 +5,8 @@ import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Eye, Trash2, Heart, Download } from "lucide-react"
-import { PhotoDetailModal } from "@/components/photo-detail-modal"
+import { PhotoDetailModal } from "./photo-detail-modal"
+import { downloadPhoto } from "@/lib/download"
 
 interface Photo {
   id: string
@@ -82,26 +83,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
 
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
-    try {
-      const downloadUrl = photo.url.endsWith('.jpg') ? photo.url : `${photo.url}.jpg`
-      const response = await fetch(downloadUrl)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const date = new Date(photo.eventDate).toISOString().split('T')[0]
-      const timestamp = Date.now()
-      a.download = `${photo.eventName.replace(/\s+/g, '_')}_${date}_${timestamp}.jpg`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Failed to download photo:', err)
-      alert('Unable to download automatically. Opening photo in new tab...')
-      // Fallback to opening in new tab
-      window.open(photo.url, '_blank')
-    }
+    await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
   }
 
   return (

@@ -5,11 +5,9 @@ import { getUserFromRequest } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
-    // In production, uncomment the auth guard
-    // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Mock header fallback for dev
-    const uploaderId = user?.sub || req.headers.get('user-id');
+    const uploaderId = user.sub;
 
     if (!uploaderId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 401 });

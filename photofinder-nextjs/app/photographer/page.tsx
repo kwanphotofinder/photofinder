@@ -49,6 +49,12 @@ export default function PhotographerPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
+  
+  useEffect(() => {
+    // Silently wake up the AI service in the background
+    fetch('/api/ai-health').catch(() => {})
+  }, [])
+  
   // Fetch real events and photos from backend
   const loadData = async (photographerId?: string) => {
     // Fetch events separately so a photo error doesn't wipe the event list
@@ -153,16 +159,39 @@ export default function PhotographerPage() {
     setIsLoading(false)
   }, [router])
 
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+
+  const filterValidFiles = (files: File[]) => {
+    const valid: File[] = [];
+    const oversized: string[] = [];
+    
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) continue;
+      
+      if (file.size > MAX_FILE_SIZE) {
+        oversized.push(file.name);
+      } else {
+        valid.push(file);
+      }
+    }
+    
+    if (oversized.length > 0) {
+      alert(`The following files were skipped because they exceed the 15MB limit:\n${oversized.slice(0, 5).join('\n')}${oversized.length > 5 ? '\n...and more' : ''}`);
+    }
+    
+    return valid;
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
+      const newFiles = filterValidFiles(Array.from(e.target.files))
       setSelectedFiles((prev) => [...prev, ...newFiles])
     }
   }
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
+      const newFiles = filterValidFiles(Array.from(e.target.files))
       setSelectedFiles((prev) => [...prev, ...newFiles])
     }
   }
@@ -174,8 +203,8 @@ export default function PhotographerPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const droppedFiles = Array.from(e.dataTransfer.files)
-    const imageFiles = droppedFiles.filter((file) => file.type.startsWith("image/"))
-    setSelectedFiles((prev) => [...prev, ...imageFiles])
+    const validFiles = filterValidFiles(droppedFiles)
+    setSelectedFiles((prev) => [...prev, ...validFiles])
   }
 
   const removeFile = (index: number) => {
@@ -198,7 +227,10 @@ export default function PhotographerPage() {
     }
 
     setIsUploading(true)
-    const uploadPromises = selectedFiles.map(async (file, i) => {
+    
+    // Upload files sequentially to avoid overwhelming Vercel's concurrent functions limit (10 limit on Hobby)
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
       const formData = new FormData()
       formData.append("file", file)
       formData.append("eventId", selectedEvent)
@@ -222,8 +254,17 @@ export default function PhotographerPage() {
         }, 200)
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        
+        // Add auth header since the route is now protected
+        const headers: HeadersInit = {}
+        const token = localStorage.getItem('auth_token')
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+
         const response = await fetch(`${apiUrl}/photos/upload`, {
           method: "POST",
+          headers,
           body: formData,
         })
 
@@ -232,8 +273,6 @@ export default function PhotographerPage() {
         if (response.ok) {
           const data = await response.json()
           setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
-
-          // No longer updating local state immediately, will refetch all photos
         } else {
           setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
         }
@@ -241,9 +280,8 @@ export default function PhotographerPage() {
         console.error("[v0] Upload error:", error)
         setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
       }
-    })
+    }
 
-    await Promise.all(uploadPromises)
     setIsUploading(false)
 
     // After all uploads, reload only this photographer's photos
@@ -274,6 +312,23 @@ export default function PhotographerPage() {
     } catch (error) {
       console.error("[v0] Delete error:", error)
       alert("Failed to delete photo. Please try again.")
+    }
+  }
+
+  const handleRetryFailed = async (photoId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
+      const response = await fetch(`${apiUrl}/photos/${photoId}/retry`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+        },
+      })
+      if (!response.ok) throw new Error("Retry failed")
+      alert("Photo AI processing restared successfully. It will now show as PROCESSING.")
+      loadData(photographerUser?.id)
+    } catch (err) {
+      alert("Failed to retry photo processing.")
     }
   }
 
@@ -638,10 +693,22 @@ export default function PhotographerPage() {
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                             <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-                              <Badge variant={statusDisplay.variant} className="flex items-center gap-2 rounded-full border border-white/20 bg-white/90 px-4 py-2 text-xs font-medium text-slate-900 shadow-lg backdrop-blur-xl">
-                                {statusDisplay.icon}
-                                {statusDisplay.label}
-                              </Badge>
+                              <div className="flex gap-2">
+                                <Badge variant={statusDisplay.variant} className="flex items-center gap-2 rounded-full border border-white/20 bg-white/90 px-4 py-2 text-xs font-medium text-slate-900 shadow-lg backdrop-blur-xl">
+                                  {statusDisplay.icon}
+                                  {statusDisplay.label}
+                                </Badge>
+                                {photo.status === 'FAILED' && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleRetryFailed(photo.id)}
+                                    className="h-8 px-3 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shadow-lg backdrop-blur-xl transition-all duration-200"
+                                  >
+                                    Retry AI
+                                  </Button>
+                                )}
+                              </div>
                               <Button
                                 variant="secondary"
                                 size="sm"
