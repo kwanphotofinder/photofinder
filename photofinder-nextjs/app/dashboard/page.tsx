@@ -318,38 +318,39 @@ export default function DashboardPage() {
                   </Badge>
                 </div>
 
-                <div className="space-y-3 max-w-xl">
-                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Welcome back, <span className="bg-gradient-to-r from-[#82181a] to-[#a8252d] bg-clip-text text-transparent">{displayName}</span>
-                  </h1>
-                  <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                    Your photo archive is organized around you. Upload a reference selfie once, then let the dashboard surface matches and saved moments in one place.
-                  </p>
-                </div>
+                <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+                  <div className="space-y-3 max-w-xl">
+                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      Welcome back, <span className="bg-gradient-to-r from-[#82181a] to-[#a8252d] bg-clip-text text-transparent">{displayName}</span>
+                    </h1>
+                    <p className="text-sm leading-6 text-muted-foreground sm:text-base">
+                      Your photo archive is organized around you. Upload a reference selfie once, then let the dashboard surface matches and saved moments in one place.
+                    </p>
+                  </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`relative transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50" : ""}`}>
-                      <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-[#82181a]/45 via-primary/40 to-[#a8252d]/45 blur-lg" />
-                      <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-56 lg:w-56 rounded-full bg-gradient-to-br from-[#82181a] to-[#a8252d] p-[4px] shadow-[0_18px_36px_rgba(130,24,26,0.35)]">
-                        <div className="h-full w-full overflow-hidden rounded-full border border-white/70 bg-muted/30">
-                          {hasReferenceFace && referenceFaceUrl ? (
-                            <img src={referenceFaceUrl} alt="Reference selfie" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
-                              <Camera className="h-8 w-8 sm:h-10 sm:w-10 lg:h-14 lg:w-14" />
-                            </div>
-                          )}
-                        </div>
+                  <div className={`relative w-fit justify-self-start lg:justify-self-end lg:mr-30 transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50" : ""}`}>
+                    <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-48 lg:w-48 rounded-full bg-gradient-to-br  ">
+                      <div className="h-full w-full overflow-hidden rounded-full border border-white/70 bg-muted/30">
+                        {hasReferenceFace && referenceFaceUrl ? (
+                          <img src={referenceFaceUrl} alt="Reference selfie" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                            <Camera className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <div className="flex flex-col gap-2">
+                <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Button
                         onClick={openFilePicker}
                         variant="outline"
                         size="lg"
-                        className={`h-12 rounded-full border-border/70 px-6 font-medium transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
+                        className={`h-12 rounded-full border-border/70 px-6 font-medium transition-opacity duration-200 sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
                         disabled={isUploading || isDeletingReference}
                       >
                         <UploadCloud className="mr-2 h-4 w-4" />
@@ -361,7 +362,7 @@ export default function DashboardPage() {
                           onClick={handleDeleteSelfie}
                           variant="destructive"
                           size="sm"
-                          className={`h-10 rounded-full transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`h-10 rounded-full transition-opacity duration-200 sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
                           disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
                         >
                           {isDeletingReference ? (
@@ -374,14 +375,16 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    onClick={() => router.push("/search")}
-                    size="lg"
-                    className="h-12 rounded-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 px-6 font-medium text-primary-foreground transition-all duration-300 hover:opacity-90"
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Manual Photo Search
-                  </Button>
+                  <div className="flex lg:justify-end lg:mr-25">
+                    <Button
+                      onClick={() => router.push("/search")}
+                      size="lg"
+                      className="h-12 w-full rounded-full bg-gradient-to-r from-primary to-primary/80 px-6 font-medium text-primary-foreground transition-all duration-300 hover:from-primary/90 hover:to-primary/70 hover:opacity-90 sm:w-auto"
+                    >
+                      <Sparkles className="mr-2 h-4 w-4 " />
+                      Manual Photo Search
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
