@@ -26,7 +26,8 @@ export async function uploadToCloudinary(fileName: string, mimeType: string, fil
       {
         folder: folderPath, 
         resource_type: 'auto', // Automatically detect whether it's an image or video
-        public_id: `${fileName.split('.')[0]}_${Date.now()}`, // Make it unique to prevent overwriting/accidental deletion of shared filenames
+        // Sanitize filename: replace spaces & special chars with underscores to prevent URL-encoding mismatches during deletion
+        public_id: `${fileName.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}`,
       },
       (error, result) => {
         if (error) {
@@ -82,17 +83,20 @@ export async function deleteFromCloudinary(url: string) {
     
     // 2. Remove the version string (e.g., v1234567/) if it exists
     let endPath = parts[1];
+    // Decode URL-encoded characters (e.g., %20 -> space) so the public_id matches what Cloudinary stored
+    endPath = decodeURIComponent(endPath);
     if (endPath.match(/^v\d+\//)) {
       endPath = endPath.replace(/^v\d+\//, '');
     }
     
-    // 3. Remove the file extension (e.g., .jpg) to get the true public_id
-    // Example: photofinder/filename.jpg -> photofinder/filename
-    const publicId = endPath.split('.').slice(0, -1).join('.');
+    // 3. Remove the file extension if it exists to get the true public_id
+    // Example: photofinder/filename.webp -> photofinder/filename
+    const lastDotIndex = endPath.lastIndexOf('.');
+    const publicId = lastDotIndex !== -1 ? endPath.substring(0, lastDotIndex) : endPath;
     
     if (publicId) {
-      await cloudinary.uploader.destroy(publicId, { invalidate: true });
-      console.log(`Deleted from Cloudinary: ${publicId}`);
+      const result = await cloudinary.uploader.destroy(publicId, { invalidate: true });
+      console.log(`Cloudinary destroy result for ${publicId}:`, result);
     }
   } catch (error) {
     console.error('Error deleting from Cloudinary:', error);
