@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { extractFaces } from '@/lib/ai';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
@@ -55,6 +55,13 @@ export async function POST(req: NextRequest) {
     try {
       // 4. Send buffer to AI Service to get Face Embeddings and Bounding Boxes
       const faces = await extractFaces(fileBuffer, file.name);
+
+      if (!faces || faces.length === 0) {
+        // If no face detected, clean up the photo from Cloudinary and DB to save storage
+        if (storageUrl) await deleteFromCloudinary(storageUrl);
+        await prisma.photo.delete({ where: { id: photo.id } });
+        return NextResponse.json({ error: 'No faces detected in the image' }, { status: 400 });
+      }
 
       // 5. Save each face's pgvector embedding into PostgreSQL natively
       for (const face of faces) {
