@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         // If no face detected, clean up the photo from Cloudinary and DB to save storage
         if (storageUrl) await deleteFromCloudinary(storageUrl);
         await prisma.photo.delete({ where: { id: photo.id } });
-        return NextResponse.json({ error: 'No faces detected in the image' }, { status: 400 });
+        return NextResponse.json({ error: 'Skipped: No faces found (discarded to save storage)' }, { status: 400 });
       }
 
       // 5. Save each face's pgvector embedding into PostgreSQL natively

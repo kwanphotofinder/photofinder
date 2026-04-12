@@ -48,6 +48,7 @@ export default function PhotographerPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
   
   useEffect(() => {
@@ -241,6 +242,7 @@ export default function PhotographerPage() {
 
       try {
         setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }))
+        setUploadErrors((prev) => { const next = {...prev}; delete next[file.name]; return next; })
 
         const progressInterval = setInterval(() => {
           setUploadProgress((prev) => {
@@ -274,11 +276,14 @@ export default function PhotographerPage() {
           const data = await response.json()
           setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
         } else {
+          const errorData = await response.json().catch(() => ({ error: 'Upload failed' }))
           setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
+          setUploadErrors((prev) => ({ ...prev, [file.name]: errorData.error || 'Failed' }))
         }
       } catch (error) {
         console.error("[v0] Upload error:", error)
         setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
+        setUploadErrors((prev) => ({ ...prev, [file.name]: 'Network error' }))
       }
     }
 
@@ -603,6 +608,7 @@ export default function PhotographerPage() {
                                         <p className="mt-1 text-xs text-slate-600">{formatFileSize(file.size)}</p>
                                       </div>
                                       <div className="flex items-center gap-3">
+                                        {hasError && <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded-md">{uploadErrors[file.name] || 'Failed'}</span>}
                                         {isComplete && <CheckCircle className="h-5 w-5 text-green-600" />}
                                         {hasError && <XCircle className="h-5 w-5 text-red-500" />}
                                         {!isUploading && !isComplete && !hasError && (

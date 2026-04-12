@@ -80,7 +80,7 @@ export async function POST(
           // No faces detected; clean up the blank photo and skip to save storage.
           if (storageUrl) await deleteFromCloudinary(storageUrl);
           await prisma.photo.delete({ where: { id: photo.id } });
-          results.push({ photoId: photo.id, filename: file.name, facesDetected: 0, status: "failed", error: "No faces detected" });
+          results.push({ photoId: photo.id, filename: file.name, facesDetected: 0, status: "failed", error: "Skipped: No faces found (discarded to save storage)" });
           continue;
         }
 
