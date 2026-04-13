@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertCircle, ArrowLeft, Loader, CalendarDays } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { AlertCircle, ArrowLeft, Loader } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 
 export default function CreateEventPage() {
@@ -119,13 +120,10 @@ export default function CreateEventPage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(130,24,26,0.08),transparent_36%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
-        <div className="pointer-events-none absolute -left-12 top-10 h-64 w-64 rounded-full bg-[#82181a]/12 blur-3xl" />
-        <div className="pointer-events-none absolute right-0 top-40 h-72 w-72 rounded-full bg-[#a8252d]/10 blur-3xl" />
-
-        <div className="relative max-w-2xl mx-auto px-4 py-8">
+      <main className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="max-w-2xl mx-auto px-4 py-8">
           {/* Header */}
-          <div className="mb-8 rounded-2xl border border-border/70 bg-card/80 px-5 py-5 shadow-sm backdrop-blur-md sm:px-6">
+          <div className="mb-8">
             <button
               onClick={() => router.back()}
               className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors mb-4"
@@ -133,10 +131,6 @@ export default function CreateEventPage() {
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back</span>
             </button>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Event Setup
-            </div>
             <h1 className="text-3xl font-bold text-foreground">Create New Event</h1>
             <p className="text-muted-foreground mt-2">Set up a new campus event for photo uploads and face search</p>
           </div>
@@ -157,7 +151,7 @@ export default function CreateEventPage() {
           )}
 
           {/* Form Card */}
-          <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
+          <Card className="border border-border backdrop-blur-sm bg-card/80">
             <CardHeader>
               <CardTitle>Event Details</CardTitle>
               <CardDescription>Configure the basic information for this event</CardDescription>
@@ -221,7 +215,7 @@ export default function CreateEventPage() {
                 </div>
 
                 {/* Expiry Settings */}
-                <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
                   <div className="space-y-1">
                     <Label className="text-foreground font-medium flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-primary" />
@@ -280,7 +274,7 @@ export default function CreateEventPage() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground shadow-sm shadow-[#82181a]/30 hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     {isSubmitting ? (
                       <>
@@ -297,7 +291,7 @@ export default function CreateEventPage() {
           </Card>
 
           {/* Info Card */}
-          <Card className="mt-6 border border-primary/20 bg-primary/5 backdrop-blur-sm">
+          <Card className="border border-border bg-primary/5 border-primary/20 mt-6 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-base">What happens next?</CardTitle>
             </CardHeader>

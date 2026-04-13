@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
-import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react"
+import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
 
 interface Photo {
   id: string
@@ -26,15 +26,23 @@ interface Photo {
   confidence: number
 }
 
-function StatCard({ label, value, description }: { label: string; value: string | number; description: string }) {
+function StatCard({ label, value, description, icon: Icon }: { label: string; value: string | number; description: string; icon: any }) {
   return (
-    <Card className="border-border/60 bg-card/80 backdrop-blur-md shadow-sm">
-      <CardContent className="p-5">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <div className="text-3xl font-semibold tracking-tight">{value}</div>
-          <p className="text-xs text-muted-foreground">{description}</p>
+    <Card className="group relative overflow-hidden border-none bg-white/40 shadow-sm transition-all duration-300 hover:bg-white/60 hover:shadow-md hover:-translate-y-1">
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/5 transition-transform duration-500 group-hover:scale-150" />
+      <CardContent className="relative p-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">{label}</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</span>
+            </div>
+          </div>
+          <div className="rounded-xl bg-primary/10 p-2.5 text-primary shadow-inner">
+            <Icon className="h-5 w-5" />
+          </div>
         </div>
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground/70">{description}</p>
       </CardContent>
     </Card>
   )
@@ -62,17 +70,20 @@ export default function DashboardPage() {
       {
         label: "Auto matches",
         value: autoMatches.length,
+        icon: Sparkles,
         description: hasReferenceFace ? "New event photos matched by your reference face." : "Activate reference face to unlock matching.",
       },
       {
-        label: "Saved photos",
+        label: "Saved moments",
         value: savedPhotos.length,
-        description: "Photos you bookmarked for quick access.",
+        icon: CheckCircle2,
+        description: "Photos you bookmarked for quick access and downloads.",
       },
       {
-        label: "Reference face",
-        value: hasReferenceFace ? "Active" : "Not set",
-        description: hasReferenceFace ? "Your auto-search profile is live." : "Upload a selfie to start auto-matching.",
+        label: "Profile status",
+        value: hasReferenceFace ? "Active" : "Inactive",
+        icon: User,
+        description: hasReferenceFace ? "Your bio-search profile is live and indexing." : "Upload a selfie to start auto-matching.",
       },
     ],
     [autoMatches.length, hasReferenceFace, savedPhotos.length],
@@ -304,111 +315,122 @@ export default function DashboardPage() {
         <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#82181a]/12 blur-3xl pointer-events-none" />
         <div className="absolute top-48 left-0 h-64 w-64 rounded-full bg-[#82181a]/10 blur-3xl pointer-events-none" />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <section className="relative overflow-hidden rounded-[1.5rem] border border-border/60 bg-card/80 shadow-[0_12px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(130,24,26,0.12),rgba(255,255,255,0)_42%,rgba(130,24,26,0.08))]" />
-            <div className="relative space-y-6 p-4 sm:p-6 lg:p-7">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium">
-                    Student dashboard
+        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <section className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-6 shadow-2xl shadow-primary/5 backdrop-blur-2xl transition-all duration-500 sm:p-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_40%),linear-gradient(to_bottom_right,rgba(255,255,255,0.4),rgba(255,255,255,0))]" />
+            <div className="relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex-1 space-y-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant="secondary" className="rounded-full bg-primary/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/20">
+                    <Sparkles className="mr-1.5 h-3 w-3" />
+                    Student Dashboard
                   </Badge>
-                  <Badge variant="outline" className="rounded-full px-3 py-1 text-xs font-medium">
-                    {hasReferenceFace ? "Auto-match active" : "Reference face not set"}
-                  </Badge>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-                  <div className="space-y-3 max-w-xl">
-                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                      Welcome back, <span className="bg-gradient-to-r from-[#82181a] to-[#a8252d] bg-clip-text text-transparent">{displayName}</span>
-                    </h1>
-                    <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                      Your photo archive is organized around you. Upload a reference selfie once, then let the dashboard surface matches and saved moments in one place.
-                    </p>
-                  </div>
-
-                  <div className={`relative w-fit justify-self-start lg:justify-self-end lg:mr-30 transition-opacity duration-200 ${!hasConsentedToFaceSearch ? "opacity-50" : ""}`}>
-                    <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-48 lg:w-48 rounded-full bg-gradient-to-br  ">
-                      <div className="h-full w-full overflow-hidden rounded-full border border-white/70 bg-muted/30">
-                        {hasReferenceFace && referenceFaceUrl ? (
-                          <img src={referenceFaceUrl} alt="Reference selfie" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
-                            <Camera className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${hasReferenceFace ? "bg-emerald-50 text-emerald-600 ring-emerald-600/20" : "bg-amber-50 text-amber-600 ring-amber-600/20"}`}>
+                    <div className={`h-1.5 w-1.5 rounded-full ${hasReferenceFace ? "bg-emerald-600 animate-pulse" : "bg-amber-600"}`} />
+                    {hasReferenceFace ? "Detection Active" : "Waiting for Setup"}
                   </div>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <Button
-                        onClick={openFilePicker}
-                        variant="outline"
-                        size="lg"
-                        className={`h-12 rounded-full border-border/70 px-6 font-medium transition-opacity duration-200 sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
-                        disabled={isUploading || isDeletingReference}
-                      >
-                        <UploadCloud className="mr-2 h-4 w-4" />
-                        {hasReferenceFace ? "Update reference selfie" : "Upload reference selfie"}
-                      </Button>
-
-                      {hasReferenceFace && (
-                        <Button
-                          onClick={handleDeleteSelfie}
-                          variant="destructive"
-                          size="sm"
-                          className={`h-10 rounded-full transition-opacity duration-200 sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50 cursor-not-allowed" : ""}`}
-                          disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
-                        >
-                          {isDeletingReference ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="mr-2 h-4 w-4" />
-                          )}
-                          Delete Reference photo
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex lg:justify-end lg:mr-25">
-                    <Button
-                      onClick={() => router.push("/search")}
-                      size="lg"
-                      className="h-12 w-full rounded-full bg-gradient-to-r from-primary to-primary/80 px-6 font-medium text-primary-foreground transition-all duration-300 hover:from-primary/90 hover:to-primary/70 hover:opacity-90 sm:w-auto"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4 " />
-                      Manual Photo Search
-                    </Button>
-                  </div>
+                <div className="space-y-4">
+                    <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
+                    <span className="block text-foreground">Welcome back,</span>
+                    <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent drop-shadow-sm select-none">
+                      {displayName}
+                    </span>
+                  </h1>
+                    <p className="max-w-xl text-balance text-sm font-medium leading-relaxed text-muted-foreground/80 sm:text-base">
+                    Discover moments captured at events effortlessly. Just one selfie, and our AI finds you across thousands of gallery photos.
+                  </p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {stats.map((stat) => (
-                    <StatCard key={stat.label} {...stat} />
-                  ))}
+                <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
+                  <Button
+                    onClick={() => router.push("/search")}
+                    size="lg"
+                    className="h-12 rounded-2xl bg-primary px-7 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-[1.02] hover:bg-primary/90 active:scale-95 sm:h-14 sm:text-base"
+                  >
+                    <Sparkles className="mr-2.5 h-5 w-5" />
+                    Manual Search
+                  </Button>
+
+                  <Button
+                    onClick={openFilePicker}
+                    variant="outline"
+                    size="lg"
+                    className={`h-12 rounded-2xl border-2 px-7 text-sm font-bold backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-primary sm:h-14 sm:text-base sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50" : "hover:scale-[1.02] active:scale-95"}`}
+                    disabled={isUploading || isDeletingReference}
+                  >
+                    <UploadCloud className="mr-2.5 h-5 w-5" />
+                    {hasReferenceFace ? "Update Profile" : "Upload Selfie"}
+                  </Button>
                 </div>
               </div>
+
+              <div className="flex flex-col items-center justify-center gap-6 lg:w-72">
+                <div className={`group relative transition-all duration-500 ${!hasConsentedToFaceSearch ? "opacity-40 grayscale" : "hover:scale-105"}`}>
+                  <div className={`absolute -inset-4 rounded-full blur-2xl transition-all duration-500 group-hover:blur-3xl ${hasReferenceFace ? "bg-primary/20" : "bg-slate-200/50"}`} />
+                  <div className={`relative flex h-48 w-48 items-center justify-center rounded-3xl p-1 shadow-2xl transition-all duration-500 sm:h-56 sm:w-56 ${hasReferenceFace ? "bg-gradient-to-br from-primary via-primary/30 to-white" : "bg-white"}`}>
+                    <div className="h-full w-full overflow-hidden rounded-[calc(1.5rem-2px)] bg-slate-100 shadow-inner">
+                      {hasReferenceFace && referenceFaceUrl ? (
+                        <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-slate-50 text-slate-300">
+                          <div className="rounded-2xl bg-white p-4 shadow-sm">
+                            <Camera className="h-10 w-10 text-slate-200" />
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">No Image Set</span>
+                        </div>
+                      )}
+                    </div>
+                    {hasReferenceFace && (
+                      <div className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-white p-1 shadow-xl">
+                        <div className="flex h-full w-full items-center justify-center rounded-xl bg-emerald-500 text-white">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {hasReferenceFace && (
+                  <Button
+                    onClick={handleDeleteSelfie}
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 rounded-xl font-bold text-destructive/60 transition-colors hover:bg-destructive/5 hover:text-destructive active:bg-destructive/10"
+                    disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
+                  >
+                    {isDeletingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Reset Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+
+              <div className="mt-16 grid gap-6 sm:grid-cols-3">
+              {stats.map((stat) => (
+                <StatCard key={stat.label} {...stat} />
+              ))}
             </div>
           </section>
 
-          <div className="mt-8 space-y-8">
-            <section className="space-y-6">
-              <div className="flex items-end justify-between gap-4">
+          <div className="mt-16 space-y-12">
+            <section className="space-y-8">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">Auto-matched feed</p>
-                  <h2 className="mt-1 text-2xl font-semibold tracking-tight">Photos found for you</h2>
+                  <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Recently Matched</h2>
+                  <p className="mt-2 text-sm font-medium text-muted-foreground">Photos were found based on your bio-metric profile.</p>
                 </div>
-                {hasReferenceFace && <Badge variant="outline" className="rounded-full">{autoMatches.length} results</Badge>}
+                {hasReferenceFace && (
+                  <Badge variant="outline" className="rounded-xl border-slate-200 bg-white px-4 py-2 font-bold shadow-sm">
+                    {autoMatches.length} Moments Found
+                  </Badge>
+                )}
               </div>
 
               {isLoading ? (
                 <Card className="border-dashed border-border/70 bg-card/70">
-                  <CardContent className="p-10 text-center text-sm text-muted-foreground">
+                    <CardContent className="p-10 text-center text-sm text-muted-foreground">
                     Loading your dashboard...
                   </CardContent>
                 </Card>
@@ -421,7 +443,7 @@ export default function DashboardPage() {
                       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <Sparkles className="h-5 w-5" />
                       </div>
-                      <h3 className="text-lg font-semibold">No matches yet</h3>
+                      <h3 className="text-base font-semibold sm:text-lg">No matches yet</h3>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         We will keep checking future events and surface new matches here automatically.
                       </p>
@@ -434,7 +456,7 @@ export default function DashboardPage() {
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Camera className="h-5 w-5" />
                     </div>
-                    <h3 className="text-lg font-semibold">Activate auto-match to see results</h3>
+                    <h3 className="text-base font-semibold sm:text-lg">Activate auto-match to see results</h3>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       Upload a reference selfie and we will start indexing your event photos automatically.
                     </p>

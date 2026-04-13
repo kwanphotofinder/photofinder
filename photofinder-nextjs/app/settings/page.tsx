@@ -183,18 +183,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <div className="mt-8">
-            {showSuccess && (
-              <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-                <p className="text-sm font-semibold text-emerald-800 sm:text-base">
-                  Preferences saved successfully!
-                </p>
-              </div>
-            )}
-          </div>
-
-          <Tabs defaultValue="privacy" className="space-y-6">
+          <Tabs defaultValue="privacy" className="mt-8 space-y-6 sm:mt-10">
             <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-lg shadow-slate-100/60 backdrop-blur-xl">
               <TabsTrigger value="account" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
                 Account Profile
@@ -216,40 +205,52 @@ export default function SettingsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-5 shadow-sm sm:flex-row sm:items-center">
-                    <Avatar className="h-20 w-20 shrink-0 ring-4 ring-white shadow-lg shadow-slate-200/60">
-                      <AvatarImage src={profile.avatarUrl} alt={profile.name || "User"} referrerPolicy="no-referrer" />
-                      <AvatarFallback className="bg-slate-100 text-lg font-semibold text-slate-700">
-                        {(profile.name?.[0] || profile.email?.[0] || "U").toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                  <div className="rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
+                    <div className="flex flex-col items-center gap-4 sm:gap-6">
+                      <Avatar className="h-24 w-24 ring-4 ring-white shadow-lg shadow-slate-200/60">
+                        <AvatarImage src={profile.avatarUrl} alt={profile.name || "User"} referrerPolicy="no-referrer" />
+                        <AvatarFallback className="bg-slate-100 text-2xl font-semibold text-slate-700">
+                          {(profile.name?.[0] || profile.email?.[0] || "U").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
 
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Name</p>
-                        <p className="mt-1 text-base font-semibold text-foreground">{profile.name || "User"}</p>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
-                          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                            <Mail className="h-4 w-4" />
-                            Email
-                          </div>
-                          <p className="mt-2 truncate text-sm font-medium text-foreground">{profile.email || "Not available"}</p>
+                      <div className="w-full space-y-4 text-center sm:text-left">
+                        <div>
+                          <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Full Name</p>
+                          <p className="mt-1.5 text-lg font-semibold text-foreground">
+                            {profile.name || "User"}
+                          </p>
                         </div>
-                        <div className="rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
-                          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                            <BadgeCheck className="h-4 w-4" />
-                            Role
+
+                        <div className="grid gap-3 sm:grid-cols-2 sm:text-left">
+                          <div className="flex flex-col gap-2 rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                            <div className="flex items-center justify-center gap-2 sm:justify-start text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                              <Mail className="h-4 w-4" />
+                              Email Address
+                            </div>
+                            <p className="text-sm font-medium text-foreground break-all">
+                              {profile.email || "Not available"}
+                            </p>
                           </div>
-                          <p className="mt-2 text-sm font-medium text-foreground capitalize">{prettyRole}</p>
+
+                          <div className="flex flex-col gap-2 rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
+                            <div className="flex items-center justify-center gap-2 sm:justify-start text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                              <BadgeCheck className="h-4 w-4" />
+                              Account Role
+                            </div>
+                            <p className="text-sm font-medium text-foreground capitalize">
+                              {prettyRole}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 p-4 text-sm text-muted-foreground">
-                    This profile information is read from the current login session. If you update your Google account name or photo, sign out and sign back in to refresh it here.
+                    <p className="leading-relaxed">
+                      This profile information is synced from your Google account. To update your name or photo, modify your Google account settings and sign out and back in to refresh it here.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -257,43 +258,61 @@ export default function SettingsPage() {
 
             {/* Privacy Tab */}
             <TabsContent value="privacy" className="space-y-4">
-              <Card className="overflow-hidden border border-primary/30 bg-primary/5 shadow-xl shadow-primary/10">
-                <CardHeader className="border-b border-primary/15">
-                  <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-primary mt-0.5" />
-                    <div className="flex-1">
-                      <CardTitle>Consent Status</CardTitle>
-                      <CardDescription>Control your participation in the photo system</CardDescription>
+              <Card className="overflow-hidden border border-slate-200/60 bg-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+                <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80 pb-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Shield className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle>Consent Status</CardTitle>
+                        <CardDescription>Control your participation in the photo system</CardDescription>
+                      </div>
                     </div>
                     <div
-                      className="rounded-full px-3 py-1 text-sm font-semibold"
-                      style={{
-                        backgroundColor: consent.globalFaceSearch ? "rgba(130, 24, 26, 0.15)" : "rgba(0, 0, 0, 0.1)",
-                        color: consent.globalFaceSearch ? "var(--color-primary)" : "var(--color-muted-foreground)",
-                      }}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${
+                        consent.globalFaceSearch 
+                        ? "bg-emerald-500 text-white shadow-emerald-200" 
+                        : "bg-slate-200 text-slate-600 shadow-slate-100"
+                      }`}
                     >
+                      <div className={`h-2 w-2 rounded-full ${consent.globalFaceSearch ? "bg-white animate-pulse" : "bg-slate-400"}`} />
                       {consent.globalFaceSearch ? "Opted In" : "Opted Out"}
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4 p-6">
-                  <div className="rounded-xl border border-border bg-background/80 p-4">
-                    <p className="text-sm text-foreground leading-relaxed">
-                      {consent.globalFaceSearch
-                        ? "You are currently opted in. The system can identify you in photos and send you notifications when new photos are available."
-                        : "You are currently opted out. Your face will not be identified in photos and you won't receive notifications."}
-                    </p>
+                <CardContent className="space-y-6 pt-6">
+                  <div className={`rounded-2xl border p-5 transition-all duration-500 ${
+                    consent.globalFaceSearch 
+                    ? "border-emerald-100 bg-emerald-50/30 text-emerald-900" 
+                    : "border-slate-100 bg-slate-50/50 text-slate-600"
+                  }`}>
+                    <div className="flex gap-4">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                        consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
+                      }`}>
+                        {consent.globalFaceSearch ? <CheckCircle2 className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                      </div>
+                      <p className="text-sm leading-relaxed">
+                        {consent.globalFaceSearch
+                          ? "Active: Your face is being identified in new event photos. You will be notified automatically when a match is found."
+                          : "Passive: Your face is not being searched. No notifications will be sent and you will remain invisible to AI detection."}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="overflow-hidden border border-white/60 bg-gradient-to-br from-white/95 to-white/80 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+              <Card className="overflow-hidden border border-white/60 bg-white/50 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
                 <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80">
                   <div className="flex items-start gap-3">
-                    <Lock className="w-5 h-5 text-primary mt-0.5" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                      <Lock className="h-4 w-4" />
+                    </div>
                     <div>
-                      <CardTitle>Privacy & Consent Preferences</CardTitle>
-                      <CardDescription>Control how your data is used for photo discovery</CardDescription>
+                      <CardTitle>Update Preferences</CardTitle>
+                      <CardDescription>Manage your privacy configuration</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -309,8 +328,8 @@ export default function SettingsPage() {
                   <div className="space-y-3 rounded-xl border border-border/30 bg-muted/50 p-4">
                     <div className="flex gap-3">
                       <Lock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <div className="text-sm space-y-2 text-muted-foreground">
-                        <p className="font-semibold text-foreground">Your Privacy Rights</p>
+                      <div className="space-y-2 text-muted-foreground">
+                        <p className="text-xs uppercase tracking-widest font-medium text-foreground">Your Privacy Rights</p>
                         <ul className="space-y-1 list-disc list-inside">
                           <li>You can opt-out of face search at any time</li>
                           <li>Request removal or blur of photos featuring you</li>
@@ -329,6 +348,15 @@ export default function SettingsPage() {
                   >
                     {isSaving ? "Saving..." : "Save Privacy Preferences"}
                   </Button>
+
+                  {showSuccess && (
+                    <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                      <p className="text-sm font-semibold text-emerald-800 sm:text-base">
+                        Preferences saved successfully!
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
