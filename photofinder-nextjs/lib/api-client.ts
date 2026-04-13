@@ -182,6 +182,14 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ accepted }),
     }),
+  exportMyPrivacyData: () =>
+    apiCall<{ status: string; data: any }>("/me/privacy/export", {
+      method: "GET",
+    }),
+  fullDeleteMyPrivacyData: () =>
+    apiCall<{ status: string; message?: string; deletedAt?: string; details?: any }>("/me/privacy/full-delete", {
+      method: "POST",
+    }),
 
   // Analytics
   getAnalytics: () => apiCall("/analytics"),

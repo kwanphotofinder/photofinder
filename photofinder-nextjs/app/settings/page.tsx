@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Lock, Shield, CheckCircle2, Mail, User, BadgeCheck, Sparkles } from "lucide-react"
+import { AlertCircle, CheckCircle2, Download, Loader2, Lock, Mail, Shield, Trash2, User, BadgeCheck, Sparkles } from "lucide-react"
 import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
 import { apiClient } from "@/lib/api-client"
 
@@ -32,6 +32,11 @@ export default function SettingsPage() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isExportingData, setIsExportingData] = useState(false)
+  const [isDeletingData, setIsDeletingData] = useState(false)
+  const [deletionStatus, setDeletionStatus] = useState<"idle" | "processing" | "completed" | "failed">("idle")
+  const [deletionSummary, setDeletionSummary] = useState("")
+  const [privacyActionError, setPrivacyActionError] = useState("")
 
   useEffect(() => {
     const userData = localStorage.getItem("user_data")
@@ -162,7 +167,83 @@ export default function SettingsPage() {
     console.log("[v0] showSuccess state changed:", showSuccess)
   }, [showSuccess])
 
+  const handleExportData = async () => {
+    setIsExportingData(true)
+    setPrivacyActionError("")
+
+    try {
+      const result = await apiClient.exportMyPrivacyData()
+      if (result.error || !result.data?.data) {
+        setPrivacyActionError(result.error || "Failed to export privacy data")
+        return
+      }
+
+      const fileContent = JSON.stringify(result.data.data, null, 2)
+      const blob = new Blob([fileContent], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      const stamp = new Date().toISOString().slice(0, 10)
+      link.href = url
+      link.download = `photofinder-privacy-export-${stamp}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Failed to export privacy data:", error)
+      setPrivacyActionError("Failed to export privacy data")
+    } finally {
+      setIsExportingData(false)
+    }
+  }
+
+  const handleFullDeleteData = async () => {
+    const shouldProceed = confirm(
+      "This will permanently delete your reference face, saved photos list, consent profile data, and related privacy records. Continue?",
+    )
+    if (!shouldProceed) return
+
+    setIsDeletingData(true)
+    setDeletionStatus("processing")
+    setDeletionSummary("")
+    setPrivacyActionError("")
+
+    try {
+      const result = await apiClient.fullDeleteMyPrivacyData()
+
+      if (result.error || !result.data) {
+        setDeletionStatus("failed")
+        setPrivacyActionError(result.error || "Failed to complete full delete")
+        return
+      }
+
+      const details = result.data.details
+      setDeletionStatus("completed")
+      setDeletionSummary(
+        `Deleted: ${details?.referenceFacesDeleted ?? 0} reference face, ${details?.savedPhotosDeleted ?? 0} saved photos, ${details?.removalRequestsDeleted ?? 0} removal requests, ${details?.abuseReportsDeleted ?? 0} reports, ${details?.deliveriesDeleted ?? 0} deliveries.`,
+      )
+
+      setConsent({ globalFaceSearch: false, dataProcessing: false })
+      localStorage.setItem(
+        "consent_preferences",
+        JSON.stringify({
+          globalFaceSearch: false,
+          dataProcessing: false,
+          accepted: false,
+          timestamp: new Date().toISOString(),
+        }),
+      )
+    } catch (error) {
+      console.error("Failed to complete full delete:", error)
+      setDeletionStatus("failed")
+      setPrivacyActionError("Failed to complete full delete")
+    } finally {
+      setIsDeletingData(false)
+    }
+  }
+
   const prettyRole = profile.role.replace("_", " ")
+  const isConsentWithdrawn = !consent.globalFaceSearch || !consent.dataProcessing
 
   return (
     <>
@@ -323,6 +404,22 @@ export default function SettingsPage() {
                     disabled={isSaving}
                   />
 
+                  {isConsentWithdrawn && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-amber-900">You are about to withdraw consent</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                            <li>AI face matching and new match notifications will stop.</li>
+                            <li>Your profile may no longer appear in automatic event discovery.</li>
+                            <li>You can still use manual search after re-consenting later.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
 
                   {/* Privacy Rights Info */}
                   <div className="space-y-3 rounded-xl border border-border/30 bg-muted/50 p-4">
@@ -348,6 +445,49 @@ export default function SettingsPage() {
                   >
                     {isSaving ? "Saving..." : "Save Privacy Preferences"}
                   </Button>
+
+                  <div className="space-y-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-4">
+                    <p className="text-xs font-medium uppercase tracking-widest text-slate-600">Consent Intelligence Actions</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        onClick={handleExportData}
+                        disabled={isExportingData || isDeletingData}
+                        className="w-full border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        {isExportingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        One-click Export Data
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleFullDeleteData}
+                        disabled={isDeletingData || isExportingData}
+                        className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                      >
+                        {isDeletingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        One-click Full Delete
+                      </Button>
+                    </div>
+
+                    {deletionStatus !== "idle" && (
+                      <div className={`rounded-lg border p-3 text-sm ${
+                        deletionStatus === "completed"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : deletionStatus === "processing"
+                            ? "border-blue-200 bg-blue-50 text-blue-800"
+                            : "border-red-200 bg-red-50 text-red-800"
+                      }`}>
+                        <p className="font-semibold">
+                          Deletion status: {deletionStatus === "processing" ? "Processing" : deletionStatus === "completed" ? "Completed" : "Failed"}
+                        </p>
+                        {deletionSummary && <p className="mt-1">{deletionSummary}</p>}
+                      </div>
+                    )}
+
+                    {privacyActionError && (
+                      <p className="text-sm font-medium text-red-600">{privacyActionError}</p>
+                    )}
+                  </div>
 
                   {showSuccess && (
                     <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
