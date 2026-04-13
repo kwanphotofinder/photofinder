@@ -57,10 +57,10 @@ export default function PrivacyPolicyPage() {
               <Shield className="h-10 w-10 text-primary" />
             </div>
             <div className="space-y-3">
-              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
                 Privacy & Data <span className="text-primary">Handling</span>
               </h1>
-              <p className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-slate-500 lg:text-xl">
+              <p className="mx-auto max-w-2xl text-base font-medium leading-relaxed text-slate-500 lg:text-lg">
                 Your trust is our foundation. We believe in complete transparency and putting you in total control of your digital identity.
               </p>
             </div>
@@ -73,12 +73,12 @@ export default function PrivacyPolicyPage() {
               <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
-                    <Search className="h-6 w-6 text-primary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-slate-200">
+                    <Search className="h-5 w-5 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">1. Data Collection & AI Processing</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">1. Data Collection & AI Processing</h2>
                 </div>
-                <div className="ml-16 space-y-4 text-base leading-relaxed text-slate-600 sm:text-lg">
+                <div className="ml-14 space-y-4 text-sm leading-relaxed text-slate-600 sm:text-base">
                   <p>
                     To provide our service, we collect basic profile information (Name, Email, Profile Picture) from your Google Account. 
                   </p>
@@ -107,12 +107,12 @@ export default function PrivacyPolicyPage() {
               <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
-                    <Clock className="h-6 w-6 text-primary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-slate-200">
+                    <Clock className="h-5 w-5 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">2. Data Retention & Auto-Deletion</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">2. Data Retention & Auto-Deletion</h2>
                 </div>
-                <div className="ml-16 space-y-6">
+                <div className="ml-14 space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all group-hover:border-primary/20 group-hover:shadow-md">
                       <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-500">Temporary</span>
@@ -141,21 +141,21 @@ export default function PrivacyPolicyPage() {
               <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
-                    <Trash2 className="h-6 w-6 text-primary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-slate-200">
+                    <Trash2 className="h-5 w-5 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">3. Your Rights & Control</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">3. Your Rights & Control</h2>
                 </div>
-                <div className="ml-16 space-y-4">
+                <div className="ml-14 space-y-4">
                   <div className="flex gap-4">
                     <div className="mt-1 flex h-2 w-2 grow-0 shrink-0 rounded-full bg-primary" />
-                    <p className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                    <p className="text-sm leading-relaxed text-slate-600 sm:text-base">
                       <span className="font-bold text-slate-900">Right to be Forgotten:</span> You can request photo removal by clicking "Request Removal" on any photo. This alerts a University Admin for immediate deletion.
                     </p>
                   </div>
                   <div className="flex gap-4">
                     <div className="mt-1 flex h-2 w-2 grow-0 shrink-0 rounded-full bg-primary" />
-                    <p className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                    <p className="text-sm leading-relaxed text-slate-600 sm:text-base">
                       <span className="font-bold text-slate-900">Instant Face Purge:</span> Deleting your "Default Selfie" in the dashboard instantly erases the image file and all associated AI data permanently.
                     </p>
                   </div>
@@ -168,13 +168,13 @@ export default function PrivacyPolicyPage() {
               <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
-                    <EyeOff className="h-6 w-6 text-primary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-slate-200">
+                    <EyeOff className="h-5 w-5 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">4. Security & Access</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">4. Security & Access</h2>
                 </div>
-                <div className="ml-16">
-                  <p className="text-base leading-relaxed text-slate-600 sm:text-lg text-balance">
+                <div className="ml-14">
+                  <p className="text-sm leading-relaxed text-slate-600 sm:text-base text-balance">
                     Data is protected by industry-standard encryption. Access is strictly limited to verified students, the photographer of the event, and authorized system administrators.
                   </p>
                 </div>
