@@ -19,6 +19,7 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
 ### 3.1. Student Features
 * **Authentication:** Seamless login using Google Workspace.
 * **PDPA Consent:** Mandatory privacy consent flow upon first login before accessing the platform.
+* **Consent Intelligence:** When users withdraw consent, the system provides a soft warning explaining impact, offers one-click data export, and supports one-click full privacy delete with status feedback.
 * **Auto-Match (Reference Selfie):** Students can upload a default "reference face". The system automatically notifies them and displays matches from all past and future events without needing to search manually.
 * **Manual Face Search:** Students can upload a temporary selfie to perform a one-time search against specific events or the entire database.
 * **Photo Actions:** 
@@ -63,5 +64,14 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
 
 ## 6. Privacy & Security
 * **Consent First:** Users cannot utilize the facial recognition features without explicitly accepting the PDPA (Personal Data Protection Act) terms.
+* **Soft Impact Disclosure:** If consent is withdrawn, users are informed that auto-match and related notifications will stop until re-consent.
+* **Data Portability:** Users can export their privacy data in a machine-readable JSON file via self-service.
+* **Data Erasure (Self-Service):** Users can trigger one-click full privacy delete and receive a status response (`processing`, `completed`, `failed`).
 * **Self-Service Deletion:** Users can delete their reference selfie at any time, which completely removes their facial biometric data from the system.
 * **Granular Access Control:** API routes verify JWT/Auth tokens and explicitly check user roles (e.g., preventing Students from accessing `/api/admin/*` routes).
+
+## 7. Consent Intelligence Acceptance Criteria
+* A student who toggles consent off sees a clear impact warning before saving preferences.
+* A student can export privacy data with one click and successfully download a JSON file.
+* A student can trigger full privacy delete with one click and see a clear deletion status message.
+* Full privacy delete does not remove the user account itself and does not globally delete event photos owned by other users.

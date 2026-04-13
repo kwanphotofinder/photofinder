@@ -7,6 +7,7 @@ An AI-powered platform designed for university students to effortlessly find, sa
 *   **Instant Face Search:** Upload a selfie to instantly find all photos of yourself across hundreds of event albums.
 *   **Auto-Match:** Set a default "reference face." The system will automatically find and notify you of matches from all past and future events upon login.
 *   **Privacy-First:** Mandatory PDPA consent flow. Students can delete their biometric data at any time.
+*   **Consent Intelligence:** Soft warning when withdrawing consent, one-click privacy data export, and one-click full privacy delete with live deletion status.
 *   **Admin Dashboard:** Manage events, users, and review photo removal requests. Includes real-time system health metrics.
 *   **Photographer Portal:** Bulk upload high-resolution event photos directly to Cloudinary.
 
@@ -98,3 +99,14 @@ For more detailed information, please refer to the other documentation files in 
 *   **[PRD.md](./PRD.md):** Detailed Product Requirements, User Roles, and User Flows.
 *   **[DEPLOYMENT.md](./DEPLOYMENT.md):** Step-by-step guide for deploying the application to production (Vercel, Neon, Cloudinary).
 *   **[photofinder-nextjs/MONITORING.md](./photofinder-nextjs/MONITORING.md):** Instructions for checking system health and setting up local Grafana/Prometheus dashboards.
+
+## Privacy Endpoints (Student Self-Service)
+
+The Consent Intelligence flow exposes user-facing privacy endpoints:
+
+*   `GET /api/me/privacy/export` - Export user privacy data in JSON format.
+*   `POST /api/me/privacy/full-delete` - Perform full privacy cleanup and return deletion status.
+
+## Privacy Scope Notes
+
+`One-click full delete` currently removes privacy-related user data (reference face, saved photos list, removal requests, reports, deliveries, and consent/profile fields) but does not delete the entire user account or globally remove event photos uploaded by others.
