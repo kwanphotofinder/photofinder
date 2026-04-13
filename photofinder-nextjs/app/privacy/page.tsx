@@ -27,139 +27,170 @@ export default function PrivacyPolicyPage() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white/30 dark:bg-black/30 backdrop-blur-md border-b border-border/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <img src="/Logo.png" alt="Photo Finder" className="h-14 w-auto" />
+      <nav className="sticky top-0 z-50 border-b border-white/20 bg-white/70 backdrop-blur-xl transition-all duration-300">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <Link href="/" className="group flex items-center gap-2 transition-transform active:scale-95">
+            <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 p-1.5 shadow-inner">
+              <img src="/Logo.png" alt="Photo Finder" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-slate-900 group-hover:text-primary transition-colors">Photo Finder</span>
           </Link>
           <button 
             onClick={() => router.push(backUrl)} 
-            className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
+            className="group flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-95"
           >
-            <ArrowLeft className="w-4 h-4" /> {backText}
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> 
+            {backText}
           </button>
         </div>
       </nav>
-      <main className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto space-y-8">
+
+      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.08),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(130,24,26,0.05),transparent_40%),linear-gradient(to_bottom,#fff,#fafafa)]">
+        {/* Background Decorative Elements */}
+        <div className="pointer-events-none absolute -top-24 right-0 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-48 -left-24 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+
+        <div className="relative mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           
-          <div className="text-center space-y-4 mb-12">
-            <div className="mx-auto w-16 h-16 bg-primary/10 flex items-center justify-center rounded-2xl mb-6">
-              <Shield className="w-8 h-8 text-primary" />
+          <div className="mb-16 text-center space-y-6">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 shadow-xl shadow-primary/10 ring-1 ring-primary/20 animate-in zoom-in-50 duration-500">
+              <Shield className="h-10 w-10 text-primary" />
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground">Privacy Policy & Data Handling</h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              At PhotoFinder, your privacy is our top priority. We use AI facial recognition solely to help you find your campus photos. We believe in complete transparency and putting you in control of your data.
-            </p>
+            <div className="space-y-3">
+              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                Privacy & Data <span className="text-primary">Handling</span>
+              </h1>
+              <p className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-slate-500 lg:text-xl">
+                Your trust is our foundation. We believe in complete transparency and putting you in total control of your digital identity.
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-6">
+          <div className="grid gap-10">
             
             {/* Section 1: Data Collection & Processing */}
-            <Card className="border-border/50 shadow-sm bg-card/80 backdrop-blur">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Search className="w-5 h-5 text-primary" />
-                  1. Data Collection & AI Processing
-                </CardTitle>
-                <CardDescription>What we collect and why we need it.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>
-                  To provide our service, we collect basic profile information (Name, Email, Profile Picture) from your Google Account. 
-                </p>
-                <p>
-                  When you upload a <strong>Reference Selfie</strong> or when a photographer uploads <strong>Event Photos</strong>, our AI system analyzes the faces in the images and converts them into an encrypted mathematical string of 512 numbers (a facial embedding). 
-                </p>
-                <div className="bg-primary/5 p-4 rounded-lg border border-primary/10 mt-4 text-foreground text-sm font-medium">
-                  <strong>Our Promise:</strong> We only use this mathematical data to compare your selfie against event photos to find matches. We do not sell this data, we do not use it to track attendance, and it is never shared with third parties.
+            <section className="group relative">
+              <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+                    <Search className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">1. Data Collection & AI Processing</h2>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="ml-16 space-y-4 text-base leading-relaxed text-slate-600 sm:text-lg">
+                  <p>
+                    To provide our service, we collect basic profile information (Name, Email, Profile Picture) from your Google Account. 
+                  </p>
+                  <p>
+                    When you upload a <span className="font-semibold text-slate-900">Reference Selfie</span> or when a photographer uploads <span className="font-semibold text-slate-900">Event Photos</span>, our AI system analyzes the faces and converts them into encrypted mathematical strings of 512 numbers (facial embeddings). 
+                  </p>
+                  <div className="mt-6 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                        <ArrowLeft className="h-3 w-3 rotate-180" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-primary">Our Human-Centric Promise</h4>
+                        <p className="mt-1 text-sm font-medium text-slate-700">
+                          We only use this mathematical data to compare your selfie against event photos. We do not sell data, we do not track attendance, and it is never shared with third parties.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {/* Section 2: Data Retention & Auto-Deletion */}
-            <Card className="border-border/50 shadow-sm bg-card/80 backdrop-blur">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Clock className="w-5 h-5 text-primary" />
-                  2. Data Retention & Auto-Deletion
-                </CardTitle>
-                <CardDescription>How long we keep your data.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <ul className="space-y-4 list-none pl-0">
-                  <li className="flex gap-3">
-                    <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
-                    <div>
-                      <strong className="text-foreground">Event Photos (Strictly Temporary):</strong> All photos uploaded to a specific campus event are temporary. The entire event—including all associated photos, facial embeddings, and metadata—will be permanently and automatically deleted from our servers and Cloudinary storage no later than <strong>30 days</strong> after the event is published. We do not archive event photos long-term.
+            <section className="group relative">
+              <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+                    <Clock className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">2. Data Retention & Auto-Deletion</h2>
+                </div>
+                <div className="ml-16 space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all group-hover:border-primary/20 group-hover:shadow-md">
+                      <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-500">Temporary</span>
+                      <h4 className="mt-3 font-bold text-slate-900">Event Photos</h4>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                        Permanently deleted from our servers & Cloudinary no later than <span className="font-semibold text-primary">30 days</span> after an event is published.
+                      </p>
                     </div>
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
-                    <div>
-                      <strong className="text-foreground">Your Reference Selfie:</strong> The selfie you upload to find yourself is kept securely in your profile so you don't have to re-upload it for every event. It remains there until you manually delete it.
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all group-hover:border-primary/20 group-hover:shadow-md">
+                      <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">Secure</span>
+                      <h4 className="mt-3 font-bold text-slate-900">Reference Selfie</h4>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                        Kept securely so you don't have to re-upload for every event. It remains only until <span className="font-semibold text-slate-900">you manually delete it</span>.
+                      </p>
                     </div>
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
-                    <div>
-                      <strong className="text-foreground">Manual Searches:</strong> If you choose to search for photos without saving a default selfie, the image you upload is processed in memory (RAM) and immediately discarded. It is never saved to our database or storage.
-                    </div>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+                  </div>
+                  <div className="rounded-2xl bg-slate-100/50 p-6 text-sm text-slate-600 italic">
+                    Note: Manual searches are processed in memory (RAM) and immediately discarded. They are never saved to any database.
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {/* Section 3: Your Rights */}
-            <Card className="border-border/50 shadow-sm bg-card/80 backdrop-blur">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Trash2 className="w-5 h-5 text-primary" />
-                  3. Your Rights & Control
-                </CardTitle>
-                <CardDescription>You have the "Right to be Forgotten".</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <ul className="space-y-4 list-none pl-0">
-                  <li className="flex gap-3">
-                    <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
-                    <div>
-                      <strong className="text-foreground">Remove Event Photos:</strong> If you see a photo of yourself in the system that you do not want there, simply click the <strong>"Request Removal"</strong> button on the photo. This alerts a University Administrator who will permanently delete the photo from our servers.
-                    </div>
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
-                    <div>
-                      <strong className="text-foreground">Delete Your Face Data:</strong> You have full control over your reference selfie. If you click <strong>"Delete Default Selfie"</strong> in your student dashboard, the image file and its associated mathematical AI data are instantly and permanently erased from our system.
-                    </div>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+            <section className="group relative">
+              <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+                    <Trash2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">3. Your Rights & Control</h2>
+                </div>
+                <div className="ml-16 space-y-4">
+                  <div className="flex gap-4">
+                    <div className="mt-1 flex h-2 w-2 grow-0 shrink-0 rounded-full bg-primary" />
+                    <p className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                      <span className="font-bold text-slate-900">Right to be Forgotten:</span> You can request photo removal by clicking "Request Removal" on any photo. This alerts a University Admin for immediate deletion.
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="mt-1 flex h-2 w-2 grow-0 shrink-0 rounded-full bg-primary" />
+                    <p className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                      <span className="font-bold text-slate-900">Instant Face Purge:</span> Deleting your "Default Selfie" in the dashboard instantly erases the image file and all associated AI data permanently.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {/* Section 4: Security */}
-            <Card className="border-border/50 shadow-sm bg-card/80 backdrop-blur">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <EyeOff className="w-5 h-5 text-primary" />
-                  4. Security & Access
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>
-                  Your data is protected by industry-standard encryption. Access to event photos is restricted to verified university students, the photographer who uploaded the event, and designated system administrators. 
-                </p>
-                <p>
-                  If you have any questions about our privacy practices, please contact your university administration.
-                </p>
-              </CardContent>
-            </Card>
+            <section className="group relative">
+              <div className="absolute -inset-y-4 -inset-x-4 z-0 scale-95 rounded-3xl bg-slate-50 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+                    <EyeOff className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">4. Security & Access</h2>
+                </div>
+                <div className="ml-16">
+                  <p className="text-base leading-relaxed text-slate-600 sm:text-lg text-balance">
+                    Data is protected by industry-standard encryption. Access is strictly limited to verified students, the photographer of the event, and authorized system administrators.
+                  </p>
+                </div>
+              </div>
+            </section>
 
           </div>
           
-          <div className="text-center pt-8 text-sm text-muted-foreground">
-            Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </div>
+          <footer className="mt-24 border-t border-slate-100 pt-12 text-center">
+            <p className="text-sm font-medium text-slate-400">
+              Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+            <div className="mt-8 flex justify-center gap-4 grayscale opacity-50">
+              <img src="/Logo.png" alt="PhotoFinder Logo" className="h-6 w-auto" />
+            </div>
+          </footer>
 
         </div>
       </main>
