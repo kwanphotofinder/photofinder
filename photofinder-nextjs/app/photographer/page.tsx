@@ -361,7 +361,7 @@ export default function PhotographerPage() {
   if (isLoading) {
     return (
       <>
-        <Header />
+        <Header userRole="photographer" />
         <main className="min-h-screen bg-background flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -375,7 +375,7 @@ export default function PhotographerPage() {
   if (error || !isAuthenticated) {
     return (
       <>
-        <Header />
+        <Header userRole="photographer" />
         <main className="min-h-screen bg-background flex items-center justify-center px-4">
           <Card className="w-full max-w-md border border-border bg-muted/30 flex-col">
             <CardHeader className="space-y-2">

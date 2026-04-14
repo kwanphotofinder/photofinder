@@ -20,6 +20,8 @@ type AccountProfile = {
 
 export default function SettingsPage() {
   const router = useRouter()
+  const initialRole =
+    typeof window !== "undefined" ? (localStorage.getItem("user_role") || "student").toLowerCase() : "student"
   const [consent, setConsent] = useState<ConsentData>({
     globalFaceSearch: false,
     dataProcessing: false,
@@ -28,7 +30,7 @@ export default function SettingsPage() {
     name: "",
     email: "",
     avatarUrl: "",
-    role: "student",
+    role: initialRole,
   })
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -244,10 +246,13 @@ export default function SettingsPage() {
 
   const prettyRole = profile.role.replace("_", " ")
   const isConsentWithdrawn = !consent.globalFaceSearch || !consent.dataProcessing
+  const isPhotographer = profile.role === "photographer"
+  const headerRole: "student" | "photographer" | "admin" =
+    profile.role === "photographer" ? "photographer" : profile.role === "admin" ? "admin" : "student"
 
   return (
     <>
-      <Header showLogout />
+      <Header showLogout userRole={headerRole} />
       <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(130,24,26,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(130,24,26,0.08),_transparent_32%),linear-gradient(to_bottom,_#fff,_#faf7f7_58%,_#f8f4f4)]">
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:py-10">
           <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-[0_22px_70px_rgba(130,24,26,0.12)] backdrop-blur-xl sm:p-8">
@@ -264,14 +269,16 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <Tabs defaultValue="privacy" className="mt-8 space-y-6 sm:mt-10">
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-lg shadow-slate-100/60 backdrop-blur-xl">
+          <Tabs defaultValue={isPhotographer ? "account" : "privacy"} className="mt-8 space-y-6 sm:mt-10">
+            <TabsList className={`grid h-auto w-full rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-lg shadow-slate-100/60 backdrop-blur-xl ${isPhotographer ? "grid-cols-1" : "grid-cols-2"}`}>
               <TabsTrigger value="account" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
                 Account Profile
               </TabsTrigger>
-              <TabsTrigger value="privacy" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
-                Privacy & Consent
-              </TabsTrigger>
+              {!isPhotographer && (
+                <TabsTrigger value="privacy" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
+                  Privacy & Consent
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="account" className="space-y-4">
@@ -337,169 +344,170 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
-            {/* Privacy Tab */}
-            <TabsContent value="privacy" className="space-y-4">
-              <Card className="overflow-hidden border border-slate-200/60 bg-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
-                <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80 pb-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Shield className="h-5 w-5" />
+            {!isPhotographer && (
+              <TabsContent value="privacy" className="space-y-4">
+                <Card className="overflow-hidden border border-slate-200/60 bg-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+                  <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80 pb-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Shield className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <CardTitle>Consent Status</CardTitle>
+                          <CardDescription>Control your participation in the photo system</CardDescription>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <CardTitle>Consent Status</CardTitle>
-                        <CardDescription>Control your participation in the photo system</CardDescription>
+                      <div
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${
+                          consent.globalFaceSearch 
+                          ? "bg-emerald-500 text-white shadow-emerald-200" 
+                          : "bg-slate-200 text-slate-600 shadow-slate-100"
+                        }`}
+                      >
+                        <div className={`h-2 w-2 rounded-full ${consent.globalFaceSearch ? "bg-white animate-pulse" : "bg-slate-400"}`} />
+                        {consent.globalFaceSearch ? "Opted In" : "Opted Out"}
                       </div>
                     </div>
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${
-                        consent.globalFaceSearch 
-                        ? "bg-emerald-500 text-white shadow-emerald-200" 
-                        : "bg-slate-200 text-slate-600 shadow-slate-100"
-                      }`}
-                    >
-                      <div className={`h-2 w-2 rounded-full ${consent.globalFaceSearch ? "bg-white animate-pulse" : "bg-slate-400"}`} />
-                      {consent.globalFaceSearch ? "Opted In" : "Opted Out"}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-6">
-                  <div className={`rounded-2xl border p-5 transition-all duration-500 ${
-                    consent.globalFaceSearch 
-                    ? "border-emerald-100 bg-emerald-50/30 text-emerald-900" 
-                    : "border-slate-100 bg-slate-50/50 text-slate-600"
-                  }`}>
-                    <div className="flex gap-4">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                        consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
-                      }`}>
-                        {consent.globalFaceSearch ? <CheckCircle2 className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                  </CardHeader>
+                  <CardContent className="space-y-6 pt-6">
+                    <div className={`rounded-2xl border p-5 transition-all duration-500 ${
+                      consent.globalFaceSearch 
+                      ? "border-emerald-100 bg-emerald-50/30 text-emerald-900" 
+                      : "border-slate-100 bg-slate-50/50 text-slate-600"
+                    }`}>
+                      <div className="flex gap-4">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                          consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
+                        }`}>
+                          {consent.globalFaceSearch ? <CheckCircle2 className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                        </div>
+                        <p className="text-sm leading-relaxed">
+                          {consent.globalFaceSearch
+                            ? "Active: Your face is being identified in new event photos. You will be notified automatically when a match is found."
+                            : "Passive: Your face is not being searched. No notifications will be sent and you will remain invisible to AI detection."}
+                        </p>
                       </div>
-                      <p className="text-sm leading-relaxed">
-                        {consent.globalFaceSearch
-                          ? "Active: Your face is being identified in new event photos. You will be notified automatically when a match is found."
-                          : "Passive: Your face is not being searched. No notifications will be sent and you will remain invisible to AI detection."}
-                      </p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card className="overflow-hidden border border-white/60 bg-white/50 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
-                <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
-                      <Lock className="h-4 w-4" />
+                <Card className="overflow-hidden border border-white/60 bg-white/50 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
+                  <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                        <Lock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <CardTitle>Update Preferences</CardTitle>
+                        <CardDescription>Manage your privacy configuration</CardDescription>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle>Update Preferences</CardTitle>
-                      <CardDescription>Manage your privacy configuration</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 p-6">
-                  <PrivacyConsentForm
-                    consent={consent}
-                    onChange={handleConsentChange}
-                    disabled={isSaving}
-                  />
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-6">
+                    <PrivacyConsentForm
+                      consent={consent}
+                      onChange={handleConsentChange}
+                      disabled={isSaving}
+                    />
 
-                  {isConsentWithdrawn && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-amber-900">You are about to withdraw consent</p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
-                            <li>AI face matching and new match notifications will stop.</li>
-                            <li>Your profile may no longer appear in automatic event discovery.</li>
-                            <li>You can still use manual search after re-consenting later.</li>
+                    {isConsentWithdrawn && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-amber-900">You are about to withdraw consent</p>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                              <li>AI face matching and new match notifications will stop.</li>
+                              <li>Your profile may no longer appear in automatic event discovery.</li>
+                              <li>You can still use manual search after re-consenting later.</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+
+                    {/* Privacy Rights Info */}
+                    <div className="space-y-3 rounded-xl border border-border/30 bg-muted/50 p-4">
+                      <div className="flex gap-3">
+                        <Lock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div className="space-y-2 text-muted-foreground">
+                          <p className="text-xs uppercase tracking-widest font-medium text-foreground">Your Privacy Rights</p>
+                          <ul className="space-y-1 list-disc list-inside">
+                            <li>You can opt-out of face search at any time</li>
+                            <li>Request removal or blur of photos featuring you</li>
+                            <li>Download or delete your personal data</li>
+                            <li>Learn more in our privacy policy</li>
                           </ul>
                         </div>
                       </div>
                     </div>
-                  )}
 
+                    <Button
+                      onClick={handleSavePreferences}
+                      disabled={isSaving}
+                      className="w-full rounded-full bg-primary py-6 text-primary-foreground shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-2xl hover:shadow-primary/30"
+                      size="lg"
+                    >
+                      {isSaving ? "Saving..." : "Save Privacy Preferences"}
+                    </Button>
 
-                  {/* Privacy Rights Info */}
-                  <div className="space-y-3 rounded-xl border border-border/30 bg-muted/50 p-4">
-                    <div className="flex gap-3">
-                      <Lock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2 text-muted-foreground">
-                        <p className="text-xs uppercase tracking-widest font-medium text-foreground">Your Privacy Rights</p>
-                        <ul className="space-y-1 list-disc list-inside">
-                          <li>You can opt-out of face search at any time</li>
-                          <li>Request removal or blur of photos featuring you</li>
-                          <li>Download or delete your personal data</li>
-                          <li>Learn more in our privacy policy</li>
-                        </ul>
+                    <div className="space-y-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-4">
+                      <p className="text-xs font-medium uppercase tracking-widest text-slate-600">Consent Intelligence Actions</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          onClick={handleExportData}
+                          disabled={isExportingData || isDeletingData}
+                          className="w-full border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                        >
+                          {isExportingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                          One-click Export Data
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleFullDeleteData}
+                          disabled={isDeletingData || isExportingData}
+                          className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                        >
+                          {isDeletingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                          One-click Full Delete
+                        </Button>
                       </div>
-                    </div>
-                  </div>
 
-                  <Button
-                    onClick={handleSavePreferences}
-                    disabled={isSaving}
-                    className="w-full rounded-full bg-primary py-6 text-primary-foreground shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-2xl hover:shadow-primary/30"
-                    size="lg"
-                  >
-                    {isSaving ? "Saving..." : "Save Privacy Preferences"}
-                  </Button>
+                      {deletionStatus !== "idle" && (
+                        <div className={`rounded-lg border p-3 text-sm ${
+                          deletionStatus === "completed"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : deletionStatus === "processing"
+                              ? "border-blue-200 bg-blue-50 text-blue-800"
+                              : "border-red-200 bg-red-50 text-red-800"
+                        }`}>
+                          <p className="font-semibold">
+                            Deletion status: {deletionStatus === "processing" ? "Processing" : deletionStatus === "completed" ? "Completed" : "Failed"}
+                          </p>
+                          {deletionSummary && <p className="mt-1">{deletionSummary}</p>}
+                        </div>
+                      )}
 
-                  <div className="space-y-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-4">
-                    <p className="text-xs font-medium uppercase tracking-widest text-slate-600">Consent Intelligence Actions</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Button
-                        type="button"
-                        onClick={handleExportData}
-                        disabled={isExportingData || isDeletingData}
-                        className="w-full border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                      >
-                        {isExportingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                        One-click Export Data
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={handleFullDeleteData}
-                        disabled={isDeletingData || isExportingData}
-                        className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
-                      >
-                        {isDeletingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                        One-click Full Delete
-                      </Button>
+                      {privacyActionError && (
+                        <p className="text-sm font-medium text-red-600">{privacyActionError}</p>
+                      )}
                     </div>
 
-                    {deletionStatus !== "idle" && (
-                      <div className={`rounded-lg border p-3 text-sm ${
-                        deletionStatus === "completed"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                          : deletionStatus === "processing"
-                            ? "border-blue-200 bg-blue-50 text-blue-800"
-                            : "border-red-200 bg-red-50 text-red-800"
-                      }`}>
-                        <p className="font-semibold">
-                          Deletion status: {deletionStatus === "processing" ? "Processing" : deletionStatus === "completed" ? "Completed" : "Failed"}
+                    {showSuccess && (
+                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                        <p className="text-sm font-semibold text-emerald-800 sm:text-base">
+                          Preferences saved successfully!
                         </p>
-                        {deletionSummary && <p className="mt-1">{deletionSummary}</p>}
                       </div>
                     )}
-
-                    {privacyActionError && (
-                      <p className="text-sm font-medium text-red-600">{privacyActionError}</p>
-                    )}
-                  </div>
-
-                  {showSuccess && (
-                    <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-                      <p className="text-sm font-semibold text-emerald-800 sm:text-base">
-                        Preferences saved successfully!
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
           </Tabs>
 

@@ -58,13 +58,19 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
     }
   }
 
+  const getHomeRoute = () => {
+    if (userRole === "admin") return "/admin/dashboard"
+    if (userRole === "photographer") return "/photographer"
+    return "/dashboard"
+  }
+
   return (
     <header className="sticky top-0 z-40 bg-white/30 dark:bg-black/30 backdrop-blur-md border-b border-white/20 shadow-sm transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
         <div className="flex items-center gap-6">
           <div
             className={userRole === "admin" ? "cursor-default pointer-events-none" : "cursor-pointer"}
-            onClick={userRole === "admin" ? undefined : () => router.push("/dashboard")}
+            onClick={userRole === "admin" ? undefined : () => router.push(getHomeRoute())}
           >
             <img src="/Logo.png" alt="Photo Finder" className="h-14 w-auto" />
           </div>
@@ -79,10 +85,6 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                   <AvatarImage src={userAvatar} alt={userName} referrerPolicy="no-referrer" />
                   <AvatarFallback>{userName ? userName[0].toUpperCase() : "U"}</AvatarFallback>
                 </Avatar>
-                <div className="text-right hidden sm:block">
-                  <div className="text-sm font-semibold text-foreground">{userName}</div>
-                  <div className="text-xs text-muted-foreground truncate max-w-[150px]">{userEmail}</div>
-                </div>
                 <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
@@ -105,7 +107,7 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                 className="hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground"
               >
                 <Settings className="w-4 h-4 mr-2" />
-                Settings
+                {userRole === "photographer" ? "Account" : "Settings"}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => router.push("/privacy")}

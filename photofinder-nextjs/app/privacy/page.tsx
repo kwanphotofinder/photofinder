@@ -16,13 +16,19 @@ export default function PrivacyPolicyPage() {
     // Check if the user is already logged in
     const adminToken = localStorage.getItem("admin_token")
     const authToken = localStorage.getItem("auth_token")
+    const userRole = (localStorage.getItem("user_role") || "student").toLowerCase()
 
     if (adminToken) {
       setBackUrl("/admin/dashboard")
       setBackText("Back to Dashboard")
     } else if (authToken) {
-      setBackUrl("/dashboard")
-      setBackText("Back to Dashboard")
+      if (userRole === "photographer") {
+        setBackUrl("/photographer")
+        setBackText("Back to Upload Photos")
+      } else {
+        setBackUrl("/dashboard")
+        setBackText("Back to Dashboard")
+      }
     }
   }, [])
 
