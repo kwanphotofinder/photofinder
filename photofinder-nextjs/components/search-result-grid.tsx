@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Download, CheckCircle, Heart } from "lucide-react"
+import { Eye, Download, CheckCircle, Heart, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "@/components/photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
+import { sharePhotoOriginal } from "@/lib/share"
 
 interface Photo {
   id: string
@@ -87,6 +88,16 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
+  }
+
+  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await sharePhotoOriginal(photo)
+    } catch (err) {
+      console.error('Failed to share photo:', err)
+      alert('Unable to share the photo right now.')
+    }
   }
 
   const getConfidenceBadgeColor = (confidence: number) => {
@@ -172,6 +183,14 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                 >
                   <Download className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
 
               {/* Confidence Badge */}
@@ -236,6 +255,13 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                   onClick={(e) => handleDownload(photo, e)}
                 >
                   <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>

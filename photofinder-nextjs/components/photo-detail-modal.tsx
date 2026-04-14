@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Download, Trash2, AlertCircle } from "lucide-react"
+import { Download, Trash2, AlertCircle, Share2, WandSparkles, Loader2 } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
+import { sharePhotoOriginal, sharePhotoWatermarked } from "@/lib/share"
 
 interface Photo {
   id: string
@@ -29,12 +30,14 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setShowRemovalRequest(false)
       setReason("")
+      setIsSharing(false)
     }
   }, [isOpen])
 
@@ -42,6 +45,30 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
   const handleDownload = async () => {
     await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
+  }
+
+  const handleShareOriginal = async () => {
+    try {
+      setIsSharing(true)
+      await sharePhotoOriginal(photo)
+    } catch (error) {
+      console.error("Failed to share original photo:", error)
+      alert("Unable to share the original photo right now.")
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
+  const handleShareWatermarked = async () => {
+    try {
+      setIsSharing(true)
+      await sharePhotoWatermarked(photo)
+    } catch (error) {
+      console.error("Failed to share watermarked photo:", error)
+      alert("Unable to share the watermarked photo right now.")
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   const handleSubmitRemovalRequest = async () => {
@@ -101,6 +128,27 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
           {/* Action Buttons */}
           <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button
+                onClick={handleShareOriginal}
+                disabled={isSharing || isSubmitting}
+                variant="outline"
+                className="w-full border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+              >
+                {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+                Share Original
+              </Button>
+              <Button
+                onClick={handleShareWatermarked}
+                disabled={isSharing || isSubmitting}
+                variant="outline"
+                className="w-full border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+              >
+                <WandSparkles className="mr-2 h-4 w-4" />
+                Share with Watermark
+              </Button>
+            </div>
+
             {!showRemovalRequest ? (
               <>
                 <Button
