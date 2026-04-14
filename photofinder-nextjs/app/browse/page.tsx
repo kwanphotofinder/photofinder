@@ -117,32 +117,47 @@ export default function BrowsePhotosPage() {
         <div className="absolute -top-20 right-8 h-64 w-64 rounded-full bg-[#82181a]/10 blur-3xl pointer-events-none" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/85 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-lg">
-            <div className="absolute inset-0 bg-[linear-gradient(130deg,rgba(130,24,26,0.10),rgba(255,255,255,0)_45%,rgba(130,24,26,0.06))]" />
-            <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
+          <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/90 shadow-[0_18px_52px_rgba(15,23,42,0.08)] backdrop-blur-lg">
+            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(130,24,26,0.18),rgba(130,24,26,0.03)_40%,rgba(255,255,255,0)_75%)]" />
+            <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-2xl" />
+            <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
               <div className="space-y-4">
-                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium">
+                <Badge variant="secondary" className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                   Browse gallery
                 </Badge>
-                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                   Explore all campus event photos in one place
                 </h1>
-                <p className="max-w-2xl text-muted-foreground leading-7">
+                <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
                   Filter by event, search by event name, and sort by date to quickly discover the photos you need.
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="border-border/60 bg-background/90">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <Card className="border-primary/20 bg-gradient-to-br from-primary/10 to-background/80 shadow-sm">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Total Photos</p>
-                    <p className="mt-1 text-2xl font-semibold">{totalPhotos}</p>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Total Photos</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{totalPhotos.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-xl bg-primary/15 p-2 text-primary">
+                        <Images className="h-5 w-5" />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-                <Card className="border-border/60 bg-background/90">
+                <Card className="border-primary/20 bg-gradient-to-br from-primary/10 to-background/80 shadow-sm">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Events</p>
-                    <p className="mt-1 text-2xl font-semibold">{totalEvents}</p>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Events</p>
+                        <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{totalEvents.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-xl bg-primary/15 p-2 text-primary">
+                        <CalendarDays className="h-5 w-5" />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

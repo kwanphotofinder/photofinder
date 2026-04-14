@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Download, Trash2, AlertCircle, Share2, WandSparkles, Loader2, Heart } from "lucide-react"
+import { Trash2, AlertCircle, Share2, WandSparkles, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
@@ -27,6 +27,7 @@ interface PhotoDetailModalProps {
 }
 
 export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
+  const imageContainerRef = useRef<HTMLDivElement>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,6 +35,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
   const [isSharingOriginal, setIsSharingOriginal] = useState(false)
   const [isSharingWatermarked, setIsSharingWatermarked] = useState(false)
+  const [isZoomed, setIsZoomed] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
@@ -44,8 +47,21 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       setIsFavoriteLoading(false)
       setIsSharingOriginal(false)
       setIsSharingWatermarked(false)
+      setIsZoomed(false)
+      setIsFullscreen(false)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === imageContainerRef.current)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isOpen || !photo) return
@@ -144,6 +160,23 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
     }
   }
 
+  const handleToggleZoom = () => {
+    setIsZoomed((prev) => !prev)
+  }
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && imageContainerRef.current) {
+        await imageContainerRef.current.requestFullscreen()
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      }
+    } catch (error) {
+      console.error("Failed to toggle fullscreen:", error)
+      alert("Fullscreen is not available on this browser.")
+    }
+  }
+
   const handleSubmitRemovalRequest = async () => {
     // Validate required fields
     if (!reason.trim()) {
@@ -183,8 +216,43 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
         <div className="space-y-4">
           {/* Photo Display */}
-          <div className="relative w-full max-h-[400px] bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-            <Image src={photo.url || "/placeholder.svg"} alt={photo.eventName} width={800} height={600} className="object-contain max-h-[400px] w-auto" />
+          <div
+            ref={imageContainerRef}
+            className={`relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center ${
+              isFullscreen ? "h-screen" : "h-[400px]"
+            }`}
+          >
+            <Image
+              src={photo.url || "/placeholder.svg"}
+              alt={photo.eventName}
+              width={800}
+              height={600}
+              onClick={handleToggleZoom}
+              className={`w-auto object-contain transition-transform duration-300 ${
+                isFullscreen ? "max-h-screen" : "max-h-[400px]"
+              } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
+            />
+
+            <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                onClick={handleToggleZoom}
+                title={isZoomed ? "Zoom out" : "Zoom in"}
+              >
+                {isZoomed ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />}
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                onClick={handleToggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
 
           {/* Photo Info */}
@@ -230,44 +298,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   </div>
                   <span className="text-xs font-bold uppercase tracking-tight">Watermark</span>
                 </Button>
-              </div>
-
-              {/* Social Shortcut Buttons */}
-              <div className="mt-2 flex items-center justify-center gap-4 border-t border-border/50 pt-4">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Quick Share:</span>
-                <div className="flex gap-3">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9 rounded-full bg-[#1877F2]/10 text-[#1877F2] hover:bg-[#1877F2] hover:text-white"
-                    onClick={handleShareOriginal}
-                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
-                  >
-                    <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9 rounded-full bg-[#06C755]/10 text-[#06C755] hover:bg-[#06C755] hover:text-white"
-                    onClick={handleShareOriginal}
-                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
-                  >
-                    <span className="text-[10px] font-bold">LINE</span>
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9 rounded-full bg-[#1DA1F2]/10 text-[#1DA1F2] hover:bg-[#1DA1F2] hover:text-white"
-                    onClick={handleShareOriginal}
-                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
-                  >
-                    <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.84 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
-                    </svg>
-                  </Button>
-                </div>
               </div>
             </div>
 
