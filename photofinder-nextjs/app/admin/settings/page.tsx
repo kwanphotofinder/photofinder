@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
                   </div>
                   <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Settings</h1>
                   <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                    Manage admin-only preferences, access, and workflow shortcuts for {adminName || "your account"}.
+                    Manage admin access, moderation workflow, and platform controls in one place.
                   </p>
                 </div>
                 <Button variant="outline" onClick={() => router.push("/admin/dashboard")} className="rounded-full border-border/70">

@@ -249,6 +249,9 @@ export default function SettingsPage() {
   const isPhotographer = profile.role === "photographer"
   const headerRole: "student" | "photographer" | "admin" =
     profile.role === "photographer" ? "photographer" : profile.role === "admin" ? "admin" : "student"
+  const settingsSummary = isPhotographer
+    ? "View account profile in one place."
+    : "View account profile and manage privacy preferences in one place."
 
   return (
     <>
@@ -264,7 +267,7 @@ export default function SettingsPage() {
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Settings</h1>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Manage your account profile and privacy preferences in one place.
+                {settingsSummary}
               </p>
             </div>
           </section>
