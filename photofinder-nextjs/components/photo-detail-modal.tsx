@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Download, Trash2, AlertCircle, Share2, WandSparkles, Loader2 } from "lucide-react"
+import { Download, Trash2, AlertCircle, Share2, WandSparkles, Loader2, Heart } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
@@ -30,16 +30,46 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSharing, setIsSharing] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
+  const [isSharingOriginal, setIsSharingOriginal] = useState(false)
+  const [isSharingWatermarked, setIsSharingWatermarked] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setShowRemovalRequest(false)
       setReason("")
-      setIsSharing(false)
+      setIsFavorite(false)
+      setIsFavoriteLoading(false)
+      setIsSharingOriginal(false)
+      setIsSharingWatermarked(false)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !photo) return
+
+    const loadFavoriteState = async () => {
+      try {
+        setIsFavoriteLoading(true)
+        const userId = localStorage.getItem("user_id") || "guest"
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+
+        if (response.ok) {
+          const savedPhotos = await response.json()
+          setIsFavorite(savedPhotos.some((item: any) => item.photo.id === photo.id))
+        }
+      } catch (error) {
+        console.error("Failed to load favorite state:", error)
+      } finally {
+        setIsFavoriteLoading(false)
+      }
+    }
+
+    loadFavoriteState()
+  }, [isOpen, photo])
 
   if (!photo) return null
 
@@ -49,25 +79,68 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
   const handleShareOriginal = async () => {
     try {
-      setIsSharing(true)
+      setIsSharingOriginal(true)
       await sharePhotoOriginal(photo)
     } catch (error) {
       console.error("Failed to share original photo:", error)
       alert("Unable to share the original photo right now.")
     } finally {
-      setIsSharing(false)
+      setIsSharingOriginal(false)
     }
   }
 
   const handleShareWatermarked = async () => {
     try {
-      setIsSharing(true)
+      setIsSharingWatermarked(true)
       await sharePhotoWatermarked(photo)
     } catch (error) {
       console.error("Failed to share watermarked photo:", error)
       alert("Unable to share the watermarked photo right now.")
     } finally {
-      setIsSharing(false)
+      setIsSharingWatermarked(false)
+    }
+  }
+
+  const handleToggleFavorite = async () => {
+    try {
+      setIsFavoriteLoading(true)
+      const userId = localStorage.getItem("user_id") || "guest"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+
+      if (isFavorite) {
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photo.id}`, {
+          method: "DELETE",
+          headers: {
+            "user-id": userId,
+          },
+        })
+
+        if (response.ok) {
+          setIsFavorite(false)
+        } else {
+          alert("Unable to remove this photo from Favorites right now.")
+        }
+      } else {
+        const response = await fetch(`${apiUrl}/saved-photos`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "user-id": userId,
+          },
+          body: JSON.stringify({ photoId: photo.id }),
+        })
+
+        if (response.ok) {
+          setIsFavorite(true)
+        } else {
+          alert("Unable to add this photo to Favorites right now.")
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update favorite state:", error)
+      alert("Unable to update Favorites right now.")
+    } finally {
+      setIsFavoriteLoading(false)
     }
   }
 
@@ -127,46 +200,88 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Button
-                onClick={handleShareOriginal}
-                disabled={isSharing || isSubmitting}
-                variant="outline"
-                className="w-full border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-              >
-                {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-                Share Original
-              </Button>
-              <Button
-                onClick={handleShareWatermarked}
-                disabled={isSharing || isSubmitting}
-                variant="outline"
-                className="w-full border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
-              >
-                <WandSparkles className="mr-2 h-4 w-4" />
-                Share with Watermark
-              </Button>
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Share your moment</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={handleShareOriginal}
+                  disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
+                  className="group relative h-24 flex-col gap-1 rounded-2xl border-none bg-primary/10 text-primary shadow-none transition-all hover:bg-primary hover:text-white"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition-transform group-hover:scale-110 group-hover:bg-white/20">
+                    {isSharingOriginal ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-tight">Original</span>
+                </Button>
+
+                <Button
+                  onClick={handleShareWatermarked}
+                  disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
+                  className="group relative h-24 flex-col gap-1 rounded-2xl border-none bg-amber-500/10 text-amber-600 shadow-none transition-all hover:bg-amber-500 hover:text-white"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition-transform group-hover:scale-110 group-hover:bg-white/20">
+                    {isSharingWatermarked ? <Loader2 className="h-5 w-5 animate-spin" /> : <WandSparkles className="h-5 w-5" />}
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-tight">Watermark</span>
+                </Button>
+              </div>
+
+              {/* Social Shortcut Buttons */}
+              <div className="mt-2 flex items-center justify-center gap-4 border-t border-border/50 pt-4">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Quick Share:</span>
+                <div className="flex gap-3">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 rounded-full bg-[#1877F2]/10 text-[#1877F2] hover:bg-[#1877F2] hover:text-white"
+                    onClick={handleShareOriginal}
+                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
+                  >
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 rounded-full bg-[#06C755]/10 text-[#06C755] hover:bg-[#06C755] hover:text-white"
+                    onClick={handleShareOriginal}
+                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
+                  >
+                    <span className="text-[10px] font-bold">LINE</span>
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 rounded-full bg-[#1DA1F2]/10 text-[#1DA1F2] hover:bg-[#1DA1F2] hover:text-white"
+                    onClick={handleShareOriginal}
+                    disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
+                  >
+                    <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.84 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {!showRemovalRequest ? (
-              <>
-                <Button
-                  onClick={handleDownload}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
+              <div className="flex flex-col gap-2">
                 <Button
                   variant="ghost"
-                  className="w-full text-destructive hover:text-destructive/90"
+                  className="h-10 w-full text-xs font-medium text-muted-foreground/60 hover:bg-destructive/5 hover:text-destructive"
                   onClick={() => setShowRemovalRequest(true)}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="mr-2 h-3 w-3" />
                   Request Removal
                 </Button>
-              </>
+              </div>
             ) : (
               <div className="space-y-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <div className="flex gap-3">
@@ -179,6 +294,24 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   </div>
                 </div>
                 <div className="space-y-3">
+                  <Button
+                    onClick={handleToggleFavorite}
+                    disabled={isFavoriteLoading || isSubmitting || isSharingOriginal || isSharingWatermarked}
+                    variant="outline"
+                    className={`h-12 w-full rounded-xl border transition-all ${
+                      isFavorite
+                        ? "border-pink-200 bg-pink-50 text-pink-600 hover:border-pink-300 hover:bg-pink-100 hover:text-pink-700"
+                        : "border-border bg-background text-foreground hover:border-pink-200 hover:bg-pink-50 hover:text-pink-600"
+                    }`}
+                  >
+                    {isFavoriteLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Heart className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+                    )}
+                    {isFavorite ? "Saved to Favorites" : "Add to Favorites"}
+                  </Button>
+
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1 block">
                       Reason for Removal <span className="text-destructive">*</span>
