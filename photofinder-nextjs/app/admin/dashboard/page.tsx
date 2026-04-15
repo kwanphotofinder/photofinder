@@ -585,12 +585,13 @@ export default function AdminDashboardPage() {
                         const isSuperAdmin = u.role === "SUPER_ADMIN"
                         const isAdmin = u.role === "ADMIN"
                         const isPhotographer = u.role === "PHOTOGRAPHER"
-                        const canRemove = (() => {
+                        const canDemote = (() => {
                           if (isSuperAdmin) return false
                           if (isAdmin && callerRole !== "SUPER_ADMIN") return false
                           if (isPhotographer) return true
                           return false
                         })()
+                        const canPermanentlyRemove = isAdmin && callerRole === "SUPER_ADMIN"
 
                         const roleBadge = ({
                           SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
@@ -617,12 +618,41 @@ export default function AdminDashboardPage() {
                                 <div className="text-xs text-muted-foreground">{u.email}</div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
                                 {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
                                 {roleLabel}
                               </span>
-                              {canRemove && (
+                              {canPermanentlyRemove && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={userMgmtLoading}
+                                  onClick={async () => {
+                                    const confirmation = prompt(
+                                      `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
+                                    )
+                                    if (confirmation !== "REMOVE") return
+
+                                    setUserMgmtLoading(true)
+                                    setUserMgmtMessage(null)
+                                    const res = await apiClient.removeAdmin(u.id)
+                                    if (res.error) {
+                                      setUserMgmtMessage({ type: "error", text: res.error })
+                                    } else {
+                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
+                                      const usersRes = await apiClient.getAdminUsers()
+                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                    }
+                                    setUserMgmtLoading(false)
+                                  }}
+                                  title="Permanently remove this admin"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  Remove
+                                </Button>
+                              )}
+                              {canDemote && (
                                 <Button
                                   variant="outline"
                                   size="sm"

@@ -103,11 +103,19 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => router.push(userRole === "admin" ? "/admin/settings" : "/settings")}
+                onClick={() =>
+                  router.push(
+                    userRole === "admin"
+                      ? "/admin/profile"
+                      : userRole === "photographer"
+                        ? "/photographer/profile"
+                        : "/settings",
+                  )
+                }
                 className="hover:bg-primary/10 focus:bg-primary/10 hover:text-foreground focus:text-foreground"
               >
                 <Settings className="w-4 h-4 mr-2" />
-                {userRole === "photographer" ? "Account" : "Settings"}
+                Account & Settings
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => router.push("/privacy")}

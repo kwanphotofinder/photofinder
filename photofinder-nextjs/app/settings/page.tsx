@@ -263,9 +263,9 @@ export default function SettingsPage() {
             <div className="relative space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
-                Personal settings
+                Account & settings
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Settings</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account & Settings</h1>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
                 {settingsSummary}
               </p>

@@ -22,17 +22,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields: name, slug, and date" }, { status: 400 })
     }
 
-    const newEvent = await prisma.event.create({
-      data: {
-        name: body.name,
-        slug: body.slug,
-        date: new Date(body.date),
-        location: body.location || null,
-        description: body.description || null,
-        status: body.status || 'DRAFT',
-        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+    const eventData = {
+      name: body.name,
+      slug: body.slug,
+      date: new Date(body.date),
+      location: body.location || null,
+      description: body.description || null,
+      status: body.status || 'DRAFT',
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+    };
+
+    let newEvent;
+    try {
+      newEvent = await prisma.event.create({ data: eventData });
+    } catch (createError) {
+      const message = createError instanceof Error ? createError.message : "";
+
+      // Fallback for stale Prisma runtime that still validates against an older Event shape.
+      if (message.includes("Unknown argument `expiresAt`")) {
+        const rows = await prisma.$queryRaw<any[]>`
+          INSERT INTO "events" ("name", "slug", "date", "location", "description", "status", "expiresAt")
+          VALUES (${eventData.name}, ${eventData.slug}, ${eventData.date}, ${eventData.location}, ${eventData.description}, ${eventData.status}::"EventStatus", ${eventData.expiresAt})
+          RETURNING *
+        `;
+        newEvent = rows[0];
+      } else {
+        throw createError;
       }
-    });
+    }
 
     return NextResponse.json(newEvent, { status: 201 })
   } catch (error) {

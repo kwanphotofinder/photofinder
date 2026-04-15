@@ -205,4 +205,8 @@ export const apiClient = {
     apiCall<any>(`/admin/users/${userId}/role`, {
       method: "DELETE",
     }),
+  removeAdmin: (userId: string) =>
+    apiCall<any>(`/admin/admins/${userId}`, {
+      method: "DELETE",
+    }),
 };
