@@ -6,7 +6,7 @@ import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PhotoGrid } from "@/components/photo-grid"
-import { Heart, Loader2 } from "lucide-react"
+import { Heart, Loader2, AlertCircle } from "lucide-react"
 
 interface Photo {
   id: string
@@ -16,47 +16,100 @@ interface Photo {
   confidence: number
 }
 
+interface SavedPhotoResponse {
+  photo: {
+    id: string
+    storageUrl: string
+    createdAt: string
+    event?: {
+      name: string
+      date: string
+    }
+  }
+}
+
 export default function FavoritesPage() {
   const router = useRouter()
   const [savedPhotos, setSavedPhotos] = useState<Photo[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
 
   useEffect(() => {
-    const authToken = localStorage.getItem("auth_token")
-    if (!authToken) {
-      router.push("/login")
-      return
-    }
+    const checkAuthAndLoad = async () => {
+      const authToken = localStorage.getItem("auth_token")
+      const userId = localStorage.getItem("user_id")
+      
+      if (!authToken || !userId) {
+        router.push("/login")
+        return // Do not clear isAuthChecking so the page stays blank while redirecting
+      }
 
-    const loadSavedPhotos = async () => {
+      setIsAuthChecking(false)
+
       try {
-        const userId = localStorage.getItem("user_id") || "guest"
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
         const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
 
-        if (response.ok) {
-          const data = await response.json()
-          const photos = data.map((item: any) => ({
-            id: item.photo.id,
-            url: item.photo.storageUrl,
-            eventName: item.photo.event?.name || "Unknown Event",
-            eventDate: item.photo.event?.date || item.photo.createdAt,
-            confidence: 0.95,
-          }))
-          setSavedPhotos(photos)
+        if (!response.ok) {
+          throw new Error("Failed to fetch favorites")
         }
+
+        const data: SavedPhotoResponse[] = await response.json()
+        const photos = data.map((item) => ({
+          id: item.photo.id,
+          url: item.photo.storageUrl,
+          eventName: item.photo.event?.name || "Unknown Event",
+          eventDate: item.photo.event?.date || item.photo.createdAt,
+          confidence: 0.95,
+        }))
+        setSavedPhotos(photos)
       } catch (err) {
         console.error("Failed to load saved photos:", err)
+        setError("Unable to load your favorites at this time. Please try again later.")
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadSavedPhotos()
+    checkAuthAndLoad()
   }, [router])
 
-  const handleRemoveFromFavorites = (photoId: string) => {
+  const handleRemoveFromFavorites = async (photoId: string) => {
+    // Optimistic UI update
+    const previousPhotos = [...savedPhotos]
     setSavedPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+
+    try {
+      const userId = localStorage.getItem("user_id")
+      if (!userId) return
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+      const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photoId}`, {
+        method: "DELETE",
+        headers: {
+          "user-id": userId,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete favorite")
+      }
+    } catch (err) {
+      console.error("Error removing favorite:", err)
+      alert("Unable to remove this photo from Favorites right now.")
+      // Revert the optimistic update if API fails
+      setSavedPhotos(previousPhotos)
+    }
+  }
+
+  // Prevent UI flash while checking auth
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -112,6 +165,13 @@ export default function FavoritesPage() {
                   <CardContent className="flex items-center justify-center p-10">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading your favorites...</span>
+                  </CardContent>
+                </Card>
+              ) : error ? (
+                <Card className="border-dashed border-red-200 bg-red-50/50">
+                  <CardContent className="flex items-center justify-center p-10 text-red-600">
+                    <AlertCircle className="h-6 w-6 mr-2" />
+                    <span className="text-sm font-medium">{error}</span>
                   </CardContent>
                 </Card>
               ) : savedPhotos.length > 0 ? (

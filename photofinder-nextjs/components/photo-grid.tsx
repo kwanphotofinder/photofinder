@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Trash2, Heart, Download } from "lucide-react"
+import { Eye, Trash2, Heart, Download, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "./photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
+import { sharePhotoOriginal } from "@/lib/share"
 
 interface Photo {
   id: string
@@ -86,6 +87,16 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
     await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
   }
 
+  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await sharePhotoOriginal(photo)
+    } catch (err) {
+      console.error("Failed to share photo:", err)
+      alert("Unable to share the photo right now.")
+    }
+  }
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -158,6 +169,14 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
                 >
                   <Download className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
                 {onRemove && (
                   <Button
                     size="sm"
@@ -216,6 +235,13 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
                   onClick={(e) => handleDownload(photo, e)}
                 >
                   <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
                 </Button>
                 {onRemove && (
                   <Button
