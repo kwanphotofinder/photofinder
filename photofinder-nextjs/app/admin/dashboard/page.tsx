@@ -23,6 +23,7 @@ export default function AdminDashboardPage() {
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState("")
   const [callerRole, setCallerRole] = useState("")
   const [callerEmail, setCallerEmail] = useState("")
   const [newPhotographerEmail, setNewPhotographerEmail] = useState("")
@@ -578,12 +579,26 @@ export default function AdminDashboardPage() {
                 {/* User List */}
                 <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
                   <CardHeader>
-                    <CardTitle>All Users</CardTitle>
-                    <CardDescription>{allUsers.length} registered users</CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <CardTitle>All Users</CardTitle>
+                        <CardDescription>{allUsers.length} registered users</CardDescription>
+                      </div>
+                      <div className="relative w-full max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder="Search by name or email..."
+                          className="pl-8"
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {allUsers.map((u) => {
+                      {filteredAndSortedUsers.map((u) => {
                         const isSuperAdmin = u.role === "SUPER_ADMIN"
                         const isAdmin = u.role === "ADMIN"
                         const isPhotographer = u.role === "PHOTOGRAPHER"
@@ -624,7 +639,29 @@ export default function AdminDashboardPage() {
                           STUDENT: "Student",
                         }[u.role as string] || u.role
 
-                        return (
+  const filteredAndSortedUsers = useMemo(() => {
+    let result = allUsers
+    if (userSearchQuery.trim()) {
+      const lowerQuery = userSearchQuery.toLowerCase()
+      result = result.filter(
+        (u) =>
+          (u.name?.toLowerCase() || "").includes(lowerQuery) ||
+          u.email.toLowerCase().includes(lowerQuery)
+      )
+    }
+
+    // Sort: SUPER_ADMIN first, then ADMIN, then others. Original order otherwise.
+    return result.sort((a, b) => {
+      const getRank = (role: string) => {
+        if (role === "SUPER_ADMIN") return 1
+        if (role === "ADMIN") return 2
+        return 3
+      }
+      return getRank(a.role) - getRank(b.role)
+    })
+  }, [allUsers, userSearchQuery])
+
+  return (
                           <div key={u.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:border-primary/30 hover:shadow-sm">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground overflow-hidden">
@@ -635,95 +672,108 @@ export default function AdminDashboardPage() {
                                 <div className="text-xs text-muted-foreground">{u.email}</div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              {!u.isActive && (
-                                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-600 border border-red-200 flex items-center">
-                                  <Ban className="w-3 h-3 mr-1" />
-                                  Blocked
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                {!u.isActive && (
+                                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-600 border border-red-200 flex items-center">
+                                    <Ban className="w-3 h-3 mr-1" />
+                                    Blocked
+                                  </span>
+                                )}
+                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
+                                  {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
+                                  {roleLabel}
                                 </span>
-                              )}
-                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
-                                {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
-                                {roleLabel}
-                              </span>
-                              {canPermanentlyRemove && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  disabled={userMgmtLoading}
-                                  onClick={async () => {
-                                    const confirmation = prompt(
-                                      `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
-                                    )
-                                    if (confirmation !== "REMOVE") return
+                              </div>
 
-                                    setUserMgmtLoading(true)
-                                    setUserMgmtMessage(null)
-                                    const res = await apiClient.removeAdmin(u.id)
-                                    if (res.error) {
-                                      setUserMgmtMessage({ type: "error", text: res.error })
-                                    } else {
-                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
-                                      const usersRes = await apiClient.getAdminUsers()
-                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                    }
-                                    setUserMgmtLoading(false)
-                                  }}
-                                  title="Permanently remove this user"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-1" />
-                                  Remove
-                                </Button>
-                              )}
-                              {canToggleStatus && u.email !== callerEmail && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className={u.isActive ? "text-amber-600 hover:bg-amber-100 hover:text-amber-700" : "text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700"}
-                                  disabled={userMgmtLoading}
-                                  onClick={async () => {
-                                    if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
-                                    setUserMgmtLoading(true)
-                                    setUserMgmtMessage(null)
-                                    const res = await apiClient.setUserStatus(u.id, !u.isActive)
-                                    if (res.error) {
-                                      setUserMgmtMessage({ type: "error", text: res.error })
-                                    } else {
-                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
-                                      const usersRes = await apiClient.getAdminUsers()
-                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                    }
-                                    setUserMgmtLoading(false)
-                                  }}
-                                  title={u.isActive ? "Block User" : "Unblock User"}
-                                >
-                                  {u.isActive ? <Ban className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                </Button>
-                              )}
-                              {canRemove && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                                  disabled={userMgmtLoading}
-                                  onClick={async () => {
-                                    if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
-                                    setUserMgmtLoading(true)
-                                    setUserMgmtMessage(null)
-                                    const res = await apiClient.removeUserRole(u.id)
-                                    if (res.error) {
-                                      setUserMgmtMessage({ type: "error", text: res.error })
-                                    } else {
-                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
-                                      const usersRes = await apiClient.getAdminUsers()
-                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                    }
-                                    setUserMgmtLoading(false)
-                                  }}
-                                >
-                                  <UserMinus className="w-4 h-4 mr-1" />
-                                  Demote
-                                </Button>
+                              {/* Actions Container */}
+                              {(canPermanentlyRemove || (canToggleStatus && u.email !== callerEmail) || canRemove) && (
+                                <div className="flex items-center gap-2 border-l border-border/50 pl-4 ml-2">
+                                  {canToggleStatus && u.email !== callerEmail && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={`h-8 px-3 text-xs font-medium border ${u.isActive ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:text-amber-700" : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700"}`}
+                                      disabled={userMgmtLoading}
+                                      onClick={async () => {
+                                        if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
+                                        setUserMgmtLoading(true)
+                                        setUserMgmtMessage(null)
+                                        const res = await apiClient.setUserStatus(u.id, !u.isActive)
+                                        if (res.error) {
+                                          setUserMgmtMessage({ type: "error", text: res.error })
+                                        } else {
+                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
+                                          const usersRes = await apiClient.getAdminUsers()
+                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                        }
+                                        setUserMgmtLoading(false)
+                                      }}
+                                      title={u.isActive ? "Block User" : "Unblock User"}
+                                    >
+                                      {u.isActive ? <Ban className="w-3.5 h-3.5 mr-1" /> : <Unlock className="w-3.5 h-3.5 mr-1" />}
+                                      {u.isActive ? "Block" : "Unblock"}
+                                    </Button>
+                                  )}
+                                  
+                                  {canRemove && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive/10 hover:border-destructive/30"
+                                      disabled={userMgmtLoading}
+                                      onClick={async () => {
+                                        if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
+                                        setUserMgmtLoading(true)
+                                        setUserMgmtMessage(null)
+                                        const res = await apiClient.removeUserRole(u.id)
+                                        if (res.error) {
+                                          setUserMgmtMessage({ type: "error", text: res.error })
+                                        } else {
+                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
+                                          const usersRes = await apiClient.getAdminUsers()
+                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                        }
+                                        setUserMgmtLoading(false)
+                                      }}
+                                      title="Demote to Student"
+                                    >
+                                      <UserMinus className="w-3.5 h-3.5 mr-1" />
+                                      Demote
+                                    </Button>
+                                  )}
+
+                                  {canPermanentlyRemove && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="h-8 px-3 text-xs font-medium"
+                                      disabled={userMgmtLoading}
+                                      onClick={async () => {
+                                        const confirmation = prompt(
+                                          `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
+                                        )
+                                        if (confirmation !== "REMOVE") return
+
+                                        setUserMgmtLoading(true)
+                                        setUserMgmtMessage(null)
+                                        const res = await apiClient.removeAdmin(u.id)
+                                        if (res.error) {
+                                          setUserMgmtMessage({ type: "error", text: res.error })
+                                        } else {
+                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
+                                          const usersRes = await apiClient.getAdminUsers()
+                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                        }
+                                        setUserMgmtLoading(false)
+                                      }}
+                                      title="Permanently remove this user"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                      Delete
+                                    </Button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
