@@ -720,7 +720,7 @@ export default function AdminDashboardPage() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive/10 hover:border-destructive/30"
+                                      className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
                                       disabled={userMgmtLoading}
                                       onClick={async () => {
                                         if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
