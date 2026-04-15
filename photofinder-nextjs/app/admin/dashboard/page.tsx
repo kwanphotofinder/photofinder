@@ -31,6 +31,28 @@ export default function AdminDashboardPage() {
   const [userMgmtLoading, setUserMgmtLoading] = useState(false)
   const [userMgmtMessage, setUserMgmtMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
+  const filteredAndSortedUsers = useMemo(() => {
+    let result = allUsers
+    if (userSearchQuery.trim()) {
+      const lowerQuery = userSearchQuery.toLowerCase()
+      result = result.filter(
+        (u) =>
+          (u.name?.toLowerCase() || "").includes(lowerQuery) ||
+          u.email.toLowerCase().includes(lowerQuery)
+      )
+    }
+
+    // Sort: SUPER_ADMIN first, then ADMIN, then others. Original order otherwise.
+    return result.sort((a, b) => {
+      const getRank = (role: string) => {
+        if (role === "SUPER_ADMIN") return 1
+        if (role === "ADMIN") return 2
+        return 3
+      }
+      return getRank(a.role) - getRank(b.role)
+    })
+  }, [allUsers, userSearchQuery])
+
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
     if (!adminToken) {
@@ -638,28 +660,6 @@ export default function AdminDashboardPage() {
                           PHOTOGRAPHER: "Photographer",
                           STUDENT: "Student",
                         }[u.role as string] || u.role
-
-  const filteredAndSortedUsers = useMemo(() => {
-    let result = allUsers
-    if (userSearchQuery.trim()) {
-      const lowerQuery = userSearchQuery.toLowerCase()
-      result = result.filter(
-        (u) =>
-          (u.name?.toLowerCase() || "").includes(lowerQuery) ||
-          u.email.toLowerCase().includes(lowerQuery)
-      )
-    }
-
-    // Sort: SUPER_ADMIN first, then ADMIN, then others. Original order otherwise.
-    return result.sort((a, b) => {
-      const getRank = (role: string) => {
-        if (role === "SUPER_ADMIN") return 1
-        if (role === "ADMIN") return 2
-        return 3
-      }
-      return getRank(a.role) - getRank(b.role)
-    })
-  }, [allUsers, userSearchQuery])
 
   return (
                           <div key={u.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:border-primary/30 hover:shadow-sm">
