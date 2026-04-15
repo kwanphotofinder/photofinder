@@ -599,7 +599,7 @@ export default function AdminDashboardPage() {
                           if (isPhotographer) return true
                           return false
                         })()
-                        const canPermanentlyRemove = isAdmin && callerRole === "SUPER_ADMIN"
+                        const canPermanentlyRemove = callerRole === "SUPER_ADMIN" && !isSuperAdmin
                         
                         const canToggleStatus = (() => {
                           if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
@@ -669,7 +669,7 @@ export default function AdminDashboardPage() {
                                     }
                                     setUserMgmtLoading(false)
                                   }}
-                                  title="Permanently remove this admin"
+                                  title="Permanently remove this user"
                                 >
                                   <Trash2 className="w-4 h-4 mr-1" />
                                   Remove

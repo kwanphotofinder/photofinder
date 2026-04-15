@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { deleteFromCloudinary } from '@/lib/cloudinary';
 
-// DELETE /api/admin/admins/[userId] - permanently remove an admin user
+// DELETE /api/admin/admins/[userId] - permanently remove a user
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -10,9 +11,9 @@ export async function DELETE(
   try {
     const caller = await getUserFromRequest(req);
 
-    // Only SUPER_ADMIN can remove admins
+    // Only SUPER_ADMIN can permanently remove users
     if (!caller || caller.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Only Super Admin can remove admins' }, { status: 403 });
+      return NextResponse.json({ error: 'Only Super Admin can permanently remove users' }, { status: 403 });
     }
 
     const p = await params;
@@ -27,17 +28,32 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot remove Super Admin' }, { status: 403 });
     }
 
-    // Only ADMIN role can be permanently removed via this endpoint
-    if (target.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'This endpoint only removes Admin users. Use the demotion endpoint for other roles.' }, { status: 400 });
-    }
-
     // Cannot remove yourself
     if (target.id === caller.sub) {
       return NextResponse.json({ error: 'Cannot remove yourself' }, { status: 400 });
     }
 
-    // Delete related records for compatibility with non-cascade legacy DBs.
+    // Step 1: Find all photos uploaded by this user to delete them from Cloudinary
+    const uploadedPhotos = await prisma.photo.findMany({
+      where: { uploaderId: p.userId },
+      select: { storageUrl: true },
+    });
+
+    // Step 2: Find the user's reference selfie to delete it from Cloudinary
+    const userFace = await prisma.userFace.findUnique({
+      where: { userId: p.userId },
+      select: { imageUrl: true },
+    });
+
+    // Step 3: Delete actual files from Cloudinary
+    for (const photo of uploadedPhotos) {
+      if (photo.storageUrl) await deleteFromCloudinary(photo.storageUrl).catch(console.error);
+    }
+    if (userFace?.imageUrl) {
+      await deleteFromCloudinary(userFace.imageUrl).catch(console.error);
+    }
+
+    // Step 4: Delete related records for compatibility with non-cascade legacy DBs.
     await prisma.$transaction(async (tx) => {
       const uploadedPhotos = await tx.photo.findMany({
         where: { uploaderId: p.userId },
@@ -63,10 +79,10 @@ export async function DELETE(
     });
 
     return NextResponse.json({
-      message: `Admin ${target.email} has been permanently removed from the system`,
+      message: `User ${target.email} has been permanently removed from the system`,
     });
   } catch (error) {
     console.error('DELETE /api/admin/admins/[userId] error:', error);
-    return NextResponse.json({ error: 'Failed to remove admin' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to remove user' }, { status: 500 });
   }
 }
