@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 
@@ -24,6 +24,7 @@ export default function AdminDashboardPage() {
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [callerRole, setCallerRole] = useState("")
+  const [callerEmail, setCallerEmail] = useState("")
   const [newPhotographerEmail, setNewPhotographerEmail] = useState("")
   const [newAdminEmail, setNewAdminEmail] = useState("")
   const [userMgmtLoading, setUserMgmtLoading] = useState(false)
@@ -64,6 +65,7 @@ export default function AdminDashboardPage() {
         if (usersRes.data) {
           setAllUsers(usersRes.data.users || [])
           setCallerRole(usersRes.data.callerRole || "")
+          setCallerEmail(usersRes.data.callerEmail || "")
         }
       } catch (error) {
         console.error("Failed to fetch data", error)
@@ -591,7 +593,22 @@ export default function AdminDashboardPage() {
                           if (isPhotographer) return true
                           return false
                         })()
+                        const canRemove = (() => {
+                          if (isSuperAdmin) return false
+                          if (isAdmin && callerRole !== "SUPER_ADMIN") return false
+                          if (isPhotographer) return true
+                          return false
+                        })()
                         const canPermanentlyRemove = isAdmin && callerRole === "SUPER_ADMIN"
+                        
+                        const canToggleStatus = (() => {
+                          if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
+                          // Let's use callerRole for checking if they can block
+                          if (u.role === "SUPER_ADMIN") return false
+                          if (u.role === "ADMIN" && callerRole !== "SUPER_ADMIN") return false
+                          // They cannot block themselves
+                          return true // Handled backend
+                        })()
 
                         const roleBadge = ({
                           SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
@@ -618,7 +635,13 @@ export default function AdminDashboardPage() {
                                 <div className="text-xs text-muted-foreground">{u.email}</div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
+                              {!u.isActive && (
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-600 border border-red-200 flex items-center">
+                                  <Ban className="w-3 h-3 mr-1" />
+                                  Blocked
+                                </span>
+                              )}
                               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
                                 {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
                                 {roleLabel}
@@ -652,7 +675,32 @@ export default function AdminDashboardPage() {
                                   Remove
                                 </Button>
                               )}
-                              {canDemote && (
+                              {canToggleStatus && u.email !== callerEmail && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={u.isActive ? "text-amber-600 hover:bg-amber-100 hover:text-amber-700" : "text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700"}
+                                  disabled={userMgmtLoading}
+                                  onClick={async () => {
+                                    if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
+                                    setUserMgmtLoading(true)
+                                    setUserMgmtMessage(null)
+                                    const res = await apiClient.setUserStatus(u.id, !u.isActive)
+                                    if (res.error) {
+                                      setUserMgmtMessage({ type: "error", text: res.error })
+                                    } else {
+                                      setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
+                                      const usersRes = await apiClient.getAdminUsers()
+                                      if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                    }
+                                    setUserMgmtLoading(false)
+                                  }}
+                                  title={u.isActive ? "Block User" : "Unblock User"}
+                                >
+                                  {u.isActive ? <Ban className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                </Button>
+                              )}
+                              {canRemove && (
                                 <Button
                                   variant="outline"
                                   size="sm"

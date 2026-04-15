@@ -24,11 +24,18 @@ export async function getUserFromRequest(req: NextRequest) {
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     
-    // Optional: If you want to fetch fresh state from the DB
-    // const user = await prisma.user.findUnique({ where: { id: decoded.sub }});
-    // return user;
+    // Fetch fresh state from the DB
+    const user = await prisma.user.findUnique({ where: { id: decoded.sub }});
+    
+    if (!user || !user.isActive) {
+      return null;
+    }
 
-    return decoded;
+    return {
+      sub: user.id,
+      email: user.email,
+      role: user.role
+    } as JwtPayload;
   } catch (error) {
     return null;
   }

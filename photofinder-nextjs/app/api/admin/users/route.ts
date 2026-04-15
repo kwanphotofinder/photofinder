@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
         name: true,
         avatarUrl: true,
         role: true,
+        isActive: true,
         createdAt: true,
       },
     });

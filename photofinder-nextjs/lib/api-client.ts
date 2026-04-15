@@ -201,6 +201,11 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ email, role }),
     }),
+  setUserStatus: (userId: string, isActive: boolean) =>
+    apiCall<any>("/admin/users/set-status", {
+      method: "POST",
+      body: JSON.stringify({ userId, isActive }),
+    }),
   removeUserRole: (userId: string) =>
     apiCall<any>(`/admin/users/${userId}/role`, {
       method: "DELETE",

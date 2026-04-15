@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 })
       }
 
+      if (!user.isActive) {
+        return NextResponse.json({ error: "Your account has been deactivated." }, { status: 403 })
+      }
+
       return NextResponse.json({
         token: code,
         user: {

@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 
-const SUPER_ADMIN_EMAIL = 'kwanphotofinder@gmail.com';
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '';
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -38,26 +38,30 @@ export async function POST(req: NextRequest) {
 
     // Check domain allowlist
     const allowedDomains = ['mfu.ac.th', 'lamduan.mfu.ac.th'];
-    const allowedEmails = [SUPER_ADMIN_EMAIL];
-
+    
+    // We remove the allowedEmails array as it was redundant. 
+    // The super admin will be allowed if their email matches SUPER_ADMIN_EMAIL.
     const isAllowedDomain = (typeof hd === 'string' && allowedDomains.includes(hd)) || allowedDomains.some((domain) => email.endsWith(`@${domain}`));
-    const isAllowedEmail = allowedEmails.includes(email.toLowerCase());
+    const isSuperAdminEmail = SUPER_ADMIN_EMAIL && email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
     // Also allow any email that is already pre-registered in the database
     const existingUser = await prisma.user.findUnique({ where: { email } });
     const isPreRegistered = !!existingUser;
 
-    // By default, only MFU emails or pre-registered users are allowed.
-    // However, if the user requested to be able to login with any email, we can bypass this check.
-    // if (!isAllowedDomain && !isAllowedEmail && !isPreRegistered) {
+    // By default, only MFU emails, super admin, or pre-registered users are allowed.
+    // if (!isAllowedDomain && !isSuperAdminEmail && !isPreRegistered) {
     //   return NextResponse.json({ error: 'You must use an MFU email or an authorized email to sign in' }, { status: 403 });
     // }
 
     let user = existingUser;
 
+    if (user && !user.isActive) {
+      return NextResponse.json({ error: 'Your account has been deactivated. Please contact support.' }, { status: 403 });
+    }
+
     if (!user) {
       // New user
-      const role = email.toLowerCase() === SUPER_ADMIN_EMAIL ? Role.SUPER_ADMIN : Role.STUDENT;
+      const role = isSuperAdminEmail ? Role.SUPER_ADMIN : Role.STUDENT;
 
       user = await prisma.user.create({
         data: {
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
       const updates: any = {};
       if (picture && user.avatarUrl !== picture) updates.avatarUrl = picture;
       if (name && user.name !== name) updates.name = name;
-      if (email.toLowerCase() === SUPER_ADMIN_EMAIL && user.role !== Role.SUPER_ADMIN) {
+      if (isSuperAdminEmail && user.role !== Role.SUPER_ADMIN) {
         updates.role = Role.SUPER_ADMIN;
       }
 
