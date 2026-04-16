@@ -1,8 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { getUserFromRequest } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const events = await prisma.event.findMany({
       orderBy: { createdAt: 'desc' }
     });
@@ -15,6 +21,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
     const body = await request.json()
 
     // Validate required fields (Prisma requires name, slug, date)

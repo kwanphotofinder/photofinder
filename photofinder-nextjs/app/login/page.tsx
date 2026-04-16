@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api-client";
 declare global {
   interface Window {
     google?: any;
+    __google_gsi_initialized?: boolean;
   }
 }
 
@@ -67,10 +68,14 @@ export default function LoginPage() {
   useEffect(() => {
     const initGoogle = () => {
       if (window.google && buttonRef.current) {
-        window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
-          callback: handleCredentialResponse,
-        });
+        // Only initialize once globally to avoid [GSI_LOGGER] warning
+        if (!window.__google_gsi_initialized) {
+          window.google.accounts.id.initialize({
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
+            callback: handleCredentialResponse,
+          });
+          window.__google_gsi_initialized = true;
+        }
 
         window.google.accounts.id.renderButton(buttonRef.current, {
           theme: "outline",

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { deleteFolderFromCloudinary } from "@/lib/cloudinary"
+import { getUserFromRequest } from "@/lib/auth"
 
 // Get single event
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> } // In Next 15, route params must be awaited
 ) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const p = await params;
     const event = await prisma.event.findUnique({
       where: { id: p.id },
@@ -33,6 +39,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
     const p = await params;
     const body = await request.json()
 
@@ -63,6 +78,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
     const p = await params;
     
     // 1. Delete physical folder from Cloudinary instantly (much faster than individual deletion)

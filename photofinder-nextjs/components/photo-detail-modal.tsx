@@ -184,13 +184,9 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       return
     }
 
-    // Get user info from localStorage
-    const userName = localStorage.getItem("user_name") || "Unknown User"
-    const userEmail = localStorage.getItem("user_email") || ""
-
     setIsSubmitting(true)
     try {
-      const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", userName, userEmail, reason)
+      const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", reason)
 
       if (response.error) {
         alert("Failed to submit removal request. Please try again.")

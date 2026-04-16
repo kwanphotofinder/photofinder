@@ -5,33 +5,22 @@ import { RemovalRequestType } from '@prisma/client';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { photoId, requestType, userName, userEmail, reason } = body;
-
-    if (!userName) {
-      return NextResponse.json({ error: 'User name required' }, { status: 400 });
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find or create user
-    const emailToUse = userEmail || `${userName.toLowerCase().replace(/\\s+/g, '')}@temp.local`;
-    let user = await prisma.user.findUnique({
-      where: { email: emailToUse },
-    });
+    const body = await req.json();
+    const { photoId, requestType, reason } = body;
 
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: emailToUse,
-          name: userName,
-          role: 'STUDENT',
-        },
-      });
+    if (!photoId) {
+      return NextResponse.json({ error: 'Photo ID required' }, { status: 400 });
     }
 
     const request = await prisma.removalRequest.create({
       data: {
         photoId,
-        userId: user.id,
+        userId: user.sub,
         // Enforcing strictly typed Enum from Prisma
         requestType: requestType?.toUpperCase() as RemovalRequestType || RemovalRequestType.DELETE,
         reason,
@@ -51,6 +40,15 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
     const requests = await prisma.removalRequest.findMany({
       include: {
         photo: {

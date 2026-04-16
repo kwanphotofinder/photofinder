@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
 
     // Try to decode it as one of our own JWTs (in case frontend routes through here)
     try {
-      const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_for_development'
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET is not defined in environment variables');
+      }
       const decoded = jwt.verify(code, jwtSecret) as any
 
       const user = await prisma.user.findUnique({ where: { id: decoded.sub } })

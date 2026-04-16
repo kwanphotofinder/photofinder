@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
     const isPreRegistered = !!existingUser;
 
     // By default, only MFU emails, super admin, or pre-registered users are allowed.
-    // if (!isAllowedDomain && !isSuperAdminEmail && !isPreRegistered) {
-    //   return NextResponse.json({ error: 'You must use an MFU email or an authorized email to sign in' }, { status: 403 });
-    // }
+    if (!isAllowedDomain && !isSuperAdminEmail && !isPreRegistered) {
+      return NextResponse.json({ error: 'You must use an MFU email or an authorized email to sign in' }, { status: 403 });
+    }
 
     let user = existingUser;
 
@@ -90,7 +90,11 @@ export async function POST(req: NextRequest) {
 
     // Sign JWT Token
     // Make sure JWT_SECRET is added to .env.local
-    const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_for_development';
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+
     const jwtToken = jwt.sign(
       {
         sub: user.id,

@@ -140,8 +140,6 @@ export const apiClient = {
   requestPhotoRemoval: (
     photoId: string,
     requestType: string,
-    userName: string,
-    userEmail: string,
     reason?: string,
   ) =>
     apiCall("/removal-requests", {
@@ -149,8 +147,6 @@ export const apiClient = {
       body: JSON.stringify({
         photoId,
         requestType,
-        userName,
-        userEmail,
         reason,
       }),
     }),
