@@ -25,6 +25,29 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
 
+  const persistAndRouteUser = (access_token: string, user: any) => {
+    localStorage.setItem("auth_token", access_token);
+    localStorage.setItem("user_id", user.id);
+    localStorage.setItem("user_data", JSON.stringify(user));
+    localStorage.setItem("user_name", user.name);
+    localStorage.setItem("user_email", user.email);
+    localStorage.setItem("user_role", user.role.toLowerCase());
+
+    if (user.role === "PHOTOGRAPHER") {
+      router.push("/photographer");
+    } else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
+      localStorage.setItem("admin_token", access_token);
+      localStorage.setItem("admin_name", user.name);
+      router.push("/admin/dashboard");
+    } else {
+      if (user.pdpaConsent) {
+        router.push("/dashboard");
+      } else {
+        router.push("/consent");
+      }
+    }
+  };
+
   const handleCredentialResponse = async (response: any) => {
     setError(null);
     setIsLoading(true);
@@ -33,31 +56,14 @@ export default function LoginPage() {
       const res = await apiClient.loginWithGoogle(token);
 
       if (res.error || !res.data) {
-        throw new Error(res.error || "Login failed");
+        const message = res.error || "Login failed. Please try again.";
+        setError(message);
+        setIsLoading(false);
+        return;
       }
 
       const { access_token, user } = res.data;
-
-      localStorage.setItem("auth_token", access_token);
-      localStorage.setItem("user_id", user.id);
-      localStorage.setItem("user_data", JSON.stringify(user));
-      localStorage.setItem("user_name", user.name);
-      localStorage.setItem("user_email", user.email);
-      localStorage.setItem("user_role", user.role.toLowerCase());
-
-      if (user.role === "PHOTOGRAPHER") {
-        router.push("/photographer");
-      } else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-        localStorage.setItem("admin_token", access_token);
-        localStorage.setItem("admin_name", user.name);
-        router.push("/admin/dashboard");
-      } else {
-        if (user.pdpaConsent) {
-          router.push("/dashboard");
-        } else {
-          router.push("/consent");
-        }
-      }
+      persistAndRouteUser(access_token, user);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Login failed. Please try again.");

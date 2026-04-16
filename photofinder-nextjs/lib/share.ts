@@ -21,6 +21,7 @@ function buildFileName(photo: SharePhotoInput, variant: PhotoShareVariant) {
   return `${base}_${date}_${variant}.jpg`
 }
 
+
 async function fetchImageBlob(url: string) {
   const response = await fetch(url)
   if (!response.ok) {
@@ -104,6 +105,7 @@ async function createWatermarkedBlob(url: string, watermarkText: string) {
     }, "image/jpeg", 0.95)
   })
 }
+
 
 async function shareFile(file: File, fallbackUrl: string, fallbackFileName: string) {
   if (typeof navigator !== "undefined" && navigator.share) {

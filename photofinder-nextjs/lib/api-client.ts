@@ -6,6 +6,8 @@ export interface ApiResponse<T> {
   status: number;
 }
 
+type PhotoEngagementAction = "VIEW" | "DOWNLOAD";
+
 function handleUnauthorized(status: number) {
   if (status === 401 && typeof window !== "undefined") {
     localStorage.removeItem("auth_token");
@@ -189,6 +191,23 @@ export const apiClient = {
 
   // Analytics
   getAnalytics: () => apiCall("/analytics"),
+  getPhotographerAnalytics: () =>
+    apiCall<{
+      totals: { events: number; photos: number; views: number; downloads: number };
+      eventStats: Array<{
+        eventId: string;
+        eventName: string;
+        eventDate: string;
+        photoCount: number;
+        views: number;
+        downloads: number;
+      }>;
+    }>("/photographer/analytics"),
+  trackPhotoEngagement: (photoId: string, action: PhotoEngagementAction) =>
+    apiCall(`/photos/${photoId}/engagement`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
 
   // Admin User Management
   getAdminUsers: () => apiCall<any>("/admin/users"),

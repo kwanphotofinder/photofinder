@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoWatermarked } from "@/lib/share"
+import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
   id: string
@@ -28,6 +29,7 @@ interface PhotoDetailModalProps {
 
 export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
   const imageContainerRef = useRef<HTMLDivElement>(null)
+  const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -49,6 +51,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       setIsSharingWatermarked(false)
       setIsZoomed(false)
       setIsFullscreen(false)
+      trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
 
@@ -87,15 +90,25 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
     loadFavoriteState()
   }, [isOpen, photo])
 
+  useEffect(() => {
+    if (!isOpen || !photo) return
+    if (trackedViewPhotoIdRef.current === photo.id) return
+
+    trackedViewPhotoIdRef.current = photo.id
+    trackPhotoEngagement(photo.id, "VIEW")
+  }, [isOpen, photo])
+
   if (!photo) return null
 
   const handleDownload = async () => {
+    trackPhotoEngagement(photo.id, "DOWNLOAD")
     await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
   }
 
   const handleShareOriginal = async () => {
     try {
       setIsSharingOriginal(true)
+      trackPhotoEngagement(photo.id, "DOWNLOAD")
       await sharePhotoOriginal(photo)
     } catch (error) {
       console.error("Failed to share original photo:", error)
@@ -108,6 +121,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const handleShareWatermarked = async () => {
     try {
       setIsSharingWatermarked(true)
+      trackPhotoEngagement(photo.id, "DOWNLOAD")
       await sharePhotoWatermarked(photo)
     } catch (error) {
       console.error("Failed to share watermarked photo:", error)
@@ -272,7 +286,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                 <div className="h-px flex-1 bg-border" />
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Button
                   onClick={handleShareOriginal}
                   disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}

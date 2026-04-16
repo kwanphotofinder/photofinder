@@ -27,7 +27,11 @@ export async function getUserFromRequest(req: NextRequest) {
     // Fetch fresh state from the DB
     const user = await prisma.user.findUnique({ where: { id: decoded.sub }});
     
-    if (!user || !user.isActive) {
+    if (!user) {
+      return null;
+    }
+
+    if ("isActive" in user && (user as any).isActive === false) {
       return null;
     }
 

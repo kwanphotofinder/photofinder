@@ -8,6 +8,7 @@ import { Eye, Trash2, Heart, Download, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "./photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
 import { sharePhotoOriginal } from "@/lib/share"
+import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
   id: string
@@ -84,12 +85,14 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
 
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
+    trackPhotoEngagement(photo.id, "DOWNLOAD")
     await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
   }
 
   const handleShare = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
+      trackPhotoEngagement(photo.id, "DOWNLOAD")
       await sharePhotoOriginal(photo)
     } catch (err) {
       console.error("Failed to share photo:", err)

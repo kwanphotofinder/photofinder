@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -55,8 +56,20 @@ export async function POST(req: NextRequest) {
 
     let user = existingUser;
 
-    if (user && !user.isActive) {
-      return NextResponse.json({ error: 'Your account has been deactivated. Please contact support.' }, { status: 403 });
+    if (user && "isActive" in user && (user as any).isActive === false) {
+      const allowAutoReactivate = !IS_PRODUCTION || isSuperAdminEmail;
+
+      if (!allowAutoReactivate) {
+        return NextResponse.json({ error: 'Your account has been deactivated. Please contact support.' }, { status: 403 });
+      }
+
+      // Keep local development and super admin recoverable if a record was disabled.
+      user = await prisma.user.update({
+        where: { email },
+        data: {
+          role: isSuperAdminEmail ? Role.SUPER_ADMIN : user.role,
+        },
+      });
     }
 
     if (!user) {

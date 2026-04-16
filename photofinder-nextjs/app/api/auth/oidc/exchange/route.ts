@@ -3,6 +3,9 @@ import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import jwt from "jsonwebtoken"
 
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || ""
+const IS_PRODUCTION = process.env.NODE_ENV === "production"
+
 // POST /api/auth/oidc/exchange
 // This handles the OIDC code exchange flow (for university SSO if needed).
 // Currently the app uses Google One-Tap which does NOT use this endpoint.
@@ -29,8 +32,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 })
       }
 
-      if (!user.isActive) {
-        return NextResponse.json({ error: "Your account has been deactivated." }, { status: 403 })
+      if ("isActive" in user && (user as any).isActive === false) {
+        const isSuperAdminEmail = SUPER_ADMIN_EMAIL && user.email.toLowerCase() === SUPER_ADMIN_EMAIL
+        const allowAutoReactivate = !IS_PRODUCTION || isSuperAdminEmail
+
+        if (!allowAutoReactivate) {
+          return NextResponse.json({ error: "Your account has been deactivated." }, { status: 403 })
+        }
       }
 
       return NextResponse.json({

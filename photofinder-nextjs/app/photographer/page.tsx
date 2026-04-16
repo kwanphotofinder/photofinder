@@ -23,6 +23,9 @@ import {
   FolderOpen,
   ArrowUpRight,
   Album,
+  BarChart3,
+  Download,
+  Eye,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -49,6 +52,22 @@ export default function PhotographerPage() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
+  const [analyticsData, setAnalyticsData] = useState<{
+    totals: { events: number; photos: number; views: number; downloads: number }
+    eventStats: Array<{
+      eventId: string
+      eventName: string
+      eventDate: string
+      photoCount: number
+      views: number
+      downloads: number
+    }>
+  }>({
+    totals: { events: 0, photos: 0, views: 0, downloads: 0 },
+    eventStats: [],
+  })
   
   useEffect(() => {
     // Silently wake up the AI service in the background
@@ -121,6 +140,27 @@ export default function PhotographerPage() {
     }
   };
 
+  const loadPhotographerAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true)
+      setAnalyticsError(null)
+      const result = await apiClient.getPhotographerAnalytics()
+
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      if (result.data) {
+        setAnalyticsData(result.data)
+      }
+    } catch (err) {
+      console.error("Failed to load photographer analytics:", err)
+      setAnalyticsError("Unable to load engagement analytics right now.")
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const userRole = localStorage.getItem("user_role")
     const authToken = localStorage.getItem("auth_token")
@@ -146,13 +186,16 @@ export default function PhotographerPage() {
         })
         // Load only this photographer's data
         loadData(parsed.id);
+        loadPhotographerAnalytics();
       } catch (e) {
         console.error("[v0] Failed to parse user data:", e)
         setPhotographerUser(null)
         loadData();
+        loadPhotographerAnalytics();
       }
     } else {
       loadData();
+      loadPhotographerAnalytics();
     }
 
     setIsAuthenticated(true)
@@ -290,6 +333,7 @@ export default function PhotographerPage() {
 
     // After all uploads, reload only this photographer's photos
     await loadData(photographerUser?.id);
+    await loadPhotographerAnalytics();
 
     setTimeout(() => {
       clearAllFiles()
@@ -312,6 +356,7 @@ export default function PhotographerPage() {
 
       // Reload data from server to ensure sync
       await loadData();
+      await loadPhotographerAnalytics();
       console.log('Photo deleted and data reloaded');
     } catch (error) {
       console.error("[v0] Delete error:", error)
@@ -469,7 +514,131 @@ export default function PhotographerPage() {
             </div>
           </section>
 
-          <div className="mt-8 grid gap-8 xl:grid-cols-[0.85fr_1.15fr]">
+          <div className="mt-10 grid gap-10 xl:grid-cols-[0.9fr_1.1fr]">
+            <Card className="group relative overflow-hidden border-none bg-white/40 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl xl:col-span-2 transition-all duration-500 hover:shadow-primary/5">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+              <CardHeader className="relative space-y-4 border-b border-white/40 bg-white/20 p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-5">
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
+                      <BarChart3 className="h-7 w-7" />
+                      <div className="absolute -right-1 -top-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-40"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-white/20 border border-white/50"></span>
+                      </div>
+                    </div>
+                    <div>
+                      <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">Engagement Dashboard</CardTitle>
+                      <CardDescription className="text-sm font-medium text-slate-600 mt-1">Real-time audience interaction metrics for your photography.</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 self-start sm:self-center">
+                    <div className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50/80 px-4 py-2">
+                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                      <span className="text-[10px] font-bold text-green-700 uppercase tracking-[0.2em]">Active Analytics</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="relative p-8 sm:p-10 space-y-12">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    { label: "Total Events", value: analyticsData.totals.events, icon: Album, color: "bg-indigo-500", light: "bg-indigo-50" },
+                    { label: "Photo Assets", value: analyticsData.totals.photos, icon: Images, color: "bg-blue-500", light: "bg-blue-50" },
+                    { label: "Content Views", value: analyticsData.totals.views, icon: Eye, color: "bg-amber-500", light: "bg-amber-50" },
+                    { label: "Acquisitions", value: analyticsData.totals.downloads, icon: Download, color: "bg-rose-500", light: "bg-rose-50" }
+                  ].map((stat, i) => (
+                    <div key={i} className="group/stat relative overflow-hidden rounded-3xl border border-white/60 bg-white/60 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/20">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`p-2.5 rounded-2xl ${stat.light} transition-colors group-hover/stat:bg-white`}>
+                          <stat.icon className={`h-6 w-6 text-slate-700 transition-transform group-hover/stat:scale-110`} />
+                        </div>
+                        <div className={`h-1.5 w-8 rounded-full ${stat.color} opacity-20`} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                        <h3 className="text-4xl font-extrabold tracking-tighter text-slate-900">
+                          {stat.value.toLocaleString()}
+                        </h3>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {analyticsLoading ? (
+                  <div className="flex flex-col items-center justify-center rounded-[2.5rem] border border-dashed border-slate-200 bg-white/40 py-24 shadow-inner">
+                    <div className="relative h-12 w-12">
+                      <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+                      <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                    </div>
+                    <p className="mt-6 text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Synchronizing performance data...</p>
+                  </div>
+                ) : analyticsError ? (
+                  <div className="rounded-[2rem] border border-red-100 bg-red-50/50 p-8 text-sm text-red-600 flex items-center gap-4 justify-center">
+                    <AlertCircle className="h-6 w-6 animate-bounce" />
+                    <span className="font-bold uppercase tracking-tight">{analyticsError}</span>
+                  </div>
+                ) : analyticsData.eventStats.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-[2.5rem] border border-dashed border-slate-200 bg-white/40 py-24 text-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white shadow-xl text-slate-300 mb-6 group-hover:rotate-12 transition-transform duration-500">
+                      <BarChart3 className="h-10 w-10" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-900">Awaiting Interaction</h3>
+                    <p className="mt-3 text-sm text-slate-500 max-w-xs font-medium">
+                      Engagement data will populate here as soon as visitors begin browsing your event photography.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between px-2">
+                       <h3 className="text-sm font-black uppercase tracking-[0.25em] text-slate-400">Event Performance Matrix</h3>
+                       <div className="h-px flex-1 mx-6 bg-gradient-to-r from-slate-200 to-transparent" />
+                    </div>
+                    <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl shadow-slate-200/30">
+                      <div className="grid grid-cols-12 gap-4 border-b border-slate-100 bg-slate-50/50 px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        <div className="col-span-5">Digital Collection</div>
+                        <div className="col-span-2 text-right">Assets</div>
+                        <div className="col-span-2 text-right">Views</div>
+                        <div className="col-span-3 text-right">Interest Rate</div>
+                      </div>
+                      <div className="divide-y divide-slate-50">
+                        {analyticsData.eventStats.slice(0, 8).map((event) => {
+                          const engagementRate = event.views > 0 ? ((event.downloads / event.views) * 100).toFixed(1) : "0.0";
+                          const isHighEngagement = parseFloat(engagementRate) >= 15;
+                          return (
+                            <div key={event.eventId} className="grid grid-cols-12 gap-4 items-center px-8 py-6 transition-all duration-300 hover:bg-primary/[0.02] hover:translate-x-1 group/row">
+                              <div className="col-span-5 min-w-0">
+                                <p className="truncate text-base font-bold text-slate-900 group-hover/row:text-primary transition-colors">{event.eventName}</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{new Date(event.eventDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric'})}</p>
+                              </div>
+                              <div className="col-span-2 text-right">
+                                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100/50 px-3 py-1.5 text-xs font-bold text-slate-700 border border-white">
+                                  {event.photoCount}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-right font-black text-slate-900 tracking-tight">{event.views.toLocaleString()}</div>
+                              <div className="col-span-3 flex items-center justify-end gap-6 text-right">
+                                <div className="text-base font-black text-slate-900 tracking-tighter">{event.downloads.toLocaleString()}</div>
+                                <div className="w-20 text-right">
+                                  <div className={`text-[10px] font-black px-2 py-1 rounded-full border shadow-sm transition-all ${
+                                    isHighEngagement 
+                                      ? 'bg-green-500 text-white border-green-400 shadow-green-100' 
+                                      : 'bg-white text-slate-600 border-slate-200'
+                                  }`}>
+                                    {engagementRate}% 
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card id="upload-panel" className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50">
               <CardHeader className="space-y-3 border-b border-white/40 bg-gradient-to-r from-slate-50/80 to-white/60 p-6">
                 <div className="flex items-center gap-3">
