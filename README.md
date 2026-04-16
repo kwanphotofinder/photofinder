@@ -10,6 +10,7 @@ An AI-powered platform designed for university students to effortlessly find, sa
 *   **Consent Intelligence:** Soft warning when withdrawing consent, one-click privacy data export, and one-click full privacy delete with live deletion status.
 *   **Admin Dashboard:** Manage events, users, and review photo removal requests. Includes real-time system health metrics.
 *   **Photographer Portal:** Bulk upload high-resolution event photos directly to Cloudinary.
+*   **Photographer Analytics Dashboard:** Track event-level photo views, downloads, and engagement rates to understand which events and uploads perform best.
 
 ## 🏗️ Architecture & Tech Stack
 

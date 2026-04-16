@@ -31,6 +31,7 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
 ### 3.2. Photographer Features
 * **Event Selection:** Choose which published or draft event to upload photos to.
 * **Bulk Upload:** Upload multiple high-resolution photos at once. Photos are automatically processed by the AI pipeline to detect and index faces.
+* **Analytics Dashboard:** View event-level engagement metrics such as photo views, downloads, total uploads, and engagement rate so photographers can understand which events perform best.
 
 ### 3.3. Admin & Super Admin Features
 * **System Health Dashboard:** View real-time metrics including total users, active events, total photos, faces detected, and a live AI Confidence gauge.
