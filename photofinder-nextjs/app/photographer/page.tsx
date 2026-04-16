@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -26,10 +26,12 @@ import {
   BarChart3,
   Download,
   Eye,
+  CalendarDays,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { apiClient } from "@/lib/api-client"
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 
 
@@ -56,6 +58,11 @@ export default function PhotographerPage() {
   const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [analyticsData, setAnalyticsData] = useState<{
     totals: { events: number; photos: number; views: number; downloads: number }
+    dailyStats: Array<{
+      day: string
+      views: number
+      downloads: number
+    }>
     eventStats: Array<{
       eventId: string
       eventName: string
@@ -66,8 +73,11 @@ export default function PhotographerPage() {
     }>
   }>({
     totals: { events: 0, photos: 0, views: 0, downloads: 0 },
+    dailyStats: [],
     eventStats: [],
   })
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"analytics" | "upload">("upload")
+  const [trendDays, setTrendDays] = useState<7 | 14>(14)
   
   useEffect(() => {
     // Silently wake up the AI service in the background
@@ -76,37 +86,51 @@ export default function PhotographerPage() {
   
   // Fetch real events and photos from backend
   const loadData = async (photographerId?: string) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
+    const authToken = localStorage.getItem('auth_token') || ''
+    const authHeaders: HeadersInit = authToken
+      ? { Authorization: `Bearer ${authToken}` }
+      : {}
+
+    let safeEvents: Array<{ id: string; name: string }> = []
+
     // Fetch events separately so a photo error doesn't wipe the event list
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
-      const eventsRes = await fetch(`${apiUrl}/events`);
-      const eventsData = await eventsRes.json();
-      const safeEvents = Array.isArray(eventsData) ? eventsData : [];
-      if (!Array.isArray(eventsData)) {
-        console.error('Events API returned non-array:', eventsData);
+      const eventsRes = await fetch(`${apiUrl}/events`, {
+        headers: authHeaders,
+      })
+
+      const eventsData = await eventsRes.json().catch(() => null)
+      const eventsPayload = Array.isArray(eventsData)
+        ? eventsData
+        : Array.isArray((eventsData as { events?: unknown[] } | null)?.events)
+          ? ((eventsData as { events: unknown[] }).events as any[])
+          : []
+
+      safeEvents = eventsPayload.map((event: any) => ({
+        id: String(event.id ?? ''),
+        name: String(event.name ?? 'Untitled Event'),
+      }))
+
+      if (!eventsRes.ok) {
+        console.warn('Failed to load events:', eventsData)
       }
-      setEvents(safeEvents);
+
+      setEvents(safeEvents)
     } catch (err) {
-      console.error('Failed to load events:', err);
-      setEvents([]);
+      console.error('Failed to load events:', err)
+      setEvents([])
     }
 
     // Fetch this photographer's photos separately
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
       // Use /me/my-photos which reads uploaderId from the JWT token
       const photosRes = await fetch(`${apiUrl}/me/my-photos`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
-        },
-      });
-      const photosData = await photosRes.json();
+        headers: authHeaders,
+      })
+      const photosData = await photosRes.json()
 
       if (Array.isArray(photosData)) {
-        const eventsRes = await fetch(`${apiUrl}/events`);
-        const eventsData = await eventsRes.json();
-        const safeEvents = Array.isArray(eventsData) ? eventsData : [];
-
         const transformedPhotos = photosData.map((photo: any) => {
           const event = safeEvents.find((e: any) => e.id === photo.eventId);
           const dimensions = photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A';
@@ -402,6 +426,44 @@ export default function PhotographerPage() {
   }
 
   const activeUploads = Object.values(uploadProgress).filter((value) => value > 0 && value < 100).length
+  const completedUploads = Object.values(uploadProgress).filter((value) => value === 100).length
+  const hasUploadStarted = activeUploads > 0 || completedUploads > 0
+
+  const uploadSteps = [
+    {
+      label: "Choose Event",
+      done: Boolean(selectedEvent),
+      helper: selectedEvent ? "Event selected" : "Pick where photos will go",
+    },
+    {
+      label: "Add Files",
+      done: selectedFiles.length > 0,
+      helper: selectedFiles.length > 0 ? `${selectedFiles.length} files ready` : "Drag or select photos",
+    },
+    {
+      label: "Start Upload",
+      done: hasUploadStarted,
+      helper: hasUploadStarted ? "Upload in progress or completed" : "Click Upload Photos",
+    },
+  ]
+
+  const trendChartData = useMemo(() => {
+    return analyticsData.dailyStats.slice(-trendDays).map((point) => {
+      const [year, month, day] = point.day.split("-").map(Number)
+      const displayDate = new Date(year, month - 1, day)
+
+      return {
+        ...point,
+        label: displayDate.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        }),
+      }
+    })
+  }, [analyticsData.dailyStats, trendDays])
+
+  const peakDailyViews = trendChartData.reduce((max, item) => Math.max(max, item.views), 0)
+  const peakDailyDownloads = trendChartData.reduce((max, item) => Math.max(max, item.downloads), 0)
 
   if (isLoading) {
     return (
@@ -514,7 +576,107 @@ export default function PhotographerPage() {
             </div>
           </section>
 
-          <div className="mt-10 grid gap-10 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="mt-10 rounded-3xl border border-white/70 bg-gradient-to-br from-white/90 via-white/80 to-rose-50/30 p-4 shadow-lg shadow-slate-200/40 backdrop-blur sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Workspace Mode</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{activeWorkspaceTab === "upload" ? "Upload Assistant" : "Analytics Assistant"}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {activeWorkspaceTab === "upload"
+                    ? "Follow the 3 steps below to upload faster without missing anything."
+                    : "Review trends and top-performing events from one focused view."}
+                </p>
+              </div>
+              <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setActiveWorkspaceTab("upload")}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                    activeWorkspaceTab === "upload"
+                      ? "bg-slate-900 text-white shadow"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload Workflow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveWorkspaceTab("analytics")}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                    activeWorkspaceTab === "analytics"
+                      ? "bg-slate-900 text-white shadow"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Queued Files</p>
+                <p className="mt-1 text-lg font-bold text-slate-900">{selectedFiles.length.toLocaleString()}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent Views</p>
+                <p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.totals.views.toLocaleString()}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent Downloads</p>
+                <p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.totals.downloads.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {activeWorkspaceTab === "upload" ? (
+              <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Quick Upload Guide</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {uploadSteps.map((step) => (
+                    <div
+                      key={step.label}
+                      className={`rounded-xl border px-3 py-2.5 ${
+                        step.done ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-slate-50/80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {step.done ? (
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-slate-400" />
+                        )}
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">{step.label}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">{step.helper}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Analytics Tips</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Trend View</p>
+                    <p className="mt-1 text-xs text-slate-600">Switch between 7 and 14 days to spot short-term vs weekly behavior.</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Peak Signals</p>
+                    <p className="mt-1 text-xs text-slate-600">Use peak views/downloads to identify the best publishing times.</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Event Matrix</p>
+                    <p className="mt-1 text-xs text-slate-600">Compare engagement rate to decide which events deserve more uploads.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 grid gap-10 xl:grid-cols-[0.9fr_1.1fr]">
+            {activeWorkspaceTab === "analytics" && (
             <Card className="group relative overflow-hidden border-none bg-white/40 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl xl:col-span-2 transition-all duration-500 hover:shadow-primary/5">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
               <CardHeader className="relative space-y-4 border-b border-white/40 bg-white/20 p-8">
@@ -590,6 +752,93 @@ export default function PhotographerPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
+                    <div className="rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-xl shadow-slate-200/20 sm:p-7">
+                      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">Daily Engagement Trend</h3>
+                          <p className="mt-1 text-sm text-slate-500">Track audience behavior over the last 7 or 14 days.</p>
+                        </div>
+                        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                          <button
+                            type="button"
+                            onClick={() => setTrendDays(7)}
+                            className={`rounded-full px-4 py-1.5 text-xs font-bold tracking-wide transition ${
+                              trendDays === 7
+                                ? "bg-white text-slate-900 shadow"
+                                : "text-slate-500 hover:text-slate-800"
+                            }`}
+                          >
+                            7 Days
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTrendDays(14)}
+                            className={`rounded-full px-4 py-1.5 text-xs font-bold tracking-wide transition ${
+                              trendDays === 14
+                                ? "bg-white text-slate-900 shadow"
+                                : "text-slate-500 hover:text-slate-800"
+                            }`}
+                          >
+                            14 Days
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            Range
+                          </div>
+                          <p className="mt-2 text-lg font-bold text-slate-900">Last {trendDays} days</p>
+                        </div>
+                        <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">Peak Daily Views</p>
+                          <p className="mt-2 text-lg font-bold text-amber-900">{peakDailyViews.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-rose-700">Peak Daily Downloads</p>
+                          <p className="mt-2 text-lg font-bold text-rose-900">{peakDailyDownloads.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 h-72 rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/40 p-3 sm:p-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trendChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 12 }} tickLine={false} axisLine={false} />
+                            <YAxis allowDecimals={false} tick={{ fill: "#64748b", fontSize: 12 }} tickLine={false} axisLine={false} />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: "14px",
+                                border: "1px solid #e2e8f0",
+                                boxShadow: "0 16px 40px rgba(15, 23, 42, 0.12)",
+                              }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "12px" }} />
+                            <Line
+                              type="monotone"
+                              dataKey="views"
+                              name="Views"
+                              stroke="#f59e0b"
+                              strokeWidth={3}
+                              dot={{ r: 3 }}
+                              activeDot={{ r: 5 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="downloads"
+                              name="Downloads"
+                              stroke="#f43f5e"
+                              strokeWidth={3}
+                              dot={{ r: 3 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between px-2">
                        <h3 className="text-sm font-black uppercase tracking-[0.25em] text-slate-400">Event Performance Matrix</h3>
                        <div className="h-px flex-1 mx-6 bg-gradient-to-r from-slate-200 to-transparent" />
@@ -599,7 +848,7 @@ export default function PhotographerPage() {
                         <div className="col-span-5">Digital Collection</div>
                         <div className="col-span-2 text-right">Assets</div>
                         <div className="col-span-2 text-right">Views</div>
-                        <div className="col-span-3 text-right">Interest Rate</div>
+                        <div className="col-span-3 text-right">Engagement Rate</div>
                       </div>
                       <div className="divide-y divide-slate-50">
                         {analyticsData.eventStats.slice(0, 8).map((event) => {
@@ -638,29 +887,37 @@ export default function PhotographerPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
-            <Card id="upload-panel" className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50">
-              <CardHeader className="space-y-3 border-b border-white/40 bg-gradient-to-r from-slate-50/80 to-white/60 p-6">
+            {activeWorkspaceTab === "upload" && (
+            <>
+            <Card id="upload-panel" className="group relative overflow-hidden border-none bg-white/45 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl transition-all duration-500 hover:shadow-primary/5">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] via-transparent to-primary/[0.04]" />
+              <CardHeader className="relative space-y-3 border-b border-white/50 bg-white/25 p-8">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                  <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
                     <Upload className="h-5 w-5" />
+                    <div className="absolute -right-1 -top-1 flex h-4 w-4">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-40"></span>
+                      <span className="relative inline-flex h-4 w-4 rounded-full border border-white/50 bg-white/20"></span>
+                    </div>
                   </div>
                   <div>
-                    <CardTitle className="text-xl font-light text-slate-900">Upload Setup</CardTitle>
-                    <CardDescription className="text-slate-600">Choose the event and prepare your files before sending them to the library.</CardDescription>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Upload Control Center</CardTitle>
+                    <CardDescription className="text-sm font-medium text-slate-600">Choose event, stage your files, then send them in one clean workflow.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6 p-6">
+              <CardContent className="relative space-y-6 p-8">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <label className="text-sm font-medium text-slate-700">Event Selection</label>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Step 1 of 3</span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Step 1 of 3</span>
                   </div>
                   <select
                     value={selectedEvent}
                     onChange={(e) => setSelectedEvent(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 hover:border-slate-300"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 hover:border-slate-300"
                   >
                     <option value="">-- Select an Event --</option>
                     {events.map((event) => (
@@ -671,13 +928,13 @@ export default function PhotographerPage() {
                   </select>
                 </div>
 
-                <div className="rounded-2xl border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 via-white to-slate-50/30 p-6 transition-all duration-300 hover:border-slate-400/60 hover:shadow-lg hover:shadow-slate-100/50">
+                <div className="rounded-[1.75rem] border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 via-white to-slate-50/30 p-6 transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-slate-100/50">
                   <div
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
-                    className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-white/60 bg-white/80 px-8 py-10 text-center shadow-inner transition-all duration-200 hover:bg-white/90"
+                    className="flex min-h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-white/70 bg-white/85 px-8 py-10 text-center shadow-inner transition-all duration-200 hover:bg-white/95"
                   >
-                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 shadow-lg">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-lg shadow-primary/10">
                       <Upload className="h-8 w-8" />
                     </div>
                     <p className="text-lg font-medium text-slate-900">Drag photos here or click to select</p>
@@ -694,7 +951,7 @@ export default function PhotographerPage() {
                         id="file-input"
                       />
                       <label htmlFor="file-input">
-                        <Button className="gap-2 rounded-full px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-300/60" asChild>
+                        <Button className="gap-2 rounded-full px-6 py-3 shadow-lg shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30" asChild>
                           <span>Select Files</span>
                         </Button>
                       </label>
@@ -708,7 +965,7 @@ export default function PhotographerPage() {
                         id="folder-input"
                       />
                       <label htmlFor="folder-input">
-                        <Button variant="outline" className="gap-2 rounded-full border-slate-300 px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-300/60" asChild>
+                        <Button variant="outline" className="gap-2 rounded-full border-slate-300 bg-white px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-300/60" asChild>
                           <span className="flex items-center gap-2">
                             <FolderUp className="h-4 w-4" />
                             Select Folder
@@ -721,22 +978,27 @@ export default function PhotographerPage() {
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50">
-              <CardHeader className="space-y-3 border-b border-white/40 bg-gradient-to-r from-slate-50/80 to-white/60 p-6">
+            <Card className="group relative overflow-hidden border-none bg-white/45 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl transition-all duration-500 hover:shadow-primary/5">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.05] via-transparent to-primary/[0.03]" />
+              <CardHeader className="relative space-y-3 border-b border-white/50 bg-white/25 p-8">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                  <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3">
                     <Images className="h-5 w-5" />
+                    <div className="absolute -right-1 -top-1 flex h-4 w-4">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-30"></span>
+                      <span className="relative inline-flex h-4 w-4 rounded-full border border-white/50 bg-white/20"></span>
+                    </div>
                   </div>
                   <div>
-                    <CardTitle className="text-xl font-light text-slate-900">Selected Files</CardTitle>
-                    <CardDescription className="text-slate-600">Review the queue before upload. Files are tracked individually for progress and errors.</CardDescription>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">File Queue</CardTitle>
+                    <CardDescription className="text-sm font-medium text-slate-600">Review every file before publish. Progress and errors are tracked in real time.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-5 p-6">
+              <CardContent className="relative space-y-5 p-8">
                 {selectedFiles.length > 0 ? (
                   <>
-                    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/60 bg-slate-50/50 px-5 py-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-sm">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{selectedFiles.length} files queued</p>
                         <p className="text-xs text-slate-600">{activeUploads} currently uploading</p>
@@ -754,9 +1016,9 @@ export default function PhotographerPage() {
                         const isComplete = progress === 100
 
                         return (
-                          <div key={index} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-200 hover:border-slate-300/60 hover:shadow-md">
+                          <div key={index} className="rounded-2xl border border-white/80 bg-white/85 p-5 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md">
                             <div className="flex items-start gap-4">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
                                 <ImageIcon className="h-6 w-6" />
                               </div>
                               <div className="min-w-0 flex-1">
@@ -787,8 +1049,8 @@ export default function PhotographerPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300/60 bg-slate-50/30 px-8 py-12 text-center">
-                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-lg">
+                  <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-slate-300/60 bg-white/70 px-8 py-12 text-center">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-lg shadow-primary/10">
                       <FolderOpen className="h-7 w-7" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900">No files selected yet</h3>
@@ -800,10 +1062,11 @@ export default function PhotographerPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-white/60 bg-gradient-to-br from-white/90 to-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl xl:col-span-2">
-              <CardContent className="flex flex-col gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
+            <Card className="relative overflow-hidden border-none bg-white/45 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl xl:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] via-transparent to-primary/[0.03]" />
+              <CardContent className="relative flex flex-col gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-2">
-                  <p className="text-base font-medium text-slate-900">Ready to publish your selected photos?</p>
+                  <p className="text-base font-semibold text-slate-900">Ready to publish your selected photos?</p>
                   <p className="text-sm leading-relaxed text-slate-600">
                     Make sure an event is selected before uploading. The button below will send every queued file.
                   </p>
@@ -811,7 +1074,7 @@ export default function PhotographerPage() {
                 <Button
                   onClick={handleBatchUpload}
                   disabled={isUploading || selectedFiles.length === 0 || !selectedEvent}
-                  className="gap-3 rounded-full px-8 py-4 text-base font-medium shadow-xl shadow-slate-900/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-slate-900/30"
+                  className="gap-3 rounded-full px-8 py-4 text-base font-semibold shadow-xl shadow-primary/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/35"
                 >
                   {isUploading ? (
                     <>
@@ -827,6 +1090,8 @@ export default function PhotographerPage() {
                 </Button>
               </CardContent>
             </Card>
+            </>
+            )}
           </div>
         </main>
       </div>

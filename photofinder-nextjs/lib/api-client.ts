@@ -194,6 +194,11 @@ export const apiClient = {
   getPhotographerAnalytics: () =>
     apiCall<{
       totals: { events: number; photos: number; views: number; downloads: number };
+      dailyStats: Array<{
+        day: string;
+        views: number;
+        downloads: number;
+      }>;
       eventStats: Array<{
         eventId: string;
         eventName: string;
