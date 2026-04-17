@@ -72,7 +72,7 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
             className={userRole === "admin" ? "cursor-default pointer-events-none" : "cursor-pointer"}
             onClick={userRole === "admin" ? undefined : () => router.push(getHomeRoute())}
           >
-            <img src="/Logo.png" alt="Photo Finder" className="h-14 w-auto" />
+            <img src="/Logo2.png" alt="Photo Finder" className="h-14 w-auto" />
           </div>
           <Navigation userRole={userRole} />
         </div>
