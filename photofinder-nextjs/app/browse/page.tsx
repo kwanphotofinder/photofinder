@@ -38,14 +38,41 @@ export default function BrowsePhotosPage() {
     const loadData = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const eventsRes = await fetch(`${apiUrl}/events`)
-        const eventsData = await eventsRes.json()
+        const authHeaders = {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        }
 
-        const photosRes = await fetch(`${apiUrl}/photos`)
-        const photosData = await photosRes.json()
+        const eventsRes = await fetch(`${apiUrl}/events`, { headers: authHeaders })
+        const eventsData = await eventsRes.json().catch(() => null)
+        const eventsPayload = Array.isArray(eventsData)
+          ? eventsData
+          : Array.isArray((eventsData as { events?: unknown[] } | null)?.events)
+            ? ((eventsData as { events: unknown[] }).events as any[])
+            : Array.isArray((eventsData as { data?: unknown[] } | null)?.data)
+              ? ((eventsData as { data: unknown[] }).data as any[])
+              : []
 
-        const transformedPhotos = photosData.map((photo: any) => {
-          const event = eventsData.find((e: any) => e.id === photo.eventId)
+        const photosRes = await fetch(`${apiUrl}/photos`, { headers: authHeaders })
+        const photosData = await photosRes.json().catch(() => null)
+        const photosPayload = Array.isArray(photosData)
+          ? photosData
+          : Array.isArray((photosData as { photos?: unknown[] } | null)?.photos)
+            ? ((photosData as { photos: unknown[] }).photos as any[])
+            : Array.isArray((photosData as { data?: unknown[] } | null)?.data)
+              ? ((photosData as { data: unknown[] }).data as any[])
+              : []
+
+        if (!eventsRes.ok) {
+          console.warn('Failed to load events:', eventsData)
+        }
+
+        if (!photosRes.ok) {
+          console.warn('Failed to load photos:', photosData)
+        }
+
+        const transformedPhotos = photosPayload.map((photo: any) => {
+          const event = eventsPayload.find((e: any) => e.id === photo.eventId)
           return {
             id: photo.id,
             url: photo.storageUrl,
