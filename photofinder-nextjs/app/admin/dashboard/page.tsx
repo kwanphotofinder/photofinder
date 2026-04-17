@@ -858,15 +858,18 @@ export default function AdminDashboardPage() {
                         const isSuperAdmin = u.role === "SUPER_ADMIN"
                         const isAdmin = u.role === "ADMIN"
                         const isPhotographer = u.role === "PHOTOGRAPHER"
+                        const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
+                        
                         const canDemote = (() => {
                           if (isSuperAdmin) return false
-                          if (isAdmin && callerRole !== "SUPER_ADMIN") return false
+                          if (!isStudentEmail) return false // Cannot demote non-university emails to "Student"
+                          if (isAdmin) return callerRole === "SUPER_ADMIN"
                           if (isPhotographer) return true
                           return false
                         })()
                         const canRemove = (() => {
                           if (isSuperAdmin) return false
-                          if (isAdmin && callerRole !== "SUPER_ADMIN") return false
+                          if (isAdmin) return callerRole === "SUPER_ADMIN"
                           if (isPhotographer) return true
                           return false
                         })()
@@ -950,7 +953,7 @@ export default function AdminDashboardPage() {
                                     </Button>
                                   )}
                                   
-                                  {canRemove && (
+                                  {canDemote && (
                                     <Button
                                       variant="ghost"
                                       size="sm"
