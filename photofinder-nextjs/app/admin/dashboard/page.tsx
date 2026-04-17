@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus } from "lucide-react"
@@ -20,6 +21,13 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [eventSearch, setEventSearch] = useState("")
   const [photoSearch, setPhotoSearch] = useState("")
+  const [lowConfidencePhotos, setLowConfidencePhotos] = useState<any[]>([])
+  const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.55)
+  const [lowConfidenceSearch, setLowConfidenceSearch] = useState("")
+  const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
+  const [dismissedLowConfidenceIds, setDismissedLowConfidenceIds] = useState<string[]>([])
+  const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
+  const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -53,6 +61,23 @@ export default function AdminDashboardPage() {
     })
   }, [allUsers, userSearchQuery])
 
+  const filteredLowConfidencePhotos = useMemo(() => {
+    const q = lowConfidenceSearch.trim().toLowerCase()
+    return lowConfidencePhotos.filter((photo) => {
+      if (dismissedLowConfidenceIds.includes(photo.id)) return false
+      if (!q) return true
+
+      return (
+        (photo.eventName || "").toLowerCase().includes(q) ||
+        (photo.storageUrl || "").toLowerCase().includes(q)
+      )
+    })
+  }, [dismissedLowConfidenceIds, lowConfidencePhotos, lowConfidenceSearch])
+
+  const unresolvedLowConfidenceCount = useMemo(() => {
+    return lowConfidencePhotos.filter((photo) => !dismissedLowConfidenceIds.includes(photo.id)).length
+  }, [dismissedLowConfidenceIds, lowConfidencePhotos])
+
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
     if (!adminToken) {
@@ -67,10 +92,11 @@ export default function AdminDashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [eventsRes, photosRes, requestsRes] = await Promise.all([
+        const [eventsRes, photosRes, requestsRes, lowConfidenceRes] = await Promise.all([
           apiClient.getEvents(),
           apiClient.getAllPhotos(),
-          apiClient.getRemovalRequests()
+          apiClient.getRemovalRequests(),
+          apiClient.getLowConfidencePhotos(lowConfidenceThreshold),
         ])
 
         if (eventsRes.data && Array.isArray(eventsRes.data)) {
@@ -81,6 +107,9 @@ export default function AdminDashboardPage() {
         }
         if (requestsRes.data && Array.isArray(requestsRes.data)) {
           setRemovalRequests(requestsRes.data)
+        }
+        if (lowConfidenceRes.data?.items && Array.isArray(lowConfidenceRes.data.items)) {
+          setLowConfidencePhotos(lowConfidenceRes.data.items)
         }
 
         // Fetch users for user management
@@ -98,7 +127,7 @@ export default function AdminDashboardPage() {
     }
 
     fetchData()
-  }, [router])
+  }, [router, lowConfidenceThreshold])
 
   const handleDeletePhoto = async (photoId: string) => {
     if (!confirm("Are you sure you want to delete this photo?")) return
@@ -106,10 +135,68 @@ export default function AdminDashboardPage() {
     try {
       await apiClient.deletePhoto(photoId)
       setPhotos(photos.filter(p => p.id !== photoId))
+      setLowConfidencePhotos(lowConfidencePhotos.filter((p) => p.id !== photoId))
+      setDismissedLowConfidenceIds((prev) => prev.filter((id) => id !== photoId))
     } catch (error) {
       console.error("Failed to delete photo", error)
       alert("Failed to delete photo")
     }
+  }
+
+  const refreshLowConfidenceQueue = async () => {
+    try {
+      setLowConfidenceLoading(true)
+      const res = await apiClient.getLowConfidencePhotos(lowConfidenceThreshold)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      if (res.data?.items && Array.isArray(res.data.items)) {
+        setLowConfidencePhotos(res.data.items)
+      }
+    } catch (error) {
+      console.error("Failed to refresh low-confidence queue", error)
+      alert("Failed to refresh low-confidence queue")
+    } finally {
+      setLowConfidenceLoading(false)
+    }
+  }
+
+  const dismissLowConfidenceItem = (photoId: string) => {
+    setDismissedLowConfidenceIds((prev) => [...prev, photoId])
+  }
+
+  const openLowConfidenceModal = (photo: any) => {
+    setSelectedLowConfidencePhoto(photo)
+    setIsLowConfidenceModalOpen(true)
+  }
+
+  const closeLowConfidenceModal = () => {
+    setIsLowConfidenceModalOpen(false)
+    setSelectedLowConfidencePhoto(null)
+  }
+
+  const handleKeepFromModal = () => {
+    if (!selectedLowConfidencePhoto) return
+    dismissLowConfidenceItem(selectedLowConfidencePhoto.id)
+    closeLowConfidenceModal()
+  }
+
+  const handleDeleteFromModal = async () => {
+    if (!selectedLowConfidencePhoto) return
+    await handleDeletePhoto(selectedLowConfidencePhoto.id)
+    closeLowConfidenceModal()
+  }
+
+  const handleGoToEventEditFromModal = () => {
+    if (!selectedLowConfidencePhoto?.eventId) return
+    router.push(`/admin/events/${selectedLowConfidencePhoto.eventId}/edit`)
+    closeLowConfidenceModal()
+  }
+
+  const handlePreviewFromModal = () => {
+    if (!selectedLowConfidencePhoto?.storageUrl) return
+    window.open(selectedLowConfidencePhoto.storageUrl, "_blank", "noopener,noreferrer")
   }
 
   const handleDeleteEvent = async (eventId: string) => {
@@ -271,6 +358,7 @@ export default function AdminDashboardPage() {
               {[
                 { value: "events", icon: Calendar, label: "Events", badge: events.length, desc: "Manage campus events" },
                 { value: "photos", icon: ImageIcon, label: "Photos", badge: photos.length, desc: "View all uploads" },
+                { value: "low-confidence", icon: AlertCircle, label: "Low Confidence", badge: unresolvedLowConfidenceCount, desc: "AI review queue" },
                 { value: "requests", icon: Shield, label: `Removal Requests`, badge: removalRequests.length, desc: "Pending review" },
                 { value: "users", icon: Users, label: "User Management", desc: "Roles & access" },
                 { value: "health", icon: BarChart3, label: "System Health", desc: "Metrics & logs" },
@@ -436,6 +524,152 @@ export default function AdminDashboardPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="low-confidence" className="mt-0">
+              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
+                <CardHeader>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <CardTitle>Low-Confidence Queue</CardTitle>
+                      <CardDescription>Review photos with AI face confidence below the selected threshold.</CardDescription>
+                    </div>
+                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                      <Input
+                        placeholder="Search event or filename..."
+                        value={lowConfidenceSearch}
+                        onChange={(e) => setLowConfidenceSearch(e.target.value)}
+                        className="w-full sm:w-64 border-border/70 bg-background/80"
+                      />
+                      <select
+                        value={String(lowConfidenceThreshold)}
+                        onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
+                        className="h-10 rounded-md border border-border/70 bg-background/80 px-3 text-sm"
+                      >
+                        <option value="0.45">Threshold: 0.45</option>
+                        <option value="0.55">Threshold: 0.55</option>
+                        <option value="0.65">Threshold: 0.65</option>
+                      </select>
+                      <Button variant="outline" onClick={refreshLowConfidenceQueue} disabled={lowConfidenceLoading}>
+                        {lowConfidenceLoading ? "Refreshing..." : "Refresh"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">Loading queue...</div>
+                  ) : filteredLowConfidencePhotos.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
+                      <CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">No low-confidence photos</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Queue is clear for this threshold.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredLowConfidencePhotos.map((photo) => (
+                        <div
+                          key={photo.id}
+                          className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-sm md:flex-row"
+                        >
+                          <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
+                            <img
+                              src={photo.thumbnailUrl || photo.storageUrl}
+                              alt="Low confidence photo"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+
+                          <div className="flex-1 space-y-2">
+                            <p className="font-semibold text-foreground">{photo.eventName || "Unknown Event"}</p>
+                            <p className="text-sm text-muted-foreground break-all">{photo.storageUrl}</p>
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                              <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
+                                Min confidence: {photo.minConfidence !== null ? Number(photo.minConfidence).toFixed(3) : "N/A"}
+                              </span>
+                              <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                                Low-confidence faces: {photo.lowConfidenceFaces}
+                              </span>
+                              <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                                Total faces: {photo.totalFaces}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 md:flex-col">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openLowConfidenceModal(photo)}
+                              className="flex-1 md:flex-none"
+                            >
+                              Open Modal
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Dialog open={isLowConfidenceModalOpen} onOpenChange={(open) => {
+                setIsLowConfidenceModalOpen(open)
+                if (!open) setSelectedLowConfidencePhoto(null)
+              }}>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Low-Confidence Photo Review</DialogTitle>
+                    <DialogDescription>
+                      {selectedLowConfidencePhoto?.eventName || "Unknown Event"}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {selectedLowConfidencePhoto && (
+                    <div className="space-y-4">
+                      <div className="overflow-hidden rounded-lg border border-border/70 bg-muted">
+                        <img
+                          src={selectedLowConfidencePhoto.storageUrl}
+                          alt="Low confidence preview"
+                          className="h-[380px] w-full object-contain bg-black/5"
+                        />
+                      </div>
+
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p className="break-all">{selectedLowConfidencePhoto.storageUrl}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
+                            Min confidence: {selectedLowConfidencePhoto.minConfidence !== null ? Number(selectedLowConfidencePhoto.minConfidence).toFixed(3) : "N/A"}
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                            Low-confidence faces: {selectedLowConfidencePhoto.lowConfidenceFaces}
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                            Total faces: {selectedLowConfidencePhoto.totalFaces}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <DialogFooter className="gap-2 sm:justify-between">
+                    <Button variant="outline" onClick={handlePreviewFromModal}>
+                      Preview
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" onClick={handleKeepFromModal}>
+                        Keep
+                      </Button>
+                      <Button variant="destructive" onClick={handleDeleteFromModal}>
+                        Delete
+                      </Button>
+                      <Button onClick={handleGoToEventEditFromModal}>
+                        Go to Event Edit
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="requests" className="mt-0">

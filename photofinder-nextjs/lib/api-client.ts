@@ -234,4 +234,6 @@ export const apiClient = {
     apiCall<any>(`/admin/admins/${userId}`, {
       method: "DELETE",
     }),
+  getLowConfidencePhotos: (threshold = 0.55) =>
+    apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`),
 };
