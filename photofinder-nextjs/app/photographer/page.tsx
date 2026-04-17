@@ -76,7 +76,7 @@ export default function PhotographerPage() {
     dailyStats: [],
     eventStats: [],
   })
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"analytics" | "upload">("upload")
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"analytics" | "upload" | "manage_uploads">("upload")
   const [trendDays, setTrendDays] = useState<7 | 14>(14)
   
   useEffect(() => {
@@ -601,11 +601,13 @@ export default function PhotographerPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Workspace Mode</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">{activeWorkspaceTab === "upload" ? "Upload mode" : "Analytics mode"}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{activeWorkspaceTab === "upload" ? "Upload mode" : activeWorkspaceTab === "analytics" ? "Analytics mode" : "Manage Photos"}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   {activeWorkspaceTab === "upload"
                     ? "Choose an event, stage your files, and upload when the queue looks right."
-                    : "Review trends and top-performing events from a single focused view."}
+                    : activeWorkspaceTab === "analytics"
+                    ? "Review trends and top-performing events from a single focused view."
+                    : "View, manage, and monitor the processing status of all your uploaded event photos."}
                 </p>
               </div>
               <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
@@ -632,6 +634,18 @@ export default function PhotographerPage() {
                 >
                   <BarChart3 className="h-4 w-4" />
                   Analytics
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveWorkspaceTab("manage_uploads")}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                    activeWorkspaceTab === "manage_uploads"
+                      ? "bg-slate-900 text-white shadow"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Images className="h-4 w-4" />
+                  Manage Photos
                 </button>
               </div>
             </div>
@@ -675,7 +689,7 @@ export default function PhotographerPage() {
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : activeWorkspaceTab === "analytics" ? (
               <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/90 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Analytics Tips</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -693,7 +707,21 @@ export default function PhotographerPage() {
                   </div>
                 </div>
               </div>
-            )}
+            ) : activeWorkspaceTab === "manage_uploads" ? (
+              <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Photo Management Tips</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Check Status</p>
+                    <p className="mt-1 text-xs text-slate-600">Photos will show as 'Processing' until the AI has finished indexing faces and features.</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Retry Processing</p>
+                    <p className="mt-1 text-xs text-slate-600">If a photo shows as 'Failed', use the retry button to run it through the AI engine again.</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-8 grid gap-10 xl:grid-cols-[0.9fr_1.1fr]">
@@ -1115,6 +1143,83 @@ export default function PhotographerPage() {
               </CardContent>
             </Card>
             </>
+            )}
+
+            {activeWorkspaceTab === "manage_uploads" && (
+            <Card className="group relative overflow-hidden border-none bg-white/45 shadow-2xl shadow-slate-200/40 backdrop-blur-2xl transition-all duration-500 hover:shadow-primary/5 xl:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] via-transparent to-primary/[0.04]" />
+              <CardHeader className="relative space-y-3 border-b border-white/50 bg-white/25 p-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3">
+                      <Images className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Photo Library</CardTitle>
+                      <CardDescription className="text-sm font-medium text-slate-600">Review, retry, or delete your uploaded assets.</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2">
+                    <span className="text-sm font-bold text-slate-700">{uploadedPhotos.length} Total</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="relative p-8">
+                {uploadedPhotos.length === 0 ? (
+                  <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-slate-300/60 bg-white/70 px-8 py-12 text-center">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-lg shadow-primary/10">
+                      <FolderOpen className="h-7 w-7" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900">Your library is empty</h3>
+                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-600">
+                      You haven't uploaded any photos yet. Switch to the Upload Workflow to get started.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {uploadedPhotos.map((photo) => (
+                      <div key={photo.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-primary/30">
+                        <div className="group/image relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                          <img
+                            src={photo.thumbnail}
+                            alt={photo.filename}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover/image:scale-105"
+                            loading="lazy"
+                          />
+                          {/* Hover Overlay for Actions */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:bg-none md:bg-black/40 opacity-100 md:opacity-0 transition-opacity duration-200 group-hover/image:opacity-100 flex items-end justify-end md:items-center md:justify-center gap-2 md:gap-3 p-3 md:p-0">
+                            {photo.status === 'failed' && (
+                              <Button size="icon" variant="secondary" className="h-9 w-9 rounded-full bg-white/90 hover:bg-white text-amber-600 shadow-lg transition-transform hover:scale-110" onClick={() => handleRetryFailed(photo.id)} title="Retry AI Processing">
+                                <Clock className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="destructive" className="h-9 w-9 rounded-full shadow-lg transition-transform hover:scale-110" onClick={() => handleDeletePhoto(photo.id)} title="Delete Photo">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <p className="truncate text-sm font-semibold text-slate-900" title={photo.filename}>
+                            {photo.filename}
+                          </p>
+                          <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+                            <span className="truncate max-w-[120px]">{photo.eventName}</span>
+                            <span>{new Date(photo.uploadDate).toLocaleDateString()}</span>
+                          </div>
+                          
+                          <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100">
+                            <Badge variant={getStatusDisplay(photo.status).variant} className="gap-1 shadow-none font-medium capitalize text-[10px]">
+                              {getStatusDisplay(photo.status).icon}
+                              {getStatusDisplay(photo.status).label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             )}
           </div>
         </main>
