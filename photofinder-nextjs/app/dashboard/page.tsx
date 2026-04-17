@@ -32,9 +32,9 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string |
       <CardContent className="relative p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">{label}</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">{label}</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</span>
+              <span className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{value}</span>
             </div>
           </div>
           <div className="rounded-xl bg-primary/10 p-2.5 text-primary shadow-inner">
@@ -316,12 +316,15 @@ export default function DashboardPage() {
             <div className="relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex-1 space-y-6">
                 <div className="space-y-4">
-                    <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
+                    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                     <span className="block text-foreground">Welcome back,</span>
                     <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent drop-shadow-sm select-none">
                       {displayName}
                     </span>
                   </h1>
+                    <p className="text-sm text-muted-foreground sm:text-base">
+                      Upload a clear selfie once, then we will keep matching new event photos for you automatically.
+                    </p>
                 </div>
 
                 <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
@@ -399,7 +402,7 @@ export default function DashboardPage() {
             <section className="space-y-8">
               <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Recently Matched</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Recently Matched</h2>
                 </div>
               </div>
 
@@ -411,7 +414,7 @@ export default function DashboardPage() {
                 </Card>
               ) : hasReferenceFace ? (
                 autoMatches.length > 0 ? (
-                  <PhotoGrid photos={autoMatches} showRank={true} />
+                  <PhotoGrid photos={autoMatches} showRank={true} compact={true} />
                 ) : (
                   <Card className="border-dashed border-border/70 bg-card/70">
                     <CardContent className="p-10 text-center">

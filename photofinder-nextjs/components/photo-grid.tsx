@@ -22,9 +22,10 @@ interface PhotoGridProps {
   photos: Photo[]
   onRemove?: (photoId: string) => void
   showRank?: boolean
+  compact?: boolean
 }
 
-export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps) {
+export function PhotoGrid({ photos, onRemove, showRank = false, compact = false }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
@@ -102,14 +103,14 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${compact ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
         {photos.map((photo) => (
           <Card
             key={photo.id}
             className="overflow-hidden border border-border hover:border-primary/50 transition-colors group"
           >
             <div 
-              className="relative aspect-square bg-muted overflow-hidden cursor-pointer"
+              className={`relative bg-muted overflow-hidden cursor-pointer ${compact ? "aspect-[4/5]" : "aspect-square"}`}
               onClick={() => {
                 setSelectedPhoto(photo)
                 setShowDetail(true)
@@ -200,7 +201,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false }: PhotoGridProps
 
             {/* Photo Info */}
             <div className="p-3 space-y-1">
-              <p className="font-semibold text-sm text-foreground truncate">{photo.eventName}</p>
+              <p className={`font-semibold text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{photo.eventName}</p>
               <p className="text-xs text-muted-foreground">{new Date(photo.eventDate).toLocaleDateString()}</p>
             </div>
 
