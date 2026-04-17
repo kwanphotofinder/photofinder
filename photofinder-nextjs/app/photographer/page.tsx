@@ -464,15 +464,21 @@ export default function PhotographerPage() {
 
   const peakDailyViews = trendChartData.reduce((max, item) => Math.max(max, item.views), 0)
   const peakDailyDownloads = trendChartData.reduce((max, item) => Math.max(max, item.downloads), 0)
+  const selectedEventName = useMemo(() => {
+    return events.find((event) => event.id === selectedEvent)?.name || ""
+  }, [events, selectedEvent])
 
   if (isLoading) {
     return (
       <>
         <Header userRole="photographer" />
-        <main className="min-h-screen bg-background flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
+        <main className="min-h-screen bg-background flex items-center justify-center px-4">
+          <div className="flex flex-col items-center gap-4 rounded-3xl border border-border/60 bg-card/80 px-8 py-10 text-center shadow-sm backdrop-blur">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-muted-foreground">Loading...</p>
+            <div>
+              <p className="text-base font-medium text-foreground">Loading your photographer workspace</p>
+              <p className="mt-1 text-sm text-muted-foreground">Preparing events, uploads, and analytics.</p>
+            </div>
           </div>
         </main>
       </>
@@ -484,18 +490,18 @@ export default function PhotographerPage() {
       <>
         <Header userRole="photographer" />
         <main className="min-h-screen bg-background flex items-center justify-center px-4">
-          <Card className="w-full max-w-md border border-border bg-muted/30 flex-col">
+          <Card className="w-full max-w-md border border-border/60 bg-card/90 shadow-lg backdrop-blur flex-col">
             <CardHeader className="space-y-2">
               <CardTitle className="text-2xl flex items-center gap-2">
                 <AlertCircle className="w-6 h-6 text-destructive" />
-                Authentication Required
+                Photographer access required
               </CardTitle>
-              <CardDescription>You need to be logged in as a photographer</CardDescription>
+              <CardDescription>Sign in with a photographer account to upload and manage event photos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">{error}</p>
               <Button onClick={() => router.push("/login")} className="w-full bg-primary hover:bg-primary/90">
-                Go to Login
+                Go to sign in
               </Button>
             </CardContent>
           </Card>
@@ -514,19 +520,34 @@ export default function PhotographerPage() {
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/90 p-6 shadow-[0_20px_60px_rgba(130,24,26,0.08)] backdrop-blur">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(130,24,26,0.12),_transparent_34%),linear-gradient(135deg,_rgba(255,255,255,0.6),_transparent_45%)]" />
-            <div className="relative grid gap-6 lg:grid-cols-[1.3fr_0.9fr] lg:items-end">
-              <div className="space-y-4">
+            <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+              <div className="space-y-5">
                 <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                   <Sparkles className="h-3.5 w-3.5" />
                   Photographer workspace
                 </div>
                 <div>
                   <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                    Upload, review, and manage event photos in one polished workflow.
+                    A simpler way to upload, review, and manage event photos.
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                    Keep your event uploads organized, monitor processing status, and remove anything you no longer need from a clean, focused dashboard.
+                    Pick an event, add your files, and keep track of progress in one place. The page shows only the details you need to finish the upload quickly.
                   </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">1. Choose event</p>
+                    <p className="mt-2 text-sm text-foreground">Start with the event that needs new photos.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">2. Add files</p>
+                    <p className="mt-2 text-sm text-foreground">Drag images in or select a whole folder.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">3. Upload</p>
+                    <p className="mt-2 text-sm text-foreground">Review the queue and send everything at once.</p>
+                  </div>
                 </div>
 
               </div>
@@ -580,11 +601,11 @@ export default function PhotographerPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Workspace Mode</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">{activeWorkspaceTab === "upload" ? "Upload Assistant" : "Analytics Assistant"}</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">{activeWorkspaceTab === "upload" ? "Upload mode" : "Analytics mode"}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   {activeWorkspaceTab === "upload"
-                    ? "Follow the 3 steps below to upload faster without missing anything."
-                    : "Review trends and top-performing events from one focused view."}
+                    ? "Choose an event, stage your files, and upload when the queue looks right."
+                    : "Review trends and top-performing events from a single focused view."}
                 </p>
               </div>
               <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
@@ -617,15 +638,15 @@ export default function PhotographerPage() {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Queued Files</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Queued files</p>
                 <p className="mt-1 text-lg font-bold text-slate-900">{selectedFiles.length.toLocaleString()}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent Views</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent views</p>
                 <p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.totals.views.toLocaleString()}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent Downloads</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent downloads</p>
                 <p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.totals.downloads.toLocaleString()}</p>
               </div>
             </div>
@@ -903,15 +924,15 @@ export default function PhotographerPage() {
                     </div>
                   </div>
                   <div>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Upload Control Center</CardTitle>
-                    <CardDescription className="text-sm font-medium text-slate-600">Choose event, stage your files, then send them in one clean workflow.</CardDescription>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Upload your event photos</CardTitle>
+                    <CardDescription className="text-sm font-medium text-slate-600">Choose an event first so the upload stays organized and easy to find later.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="relative space-y-6 p-8">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <label className="text-sm font-medium text-slate-700">Event Selection</label>
+                    <label className="text-sm font-medium text-slate-700">Event selection</label>
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Step 1 of 3</span>
                   </div>
                   <select
@@ -919,13 +940,16 @@ export default function PhotographerPage() {
                     onChange={(e) => setSelectedEvent(e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 hover:border-slate-300"
                   >
-                    <option value="">-- Select an Event --</option>
+                    <option value="">-- Select an event --</option>
                     {events.map((event) => (
                       <option key={event.id} value={event.id}>
                         {event.name}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-slate-500">
+                    {selectedEventName ? `Files will be uploaded to ${selectedEventName}.` : "Pick the event that matches the photos you are uploading."}
+                  </p>
                 </div>
 
                 <div className="rounded-[1.75rem] border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 via-white to-slate-50/30 p-6 transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-slate-100/50">
@@ -937,9 +961,9 @@ export default function PhotographerPage() {
                     <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-lg shadow-primary/10">
                       <Upload className="h-8 w-8" />
                     </div>
-                    <p className="text-lg font-medium text-slate-900">Drag photos here or click to select</p>
+                    <p className="text-lg font-medium text-slate-900">Drag photos here or click to choose files</p>
                     <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-600">
-                      Supports JPG, PNG, HEIC. You can also upload an entire folder to speed up event delivery.
+                      Supports JPG, PNG, HEIC. You can also upload a whole folder when you have a full event batch.
                     </p>
                     <div className="mt-8 flex flex-wrap justify-center gap-4">
                       <input
@@ -952,7 +976,7 @@ export default function PhotographerPage() {
                       />
                       <label htmlFor="file-input">
                         <Button className="gap-2 rounded-full px-6 py-3 shadow-lg shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30" asChild>
-                          <span>Select Files</span>
+                          <span>Select files</span>
                         </Button>
                       </label>
 
@@ -968,7 +992,7 @@ export default function PhotographerPage() {
                         <Button variant="outline" className="gap-2 rounded-full border-slate-300 bg-white px-6 py-3 shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-300/60" asChild>
                           <span className="flex items-center gap-2">
                             <FolderUp className="h-4 w-4" />
-                            Select Folder
+                            Select folder
                           </span>
                         </Button>
                       </label>
@@ -990,8 +1014,8 @@ export default function PhotographerPage() {
                     </div>
                   </div>
                   <div>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">File Queue</CardTitle>
-                    <CardDescription className="text-sm font-medium text-slate-600">Review every file before publish. Progress and errors are tracked in real time.</CardDescription>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">File queue</CardTitle>
+                    <CardDescription className="text-sm font-medium text-slate-600">Review every file before upload. Progress and errors are shown clearly in one place.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -1000,7 +1024,7 @@ export default function PhotographerPage() {
                   <>
                     <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-sm">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{selectedFiles.length} files queued</p>
+                        <p className="text-sm font-semibold text-slate-900">{selectedFiles.length} files ready</p>
                         <p className="text-xs text-slate-600">{activeUploads} currently uploading</p>
                       </div>
                       <Button variant="ghost" size="sm" onClick={clearAllFiles} className="rounded-full text-slate-700 hover:bg-slate-200/60 hover:text-slate-900">
@@ -1055,7 +1079,7 @@ export default function PhotographerPage() {
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900">No files selected yet</h3>
                     <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-600">
-                      Choose a folder or individual images to build your upload queue. Progress will appear here once files are added.
+                      Choose a folder or individual images to build your queue. Progress appears here as soon as files are added.
                     </p>
                   </div>
                 )}
@@ -1066,9 +1090,9 @@ export default function PhotographerPage() {
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] via-transparent to-primary/[0.03]" />
               <CardContent className="relative flex flex-col gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-2">
-                  <p className="text-base font-semibold text-slate-900">Ready to publish your selected photos?</p>
+                  <p className="text-base font-semibold text-slate-900">Ready to upload your selected photos?</p>
                   <p className="text-sm leading-relaxed text-slate-600">
-                    Make sure an event is selected before uploading. The button below will send every queued file.
+                    Make sure an event is selected before uploading. The button below sends every queued file in one batch.
                   </p>
                 </div>
                 <Button

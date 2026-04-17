@@ -27,13 +27,13 @@ export async function extractFaces(imageBuffer: Buffer, filename: string = 'imag
     if (error.name === 'AbortError') {
       throw new Error('AI Service timed out after 45 seconds. It might be waking up (cold start).');
     }
-    throw error;
+    throw new Error(`Unable to reach the AI service at ${aiUrl}. Start the ai-service container or point AI_SERVICE_URL to a reachable endpoint.`);
   } finally {
     clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
-    throw new Error(`AI Service error: ${response.statusText}`);
+    throw new Error(`AI Service error (${response.status}): ${response.statusText || 'Unknown error'}`);
   }
 
   const data = await response.json();

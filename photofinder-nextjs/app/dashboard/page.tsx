@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   AlertDialog,
@@ -26,7 +25,7 @@ interface Photo {
   confidence: number
 }
 
-function StatCard({ label, value, description, icon: Icon }: { label: string; value: string | number; description: string; icon: any }) {
+function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
     <Card className="group relative overflow-hidden border-none bg-white/40 shadow-sm transition-all duration-300 hover:bg-white/60 hover:shadow-md hover:-translate-y-1">
       <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/5 transition-transform duration-500 group-hover:scale-150" />
@@ -42,7 +41,6 @@ function StatCard({ label, value, description, icon: Icon }: { label: string; va
             <Icon className="h-5 w-5" />
           </div>
         </div>
-        <p className="mt-4 text-xs leading-relaxed text-muted-foreground/70">{description}</p>
       </CardContent>
     </Card>
   )
@@ -71,19 +69,16 @@ export default function DashboardPage() {
         label: "Auto matches",
         value: autoMatches.length,
         icon: Sparkles,
-        description: hasReferenceFace ? "New event photos matched by your reference face." : "Activate reference face to unlock matching.",
       },
       {
         label: "Saved moments",
         value: savedPhotos.length,
         icon: CheckCircle2,
-        description: "Photos you bookmarked for quick access and downloads.",
       },
       {
         label: "Profile status",
         value: hasReferenceFace ? "Active" : "Inactive",
         icon: User,
-        description: hasReferenceFace ? "Your bio-search profile is live and indexing." : "Upload a selfie to start auto-matching.",
       },
     ],
     [autoMatches.length, hasReferenceFace, savedPhotos.length],
@@ -282,23 +277,23 @@ export default function DashboardPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-600" />
-              Consent Required
+              Consent required
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 pt-2">
-              <p>You must agree to both items before using AI face search:</p>
+              <p>Enable these before using face search:</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
                   <div className="text-xs text-foreground">
-                    <p className="font-semibold">Enable AI Face Search</p>
-                    <p className="text-muted-foreground">Allow the system to identify your face in event photos and create a personal photo album.</p>
+                    <p className="font-semibold">AI face search</p>
+                    <p className="text-muted-foreground">Find your face in event photos.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
                   <div className="text-xs text-foreground">
-                    <p className="font-semibold">Data Processing Agreement</p>
-                    <p className="text-muted-foreground">I understand my biometric data will be processed and stored securely in compliance with GDPR and PDPA regulations.</p>
+                    <p className="font-semibold">Data processing</p>
+                    <p className="text-muted-foreground">Your biometric data is processed securely.</p>
                   </div>
                 </div>
               </div>
@@ -320,17 +315,6 @@ export default function DashboardPage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_40%),linear-gradient(to_bottom_right,rgba(255,255,255,0.4),rgba(255,255,255,0))]" />
             <div className="relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex-1 space-y-6">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="secondary" className="rounded-full bg-primary/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/20">
-                    <Sparkles className="mr-1.5 h-3 w-3" />
-                    Student Dashboard
-                  </Badge>
-                  <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${hasReferenceFace ? "bg-emerald-50 text-emerald-600 ring-emerald-600/20" : "bg-amber-50 text-amber-600 ring-amber-600/20"}`}>
-                    <div className={`h-1.5 w-1.5 rounded-full ${hasReferenceFace ? "bg-emerald-600 animate-pulse" : "bg-amber-600"}`} />
-                    {hasReferenceFace ? "Detection Active" : "Waiting for Setup"}
-                  </div>
-                </div>
-
                 <div className="space-y-4">
                     <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
                     <span className="block text-foreground">Welcome back,</span>
@@ -338,9 +322,6 @@ export default function DashboardPage() {
                       {displayName}
                     </span>
                   </h1>
-                    <p className="max-w-xl text-balance text-sm font-medium leading-relaxed text-muted-foreground/80 sm:text-base">
-                    Discover moments captured at events effortlessly. Just one selfie, and our AI finds you across thousands of gallery photos.
-                  </p>
                 </div>
 
                 <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
@@ -407,25 +388,19 @@ export default function DashboardPage() {
               </div>
             </div>
 
-              <div className="mt-16 grid gap-6 sm:grid-cols-3">
+              <div className="mt-10 grid gap-6 sm:grid-cols-3">
               {stats.map((stat) => (
                 <StatCard key={stat.label} {...stat} />
               ))}
             </div>
           </section>
 
-          <div className="mt-16 space-y-12">
+          <div className="mt-12 space-y-12">
             <section className="space-y-8">
               <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
                   <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Recently Matched</h2>
-                  <p className="mt-2 text-sm font-medium text-muted-foreground">Photos were found based on your bio-metric profile.</p>
                 </div>
-                {hasReferenceFace && (
-                  <Badge variant="outline" className="rounded-xl border-slate-200 bg-white px-4 py-2 font-bold shadow-sm">
-                    {autoMatches.length} Moments Found
-                  </Badge>
-                )}
               </div>
 
               {isLoading ? (
@@ -445,7 +420,7 @@ export default function DashboardPage() {
                       </div>
                       <h3 className="text-base font-semibold sm:text-lg">No matches yet</h3>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        We will keep checking future events and surface new matches here automatically.
+                        We’ll keep checking new events.
                       </p>
                     </CardContent>
                   </Card>
@@ -456,9 +431,9 @@ export default function DashboardPage() {
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Camera className="h-5 w-5" />
                     </div>
-                    <h3 className="text-base font-semibold sm:text-lg">Activate auto-match to see results</h3>
+                    <h3 className="text-base font-semibold sm:text-lg">Upload a selfie to start</h3>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Upload a reference selfie and we will start indexing your event photos automatically.
+                      We’ll match you to event photos automatically.
                     </p>
                   </CardContent>
                 </Card>

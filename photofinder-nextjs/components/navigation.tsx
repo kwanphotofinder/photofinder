@@ -19,7 +19,7 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
     ]
 
     if (userRole === "photographer") {
-      return [{ href: "/photographer", label: "Upload Photos", icon: Upload }]
+      return []
     }
 
     if (userRole === "admin") {
