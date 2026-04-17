@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
@@ -853,169 +854,198 @@ export default function AdminDashboardPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {filteredAndSortedUsers.map((u) => {
-                        const isSuperAdmin = u.role === "SUPER_ADMIN"
-                        const isAdmin = u.role === "ADMIN"
-                        const isPhotographer = u.role === "PHOTOGRAPHER"
-                        const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
-                        
-                        const canDemote = (() => {
-                          if (isSuperAdmin) return false
-                          if (!isStudentEmail) return false // Cannot demote non-university emails to "Student"
-                          if (isAdmin) return callerRole === "SUPER_ADMIN"
-                          if (isPhotographer) return true
-                          return false
-                        })()
-                        const canRemove = (() => {
-                          if (isSuperAdmin) return false
-                          if (isAdmin) return callerRole === "SUPER_ADMIN"
-                          if (isPhotographer) return true
-                          return false
-                        })()
-                        const canPermanentlyRemove = callerRole === "SUPER_ADMIN" && !isSuperAdmin
-                        
-                        const canToggleStatus = (() => {
-                          if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
-                          // Let's use callerRole for checking if they can block
-                          if (u.role === "SUPER_ADMIN") return false
-                          if (u.role === "ADMIN" && callerRole !== "SUPER_ADMIN") return false
-                          // They cannot block themselves
-                          return true // Handled backend
-                        })()
-
-                        const roleBadge = ({
-                          SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
-                          ADMIN: "bg-blue-500/20 text-blue-700 border-blue-500/30",
-                          PHOTOGRAPHER: "bg-green-500/20 text-green-700 border-green-500/30",
-                          STUDENT: "bg-gray-500/20 text-gray-700 border-gray-500/30",
-                        } as Record<string, string>)[u.role] || "bg-gray-500/20 text-gray-700 border-gray-500/30"
-
-                        const roleLabel = {
-                          SUPER_ADMIN: "Super Admin",
-                          ADMIN: "Admin",
-                          PHOTOGRAPHER: "Photographer",
-                          STUDENT: "Student",
-                        }[u.role as string] || u.role
-
-  return (
-                          <div key={u.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:border-primary/30 hover:shadow-sm">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground overflow-hidden">
-                                {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-foreground">{u.name || u.email}</div>
-                                <div className="text-xs text-muted-foreground">{u.email}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                {!u.isActive && (
-                                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-600 border border-red-200 flex items-center">
-                                    <Ban className="w-3 h-3 mr-1" />
-                                    Blocked
-                                  </span>
-                                )}
-                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${roleBadge}`}>
-                                  {isSuperAdmin && <Crown className="w-3 h-3 inline mr-1" />}
-                                  {roleLabel}
-                                </span>
-                              </div>
-
-                              {/* Actions Container */}
-                              {(canPermanentlyRemove || (canToggleStatus && u.email !== callerEmail) || canRemove) && (
-                                <div className="flex items-center gap-2 border-l border-border/50 pl-4 ml-2">
-                                  {canToggleStatus && u.email !== callerEmail && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className={`h-8 px-3 text-xs font-medium border ${u.isActive ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:text-amber-700" : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700"}`}
-                                      disabled={userMgmtLoading}
-                                      onClick={async () => {
-                                        if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
-                                        setUserMgmtLoading(true)
-                                        setUserMgmtMessage(null)
-                                        const res = await apiClient.setUserStatus(u.id, !u.isActive)
-                                        if (res.error) {
-                                          setUserMgmtMessage({ type: "error", text: res.error })
-                                        } else {
-                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
-                                          const usersRes = await apiClient.getAdminUsers()
-                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                        }
-                                        setUserMgmtLoading(false)
-                                      }}
-                                      title={u.isActive ? "Block User" : "Unblock User"}
-                                    >
-                                      {u.isActive ? <Ban className="w-3.5 h-3.5 mr-1" /> : <Unlock className="w-3.5 h-3.5 mr-1" />}
-                                      {u.isActive ? "Block" : "Unblock"}
-                                    </Button>
-                                  )}
-                                  
-                                  {canDemote && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
-                                      disabled={userMgmtLoading}
-                                      onClick={async () => {
-                                        if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
-                                        setUserMgmtLoading(true)
-                                        setUserMgmtMessage(null)
-                                        const res = await apiClient.removeUserRole(u.id)
-                                        if (res.error) {
-                                          setUserMgmtMessage({ type: "error", text: res.error })
-                                        } else {
-                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
-                                          const usersRes = await apiClient.getAdminUsers()
-                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                        }
-                                        setUserMgmtLoading(false)
-                                      }}
-                                      title="Demote to Student"
-                                    >
-                                      <UserMinus className="w-3.5 h-3.5 mr-1" />
-                                      Demote
-                                    </Button>
-                                  )}
-
-                                  {canPermanentlyRemove && (
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      className="h-8 px-3 text-xs font-medium"
-                                      disabled={userMgmtLoading}
-                                      onClick={async () => {
-                                        const confirmation = prompt(
-                                          `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
-                                        )
-                                        if (confirmation !== "REMOVE") return
-
-                                        setUserMgmtLoading(true)
-                                        setUserMgmtMessage(null)
-                                        const res = await apiClient.removeAdmin(u.id)
-                                        if (res.error) {
-                                          setUserMgmtMessage({ type: "error", text: res.error })
-                                        } else {
-                                          setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
-                                          const usersRes = await apiClient.getAdminUsers()
-                                          if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                        }
-                                        setUserMgmtLoading(false)
-                                      }}
-                                      title="Permanently remove this user"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5 mr-1" />
-                                      Delete
-                                    </Button>
-                                  )}
+                    <div className="rounded-md border border-border/70 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50 border-b border-border/70 hover:bg-muted/50">
+                            <TableHead className="w-[45%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">User Details</TableHead>
+                            <TableHead className="w-[15%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Status</TableHead>
+                            <TableHead className="w-[20%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Role</TableHead>
+                            <TableHead className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredAndSortedUsers.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="h-48 text-center border-0">
+                                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                  <Users className="h-8 w-8 mb-3 opacity-50" />
+                                  <p className="text-sm font-medium text-foreground">No users found</p>
+                                  <p className="mt-1 text-sm">Try adjusting your search query.</p>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredAndSortedUsers.map((u) => {
+                              const isSuperAdmin = u.role === "SUPER_ADMIN"
+                              const isAdmin = u.role === "ADMIN"
+                              const isPhotographer = u.role === "PHOTOGRAPHER"
+                              const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
+                              
+                              const canDemote = (() => {
+                                if (isSuperAdmin) return false
+                                if (!isStudentEmail) return false // Cannot demote non-university emails to "Student"
+                                if (isAdmin) return callerRole === "SUPER_ADMIN"
+                                if (isPhotographer) return true
+                                return false
+                              })()
+                              const canRemove = (() => {
+                                if (isSuperAdmin) return false
+                                if (isAdmin) return callerRole === "SUPER_ADMIN"
+                                if (isPhotographer) return true
+                                return false
+                              })()
+                              const canPermanentlyRemove = callerRole === "SUPER_ADMIN" && !isSuperAdmin
+                              
+                              const canToggleStatus = (() => {
+                                if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
+                                // Let's use callerRole for checking if they can block
+                                if (u.role === "SUPER_ADMIN") return false
+                                if (u.role === "ADMIN" && callerRole !== "SUPER_ADMIN") return false
+                                // They cannot block themselves
+                                return true // Handled backend
+                              })()
+      
+                              const roleBadge = ({
+                                SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
+                                ADMIN: "bg-blue-500/20 text-blue-700 border-blue-500/30",
+                                PHOTOGRAPHER: "bg-green-500/20 text-green-700 border-green-500/30",
+                                STUDENT: "bg-gray-500/20 text-gray-700 border-gray-500/30",
+                              } as Record<string, string>)[u.role] || "bg-gray-500/20 text-gray-700 border-gray-500/30"
+      
+                              const roleLabel = {
+                                SUPER_ADMIN: "Super Admin",
+                                ADMIN: "Admin",
+                                PHOTOGRAPHER: "Photographer",
+                                STUDENT: "Student",
+                              }[u.role as string] || u.role
+      
+                              return (
+                                <TableRow key={u.id} className="group transition-colors duration-200 hover:bg-muted/40 border-b border-border/40 last:border-0 h-16">
+                                  <TableCell className="font-medium align-middle">
+                                    <div className="flex items-center gap-3.5">
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-muted-foreground/20 to-muted flex items-center justify-center text-sm font-semibold text-muted-foreground overflow-hidden shadow-sm ring-1 ring-border/50">
+                                        {u.avatarUrl ? <img src={u.avatarUrl} alt={u.name || "User Avatar"} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
+                                      </div>
+                                      <div className="flex flex-col max-w-[200px] sm:max-w-xs md:max-w-sm">
+                                        <span className="text-sm font-semibold text-foreground truncate">{u.name || "Unnamed User"}</span>
+                                        <span className="text-[13px] text-muted-foreground truncate">{u.email}</span>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    {!u.isActive ? (
+                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 text-destructive border border-destructive/20 font-medium text-xs shadow-sm">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                                        Blocked
+                                      </div>
+                                    ) : (
+                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium text-xs shadow-sm">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        Active
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="align-middle">
+                                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-semibold text-[11px] uppercase tracking-wide shadow-sm ${roleBadge}`}>
+                                      {isSuperAdmin && <Crown className="w-3.5 h-3.5" />}
+                                      {roleLabel}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right align-middle">
+                                    <div className="flex justify-end gap-2 opacity-100 sm:opacity-70 group-hover:opacity-100 transition-opacity">
+                                      {canToggleStatus && u.email !== callerEmail && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className={`h-8 px-3 text-xs font-medium border ${u.isActive ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:text-amber-700" : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700"}`}
+                                          disabled={userMgmtLoading}
+                                          onClick={async () => {
+                                            if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
+                                            setUserMgmtLoading(true)
+                                            setUserMgmtMessage(null)
+                                            const res = await apiClient.setUserStatus(u.id, !u.isActive)
+                                            if (res.error) {
+                                              setUserMgmtMessage({ type: "error", text: res.error })
+                                            } else {
+                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
+                                              const usersRes = await apiClient.getAdminUsers()
+                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                            }
+                                            setUserMgmtLoading(false)
+                                          }}
+                                          title={u.isActive ? "Block User" : "Unblock User"}
+                                        >
+                                          {u.isActive ? <Ban className="w-3.5 h-3.5 mr-1" /> : <Unlock className="w-3.5 h-3.5 mr-1" />}
+                                          {u.isActive ? "Block" : "Unblock"}
+                                        </Button>
+                                      )}
+                                      
+                                      {canDemote && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                          disabled={userMgmtLoading}
+                                          onClick={async () => {
+                                            if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
+                                            setUserMgmtLoading(true)
+                                            setUserMgmtMessage(null)
+                                            const res = await apiClient.removeUserRole(u.id)
+                                            if (res.error) {
+                                              setUserMgmtMessage({ type: "error", text: res.error })
+                                            } else {
+                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
+                                              const usersRes = await apiClient.getAdminUsers()
+                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                            }
+                                            setUserMgmtLoading(false)
+                                          }}
+                                          title="Demote to Student"
+                                        >
+                                          <UserMinus className="w-3.5 h-3.5 mr-1" />
+                                          Demote
+                                        </Button>
+                                      )}
+  
+                                      {canPermanentlyRemove && (
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          className="h-8 px-3 text-xs font-medium"
+                                          disabled={userMgmtLoading}
+                                          onClick={async () => {
+                                            const confirmation = prompt(
+                                              `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
+                                            )
+                                            if (confirmation !== "REMOVE") return
+  
+                                            setUserMgmtLoading(true)
+                                            setUserMgmtMessage(null)
+                                            const res = await apiClient.removeAdmin(u.id)
+                                            if (res.error) {
+                                              setUserMgmtMessage({ type: "error", text: res.error })
+                                            } else {
+                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
+                                              const usersRes = await apiClient.getAdminUsers()
+                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                            }
+                                            setUserMgmtLoading(false)
+                                          }}
+                                          title="Permanently remove this user"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                          Delete
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>
