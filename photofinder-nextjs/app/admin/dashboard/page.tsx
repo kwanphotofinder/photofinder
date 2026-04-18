@@ -281,15 +281,6 @@ export default function AdminDashboardPage() {
                 <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
                 <p className="text-muted-foreground mt-1">Welcome back, {adminName}</p>
               </div>
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => router.push("/admin/events/create")}
-                  className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground shadow-md shadow-[#82181a]/25 hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Event
-                </Button>
-              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
