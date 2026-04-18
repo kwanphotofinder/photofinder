@@ -86,8 +86,18 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     const authToken = localStorage.getItem("auth_token")
+    const userRole = localStorage.getItem("user_role")
+
     if (!authToken) {
       router.push("/login")
+      return
+    }
+
+    if (userRole === "photographer") {
+      router.push("/photographer")
+      return
+    } else if (userRole === "admin" || userRole === "super_admin") {
+      router.push("/admin/dashboard")
       return
     }
 

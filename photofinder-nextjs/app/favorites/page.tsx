@@ -39,10 +39,19 @@ export default function FavoritesPage() {
     const checkAuthAndLoad = async () => {
       const authToken = localStorage.getItem("auth_token")
       const userId = localStorage.getItem("user_id")
+      const userRole = localStorage.getItem("user_role")
       
       if (!authToken || !userId) {
         router.push("/login")
         return // Do not clear isAuthChecking so the page stays blank while redirecting
+      }
+
+      if (userRole === "photographer") {
+        router.push("/photographer")
+        return
+      } else if (userRole === "admin" || userRole === "super_admin") {
+        router.push("/admin/dashboard")
+        return
       }
 
       setIsAuthChecking(false)

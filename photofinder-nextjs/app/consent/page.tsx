@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, Shield, Lock } from "lucide-react"
@@ -10,6 +10,25 @@ import { apiClient } from "@/lib/api-client"
 
 export default function ConsentPage() {
   const router = useRouter()
+  
+  useEffect(() => {
+    const authToken = localStorage.getItem("auth_token")
+    const userRole = localStorage.getItem("user_role")
+
+    if (!authToken) {
+      router.push("/login")
+      return
+    }
+
+    if (userRole === "photographer") {
+      router.push("/photographer")
+      return
+    } else if (userRole === "admin" || userRole === "super_admin") {
+      router.push("/admin/dashboard")
+      return
+    }
+  }, [router])
+
   const [isLoading, setIsLoading] = useState(false)
   const [consent, setConsent] = useState<ConsentData>({
     globalFaceSearch: false,
