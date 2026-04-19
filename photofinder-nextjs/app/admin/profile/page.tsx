@@ -27,9 +27,16 @@ export default function AdminProfilePage() {
   useEffect(() => {
     const authToken = localStorage.getItem("auth_token")
     const adminToken = localStorage.getItem("admin_token")
+    const userRole = localStorage.getItem("user_role")
 
-    if (!authToken && !adminToken) {
-      router.push("/login")
+    if (!adminToken || (userRole !== "admin" && userRole !== "super_admin")) {
+      if (userRole === "photographer") {
+        router.push("/photographer")
+      } else if (userRole === "student") {
+        router.push("/dashboard")
+      } else {
+        router.push("/login")
+      }
       return
     }
 

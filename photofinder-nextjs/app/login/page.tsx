@@ -34,12 +34,16 @@ export default function LoginPage() {
     localStorage.setItem("user_role", user.role.toLowerCase());
 
     if (user.role === "PHOTOGRAPHER") {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_name");
       router.push("/photographer");
     } else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
       localStorage.setItem("admin_token", access_token);
       localStorage.setItem("admin_name", user.name);
       router.push("/admin/dashboard");
     } else {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_name");
       if (user.pdpaConsent) {
         router.push("/dashboard");
       } else {

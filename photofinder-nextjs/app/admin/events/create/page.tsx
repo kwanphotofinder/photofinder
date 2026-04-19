@@ -30,8 +30,16 @@ export default function CreateEventPage() {
 
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
-    if (!adminToken) {
-      router.push("/login")
+    const userRole = localStorage.getItem("user_role")
+
+    if (!adminToken || (userRole !== "admin" && userRole !== "super_admin")) {
+      if (userRole === "photographer") {
+        router.push("/photographer")
+      } else if (userRole === "student") {
+        router.push("/dashboard")
+      } else {
+        router.push("/login")
+      }
       return
     }
     setIsLoading(false)
