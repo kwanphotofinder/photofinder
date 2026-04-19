@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
-  const redirectUri = `${url.origin}/api/auth/line/callback`;
+  const redirectUri = process.env.LINE_REDIRECT_URI || `${url.origin}/api/auth/line/callback`;
 
   // Encode token inside the state so we can recover it after LINE redirect
   const statePayload = Buffer.from(JSON.stringify({ token, random: Date.now() })).toString('base64');

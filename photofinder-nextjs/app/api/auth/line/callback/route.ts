@@ -5,6 +5,7 @@ import { JwtPayload } from '@/lib/auth';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const redirectUri = process.env.LINE_REDIRECT_URI || `${url.origin}/api/auth/line/callback`;
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const error = url.searchParams.get('error');
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: `${url.origin}/api/auth/line/callback`,
+        redirect_uri: redirectUri,
         client_id: process.env.LINE_CHANNEL_ID || '',
         client_secret: process.env.LINE_CHANNEL_SECRET || '',
       }),

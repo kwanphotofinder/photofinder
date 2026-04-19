@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Copy, Facebook, MessageCircle, X } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
-import { sharePhotoToChannel, type ShareChannel } from "@/lib/share"
+import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
@@ -29,6 +29,13 @@ interface PhotoDetailModalProps {
   initialShareOpen?: boolean
 }
 
+function formatDayMonthYear(dateValue?: string) {
+  if (!dateValue) return "-"
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return "-"
+  return new Intl.DateTimeFormat("en-GB").format(date)
+}
+
 export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = false }: PhotoDetailModalProps) {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const trackedViewPhotoIdRef = useRef<string | null>(null)
@@ -37,7 +44,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
-  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false)
   const [activeShareChannel, setActiveShareChannel] = useState<ShareChannel | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -49,19 +55,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
       setReason("")
       setIsFavorite(false)
       setIsFavoriteLoading(false)
-      setIsShareSheetOpen(false)
       setActiveShareChannel(null)
       setIsZoomed(false)
       setIsFullscreen(false)
       trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
-
-  useEffect(() => {
-    if (isOpen && initialShareOpen) {
-      setIsShareSheetOpen(true)
-    }
-  }, [initialShareOpen, isOpen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -113,19 +112,24 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
     await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
-  const openShareSheet = () => {
-    setIsShareSheetOpen(true)
-  }
-
-  const handleShareChannel = async (channel: ShareChannel) => {
+  const handleNativeShare = async () => {
     try {
-      setActiveShareChannel(channel)
+      await sharePhotoOriginal(photo)
       trackPhotoEngagement(photo.id, "SHARE")
-      await sharePhotoToChannel(photo, "original", channel)
-      setIsShareSheetOpen(false)
     } catch (error) {
       console.error("Failed to share photo:", error)
-      alert("Unable to share right now. Please try another channel.")
+      alert("Unable to open share right now. Please try again.")
+    }
+  }
+
+  const handleQuickShare = async (channel: "line" | "facebook") => {
+    try {
+      setActiveShareChannel(channel)
+      await sharePhotoToChannel(photo, "original", channel)
+      trackPhotoEngagement(photo.id, "SHARE")
+    } catch (error) {
+      console.error(`Failed to share photo to ${channel}:`, error)
+      alert("Unable to open share right now. Please try again.")
     } finally {
       setActiveShareChannel(null)
     }
@@ -274,7 +278,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Date</p>
               <p className="font-semibold text-foreground">
-                {new Date(photo.uploadDate || photo.eventDate).toLocaleDateString()}
+                {formatDayMonthYear(photo.uploadDate || photo.eventDate)}
               </p>
             </div>
           </div>
@@ -290,12 +294,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
               
               <div className="flex justify-center">
                 <Button
-                  onClick={openShareSheet}
-                  disabled={isSubmitting}
+                  onClick={handleNativeShare}
+                  disabled={isSubmitting || activeShareChannel !== null}
                   className="group relative h-20 w-full max-w-sm justify-start gap-4 rounded-3xl border border-border bg-transparent px-5 text-left text-foreground shadow-none backdrop-blur-0 transition-all hover:border-red-900 hover:bg-red-800 hover:text-white active:border-red-950 active:bg-red-900 active:text-white"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-transparent transition-transform group-hover:scale-105 group-hover:border-red-200/60 group-hover:bg-white/15 group-active:border-red-100/70 group-active:bg-white/20">
-                    <Share2 className="h-5 w-5" />
+                    {activeShareChannel === "native" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
                   </div>
                   <div className="flex flex-col items-start gap-0.5">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover:text-white/85 group-active:text-white/85">
@@ -303,6 +307,27 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                     </span>
                     <span className="text-sm font-bold tracking-tight">Original</span>
                   </div>
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => handleQuickShare("line")}
+                  disabled={isSubmitting || activeShareChannel !== null}
+                  variant="outline"
+                  className="justify-center gap-2"
+                >
+                  {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                  LINE
+                </Button>
+                <Button
+                  onClick={() => handleQuickShare("facebook")}
+                  disabled={isSubmitting || activeShareChannel !== null}
+                  variant="outline"
+                  className="justify-center gap-2"
+                >
+                  {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
+                  Facebook
                 </Button>
               </div>
             </div>
@@ -332,7 +357,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                 <div className="space-y-3">
                   <Button
                       onClick={handleToggleFavorite}
-                      disabled={isFavoriteLoading || isSubmitting || isShareSheetOpen}
+                      disabled={isFavoriteLoading || isSubmitting}
                     variant="outline"
                     className={`h-12 w-full rounded-xl border transition-all ${
                       isFavorite
@@ -388,78 +413,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
           </div>
         </div>
       </DialogContent>
-
-      <Dialog open={isShareSheetOpen} onOpenChange={setIsShareSheetOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Share photo</DialogTitle>
-            <DialogDescription>
-              Choose a destination channel for this photo.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button
-              onClick={() => handleShareChannel("native")}
-              disabled={activeShareChannel !== null}
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "native" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-              Native share
-            </Button>
-
-            <Button
-              onClick={() => handleShareChannel("copy")}
-              disabled={activeShareChannel !== null}
-              variant="outline"
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "copy" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-              Copy link
-            </Button>
-
-            <Button
-              onClick={() => handleShareChannel("line")}
-              disabled={activeShareChannel !== null}
-              variant="outline"
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-              LINE
-            </Button>
-
-            <Button
-              onClick={() => handleShareChannel("whatsapp")}
-              disabled={activeShareChannel !== null}
-              variant="outline"
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "whatsapp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-              WhatsApp
-            </Button>
-
-            <Button
-              onClick={() => handleShareChannel("facebook")}
-              disabled={activeShareChannel !== null}
-              variant="outline"
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
-              Facebook
-            </Button>
-
-            <Button
-              onClick={() => handleShareChannel("x")}
-              disabled={activeShareChannel !== null}
-              variant="outline"
-              className="justify-start gap-3"
-            >
-              {activeShareChannel === "x" ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-              X
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   )
 }

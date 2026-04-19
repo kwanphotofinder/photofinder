@@ -30,8 +30,13 @@ function buildShareText(photo: SharePhotoInput, variant: PhotoShareVariant) {
 
 function openShareWindow(url: string) {
   const popup = window.open(url, "_blank", "noopener,noreferrer")
-  if (!popup) {
-    throw new Error("Popup blocked")
+  if (popup) {
+    return
+  }
+
+  // Keep users on the current page when popups are blocked to avoid losing app state.
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).catch(() => {})
   }
 }
 
@@ -150,7 +155,7 @@ async function shareFile(file: File, fallbackUrl: string, fallbackFileName: stri
     return false
   }
 
-  window.open(fallbackUrl, "_blank")
+  openShareWindow(fallbackUrl)
   return false
 }
 
@@ -208,12 +213,31 @@ export async function sharePhotoToChannel(
 export async function sharePhotoOriginal(photo: SharePhotoInput) {
   const fileName = buildFileName(photo, "original")
   const shareText = `Shared from MFU PhotoFinder - ${photo.eventName}`
+  const combinedText = `${shareText}\n${photo.url}`
 
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
       await navigator.share({
         title: fileName,
         text: shareText,
+        url: photo.url,
+      })
+      return true
+    } catch {
+      // Retry with alternate payloads for broader app compatibility.
+    }
+
+    try {
+      await navigator.share({
+        text: combinedText,
+      })
+      return true
+    } catch {
+      // Retry with URL-only payload.
+    }
+
+    try {
+      await navigator.share({
         url: photo.url,
       })
       return true
@@ -227,7 +251,7 @@ export async function sharePhotoOriginal(photo: SharePhotoInput) {
     return false
   }
 
-  window.open(photo.url, "_blank")
+  openShareWindow(photo.url)
   return false
 }
 

@@ -26,6 +26,13 @@ interface PhotoGridProps {
   showConfidence?: boolean
 }
 
+function formatDayMonthYear(dateValue?: string) {
+  if (!dateValue) return "-"
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return "-"
+  return new Intl.DateTimeFormat("en-GB").format(date)
+}
+
 export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
@@ -201,7 +208,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
             {/* Photo Info */}
             <div className="p-3 space-y-1">
               <p className={`font-semibold text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{photo.eventName}</p>
-              <p className="text-xs text-muted-foreground">{new Date(photo.eventDate).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">{formatDayMonthYear(photo.uploadDate || photo.eventDate)}</p>
             </div>
 
             {/* Action Buttons - Always visible below the image */}
