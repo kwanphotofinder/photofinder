@@ -1,4 +1,5 @@
 export type PhotoShareVariant = "original" | "watermarked"
+export type ShareChannel = "native" | "copy" | "line" | "whatsapp" | "facebook" | "x"
 
 export interface SharePhotoInput {
   url: string
@@ -19,6 +20,19 @@ function buildFileName(photo: SharePhotoInput, variant: PhotoShareVariant) {
   const date = new Date(photo.eventDate).toISOString().split("T")[0]
   const base = sanitizeFilePart(photo.eventName || "photo")
   return `${base}_${date}_${variant}.jpg`
+}
+
+function buildShareText(photo: SharePhotoInput, variant: PhotoShareVariant) {
+  const date = new Date(photo.eventDate).toLocaleDateString()
+  const label = variant === "watermarked" ? "Watermarked photo" : "Photo"
+  return `MFU PhotoFinder - ${label} from ${photo.eventName} (${date})`
+}
+
+function openShareWindow(url: string) {
+  const popup = window.open(url, "_blank", "noopener,noreferrer")
+  if (!popup) {
+    throw new Error("Popup blocked")
+  }
 }
 
 
@@ -107,16 +121,27 @@ async function createWatermarkedBlob(url: string, watermarkText: string) {
 }
 
 
-async function shareFile(file: File, fallbackUrl: string, fallbackFileName: string) {
+async function shareFile(file: File, fallbackUrl: string, fallbackFileName: string, shareText: string) {
   if (typeof navigator !== "undefined" && navigator.share) {
     const canShareFiles = typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true
     if (canShareFiles) {
       await navigator.share({
         title: fallbackFileName,
-        text: "Shared from MFU PhotoFinder",
+        text: shareText,
         files: [file],
       })
       return true
+    }
+
+    try {
+      await navigator.share({
+        title: fallbackFileName,
+        text: shareText,
+        url: fallbackUrl,
+      })
+      return true
+    } catch {
+      // Fall through to clipboard / open-tab fallback.
     }
   }
 
@@ -129,17 +154,94 @@ async function shareFile(file: File, fallbackUrl: string, fallbackFileName: stri
   return false
 }
 
+export async function sharePhotoToChannel(
+  photo: SharePhotoInput,
+  variant: PhotoShareVariant,
+  channel: ShareChannel,
+) {
+  const shareText = buildShareText(photo, variant)
+  const shareUrl = photo.url
+
+  if (channel === "native") {
+    if (variant === "watermarked") {
+      return sharePhotoWatermarked(photo)
+    }
+
+    return sharePhotoOriginal(photo)
+  }
+
+  if (channel === "copy") {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+      return false
+    }
+    openShareWindow(shareUrl)
+    return false
+  }
+
+  const encodedUrl = encodeURIComponent(shareUrl)
+  const encodedText = encodeURIComponent(shareText)
+
+  if (channel === "line") {
+    openShareWindow(`https://social-plugins.line.me/lineit/share?url=${encodedUrl}&text=${encodedText}`)
+    return false
+  }
+
+  if (channel === "whatsapp") {
+    openShareWindow(`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`)
+    return false
+  }
+
+  if (channel === "facebook") {
+    openShareWindow(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`)
+    return false
+  }
+
+  if (channel === "x") {
+    openShareWindow(`https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`)
+    return false
+  }
+
+  throw new Error(`Unsupported share channel: ${channel}`)
+}
+
 export async function sharePhotoOriginal(photo: SharePhotoInput) {
-  const blob = await fetchImageBlob(photo.url)
   const fileName = buildFileName(photo, "original")
-  const file = new File([blob], fileName, { type: blob.type || "image/jpeg" })
-  return shareFile(file, photo.url, fileName)
+  const shareText = `Shared from MFU PhotoFinder - ${photo.eventName}`
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({
+        title: fileName,
+        text: shareText,
+        url: photo.url,
+      })
+      return true
+    } catch {
+      // Fall through to clipboard / open-tab fallback.
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(photo.url)
+    return false
+  }
+
+  window.open(photo.url, "_blank")
+  return false
 }
 
 export async function sharePhotoWatermarked(photo: SharePhotoInput) {
-  const watermarkText = `${photo.eventName} • ${new Date(photo.eventDate).toLocaleDateString()}`
-  const blob = await createWatermarkedBlob(photo.url, watermarkText)
   const fileName = buildFileName(photo, "watermarked")
-  const file = new File([blob], fileName, { type: blob.type || "image/jpeg" })
-  return shareFile(file, photo.url, fileName)
+  const shareText = `Shared from MFU PhotoFinder - ${photo.eventName}`
+
+  try {
+    const watermarkText = `${photo.eventName} • ${new Date(photo.eventDate).toLocaleDateString()}`
+    const blob = await createWatermarkedBlob(photo.url, watermarkText)
+    const file = new File([blob], fileName, { type: blob.type || "image/jpeg" })
+    return shareFile(file, photo.url, fileName, shareText)
+  } catch (error) {
+    console.error("Failed to create watermarked share file:", error)
+    return sharePhotoOriginal(photo)
+  }
 }

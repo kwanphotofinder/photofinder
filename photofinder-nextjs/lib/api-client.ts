@@ -6,7 +6,7 @@ export interface ApiResponse<T> {
   status: number;
 }
 
-type PhotoEngagementAction = "VIEW" | "DOWNLOAD";
+type PhotoEngagementAction = "VIEW" | "DOWNLOAD" | "SHARE";
 
 function handleUnauthorized(status: number) {
   if (status === 401 && typeof window !== "undefined") {

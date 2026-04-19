@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Eye, Download, CheckCircle, Heart, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "@/components/photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
-import { sharePhotoOriginal } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
@@ -15,6 +14,7 @@ interface Photo {
   url: string
   eventName: string
   eventDate: string
+  uploadDate?: string
   confidence: number
 }
 
@@ -25,6 +25,7 @@ interface SearchResultGridProps {
 export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [openShareSheet, setOpenShareSheet] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -89,18 +90,15 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
   const handleShare = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
-    try {
-      trackPhotoEngagement(photo.id, "DOWNLOAD")
-      await sharePhotoOriginal(photo)
-    } catch (err) {
-      console.error('Failed to share photo:', err)
-      alert('Unable to share the photo right now.')
-    }
+    trackPhotoEngagement(photo.id, "SHARE")
+    setSelectedPhoto(photo)
+    setOpenShareSheet(true)
+    setShowDetail(true)
   }
 
   const getConfidenceBadgeColor = (confidence: number) => {
@@ -273,7 +271,15 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
       </div>
 
       {selectedPhoto && (
-        <PhotoDetailModal photo={selectedPhoto} isOpen={showDetail} onClose={() => setShowDetail(false)} />
+        <PhotoDetailModal
+          photo={selectedPhoto}
+          isOpen={showDetail}
+          onClose={() => {
+            setShowDetail(false)
+            setOpenShareSheet(false)
+          }}
+          initialShareOpen={openShareSheet}
+        />
       )}
     </>
   )

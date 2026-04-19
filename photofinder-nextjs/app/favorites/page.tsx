@@ -13,6 +13,7 @@ interface Photo {
   url: string
   eventName: string
   eventDate: string
+  uploadDate?: string
   confidence: number
 }
 
@@ -70,6 +71,7 @@ export default function FavoritesPage() {
           url: item.photo.storageUrl,
           eventName: item.photo.event?.name || "Unknown Event",
           eventDate: item.photo.event?.date || item.photo.createdAt,
+          uploadDate: item.photo.createdAt,
           confidence: 0.95,
         }))
         setSavedPhotos(photos)

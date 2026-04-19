@@ -1,4 +1,4 @@
-type EngagementAction = "VIEW" | "DOWNLOAD"
+type EngagementAction = "VIEW" | "DOWNLOAD" | "SHARE"
 
 export async function trackPhotoEngagement(photoId: string, action: EngagementAction) {
   if (!photoId) return

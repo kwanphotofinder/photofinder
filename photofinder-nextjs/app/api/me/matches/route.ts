@@ -32,13 +32,15 @@ export async function GET(req: NextRequest) {
       url: string;
       eventName: string;
       eventDate: Date;
+      uploadDate: Date;
     }>>(`
       SELECT 
         f."photoId" as "id", 
         (1 - (f.embedding <=> $1::vector)) as "confidence",
         p."storageUrl" as "url",
         e."name" as "eventName",
-        e."date" as "eventDate"
+        e."date" as "eventDate",
+        p."createdAt" as "uploadDate"
       FROM "faces" f
       JOIN "photos" p ON f."photoId" = p."id"
       JOIN "events" e ON p."eventId" = e."id"

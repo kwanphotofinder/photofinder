@@ -11,7 +11,7 @@ export async function POST(
     const body = await req.json().catch(() => ({})) as { action?: string }
     const action = body.action
 
-    if (action !== "VIEW" && action !== "DOWNLOAD") {
+    if (action !== "VIEW" && action !== "DOWNLOAD" && action !== "SHARE") {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
 

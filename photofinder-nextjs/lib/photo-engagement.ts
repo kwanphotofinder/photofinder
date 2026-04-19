@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma"
 
-type EngagementAction = "VIEW" | "DOWNLOAD"
+type EngagementAction = "VIEW" | "DOWNLOAD" | "SHARE"
 
 let tableReady = false
 

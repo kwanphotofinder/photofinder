@@ -22,6 +22,7 @@ interface Photo {
   url: string
   eventName: string
   eventDate: string
+  uploadDate?: string
   confidence: number
 }
 
@@ -171,6 +172,7 @@ export default function DashboardPage() {
             url: item.photo.storageUrl,
             eventName: item.photo.event?.name || "Unknown",
             eventDate: item.photo.event?.date || item.photo.createdAt,
+              uploadDate: item.photo.createdAt,
             confidence: 0.95,
           })),
         )

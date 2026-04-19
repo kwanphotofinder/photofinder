@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, WandSparkles, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Copy, Facebook, MessageCircle, X } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
-import { sharePhotoOriginal, sharePhotoWatermarked } from "@/lib/share"
+import { sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
@@ -18,6 +18,7 @@ interface Photo {
   url: string
   eventName: string
   eventDate: string
+  uploadDate?: string
   confidence?: number
 }
 
@@ -25,9 +26,10 @@ interface PhotoDetailModalProps {
   photo: Photo | null
   isOpen: boolean
   onClose: () => void
+  initialShareOpen?: boolean
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
+export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = false }: PhotoDetailModalProps) {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
@@ -35,8 +37,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
-  const [isSharingOriginal, setIsSharingOriginal] = useState(false)
-  const [isSharingWatermarked, setIsSharingWatermarked] = useState(false)
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false)
+  const [activeShareChannel, setActiveShareChannel] = useState<ShareChannel | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -47,13 +49,19 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       setReason("")
       setIsFavorite(false)
       setIsFavoriteLoading(false)
-      setIsSharingOriginal(false)
-      setIsSharingWatermarked(false)
+      setIsShareSheetOpen(false)
+      setActiveShareChannel(null)
       setIsZoomed(false)
       setIsFullscreen(false)
       trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (isOpen && initialShareOpen) {
+      setIsShareSheetOpen(true)
+    }
+  }, [initialShareOpen, isOpen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -102,32 +110,24 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
   const handleDownload = async () => {
     trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadPhoto(photo.url, photo.eventName, photo.eventDate)
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
-  const handleShareOriginal = async () => {
-    try {
-      setIsSharingOriginal(true)
-      trackPhotoEngagement(photo.id, "DOWNLOAD")
-      await sharePhotoOriginal(photo)
-    } catch (error) {
-      console.error("Failed to share original photo:", error)
-      alert("Unable to share the original photo right now.")
-    } finally {
-      setIsSharingOriginal(false)
-    }
+  const openShareSheet = () => {
+    setIsShareSheetOpen(true)
   }
 
-  const handleShareWatermarked = async () => {
+  const handleShareChannel = async (channel: ShareChannel) => {
     try {
-      setIsSharingWatermarked(true)
-      trackPhotoEngagement(photo.id, "DOWNLOAD")
-      await sharePhotoWatermarked(photo)
+      setActiveShareChannel(channel)
+      trackPhotoEngagement(photo.id, "SHARE")
+      await sharePhotoToChannel(photo, "original", channel)
+      setIsShareSheetOpen(false)
     } catch (error) {
-      console.error("Failed to share watermarked photo:", error)
-      alert("Unable to share the watermarked photo right now.")
+      console.error("Failed to share photo:", error)
+      alert("Unable to share right now. Please try another channel.")
     } finally {
-      setIsSharingWatermarked(false)
+      setActiveShareChannel(null)
     }
   }
 
@@ -273,7 +273,9 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Date</p>
-              <p className="font-semibold text-foreground">{new Date(photo.eventDate).toLocaleDateString()}</p>
+              <p className="font-semibold text-foreground">
+                {new Date(photo.uploadDate || photo.eventDate).toLocaleDateString()}
+              </p>
             </div>
           </div>
 
@@ -286,27 +288,21 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                 <div className="h-px flex-1 bg-border" />
               </div>
               
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex justify-center">
                 <Button
-                  onClick={handleShareOriginal}
-                  disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
-                  className="group relative h-24 flex-col gap-1 rounded-2xl border-none bg-primary/10 text-primary shadow-none transition-all hover:bg-primary hover:text-white"
+                  onClick={openShareSheet}
+                  disabled={isSubmitting}
+                  className="group relative h-20 w-full max-w-sm justify-start gap-4 rounded-3xl border border-border bg-transparent px-5 text-left text-foreground shadow-none backdrop-blur-0 transition-all hover:border-red-900 hover:bg-red-800 hover:text-white active:border-red-950 active:bg-red-900 active:text-white"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition-transform group-hover:scale-110 group-hover:bg-white/20">
-                    {isSharingOriginal ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-transparent transition-transform group-hover:scale-105 group-hover:border-red-200/60 group-hover:bg-white/15 group-active:border-red-100/70 group-active:bg-white/20">
+                    <Share2 className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-tight">Original</span>
-                </Button>
-
-                <Button
-                  onClick={handleShareWatermarked}
-                  disabled={isSharingOriginal || isSharingWatermarked || isSubmitting}
-                  className="group relative h-24 flex-col gap-1 rounded-2xl border-none bg-amber-500/10 text-amber-600 shadow-none transition-all hover:bg-amber-500 hover:text-white"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-sm transition-transform group-hover:scale-110 group-hover:bg-white/20">
-                    {isSharingWatermarked ? <Loader2 className="h-5 w-5 animate-spin" /> : <WandSparkles className="h-5 w-5" />}
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover:text-white/85 group-active:text-white/85">
+                      Share original photo
+                    </span>
+                    <span className="text-sm font-bold tracking-tight">Original</span>
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-tight">Watermark</span>
                 </Button>
               </div>
             </div>
@@ -335,8 +331,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                 </div>
                 <div className="space-y-3">
                   <Button
-                    onClick={handleToggleFavorite}
-                    disabled={isFavoriteLoading || isSubmitting || isSharingOriginal || isSharingWatermarked}
+                      onClick={handleToggleFavorite}
+                      disabled={isFavoriteLoading || isSubmitting || isShareSheetOpen}
                     variant="outline"
                     className={`h-12 w-full rounded-xl border transition-all ${
                       isFavorite
@@ -392,6 +388,78 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={isShareSheetOpen} onOpenChange={setIsShareSheetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share photo</DialogTitle>
+            <DialogDescription>
+              Choose a destination channel for this photo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              onClick={() => handleShareChannel("native")}
+              disabled={activeShareChannel !== null}
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "native" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              Native share
+            </Button>
+
+            <Button
+              onClick={() => handleShareChannel("copy")}
+              disabled={activeShareChannel !== null}
+              variant="outline"
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "copy" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+              Copy link
+            </Button>
+
+            <Button
+              onClick={() => handleShareChannel("line")}
+              disabled={activeShareChannel !== null}
+              variant="outline"
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+              LINE
+            </Button>
+
+            <Button
+              onClick={() => handleShareChannel("whatsapp")}
+              disabled={activeShareChannel !== null}
+              variant="outline"
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "whatsapp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+              WhatsApp
+            </Button>
+
+            <Button
+              onClick={() => handleShareChannel("facebook")}
+              disabled={activeShareChannel !== null}
+              variant="outline"
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
+              Facebook
+            </Button>
+
+            <Button
+              onClick={() => handleShareChannel("x")}
+              disabled={activeShareChannel !== null}
+              variant="outline"
+              className="justify-start gap-3"
+            >
+              {activeShareChannel === "x" ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              X
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
