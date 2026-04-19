@@ -26,6 +26,16 @@ interface Photo {
   confidence: number
 }
 
+const DEFAULT_MIN_MATCH_CONFIDENCE = 0.6
+
+function getMinMatchConfidence(): number {
+  const parsed = Number(process.env.NEXT_PUBLIC_MIN_MATCH_CONFIDENCE ?? DEFAULT_MIN_MATCH_CONFIDENCE)
+  if (!Number.isFinite(parsed)) return DEFAULT_MIN_MATCH_CONFIDENCE
+  if (parsed < 0) return 0
+  if (parsed > 1) return 1
+  return parsed
+}
+
 function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
     <Card className="group relative overflow-hidden border-none bg-white/40 shadow-sm transition-all duration-300 hover:bg-white/60 hover:shadow-md hover:-translate-y-1">
@@ -50,6 +60,7 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string |
 export default function DashboardPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const minMatchConfidence = getMinMatchConfidence()
 
   const [userName, setUserName] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -153,7 +164,9 @@ export default function DashboardPage() {
         })
         const matchData = await matchRes.json()
         if (matchRes.ok) {
-          setAutoMatches(matchData.results)
+          const results = Array.isArray(matchData.results) ? matchData.results : []
+          const strictMatches = results.filter((photo: Photo) => photo.confidence >= minMatchConfidence)
+          setAutoMatches(strictMatches)
         }
       } else {
         setHasReferenceFace(false)
