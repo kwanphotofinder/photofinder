@@ -423,7 +423,7 @@ export default function SettingsPage() {
                             <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
                               <li>AI face matching and new match notifications will stop.</li>
                               <li>Your profile may no longer appear in automatic event discovery.</li>
-                              <li>You can still use manual search after re-consenting later.</li>
+                              <li>After re-consenting, auto face matching can resume once you set a reference selfie again.</li>
                             </ul>
                           </div>
                         </div>

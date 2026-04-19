@@ -152,9 +152,9 @@ export default function PrivacyPolicyPage() {
                     <div className="h-2 w-2 rounded-full bg-slate-400" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-slate-900">Manual Searches</h4>
+                    <h4 className="font-semibold text-slate-900">Auto-Match Only</h4>
                     <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                      If you choose to search for photos without saving a default selfie, the image you upload is processed in memory (RAM) and immediately discarded. It is never saved to our database or storage.
+                      PhotoFinder uses your saved reference selfie for automatic matching only. To stop matching, you can remove your reference selfie or withdraw consent anytime in Settings.
                     </p>
                   </div>
                 </div>

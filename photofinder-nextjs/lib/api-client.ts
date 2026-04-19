@@ -95,43 +95,6 @@ export const apiClient = {
     return response.json();
   },
 
-  // Search
-  searchByFace: async (imageData: string, eventId?: string) => {
-    try {
-      // Convert base64 to blob
-      const response = await fetch(imageData);
-      const blob = await response.blob();
-
-      // Create FormData
-      const formData = new FormData();
-      formData.append("file", blob, "search-image.jpg");
-      if (eventId) {
-        formData.append("eventId", eventId);
-      }
-
-      // Send as multipart/form-data
-      const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-      const res = await fetch(`${API_BASE}/search/face`, {
-        method: "POST",
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-
-      handleUnauthorized(res.status);
-
-      const data = await res.json();
-      console.log("Backend response:", data);
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("searchByFace error:", error);
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  },
-
   // Photos
   getAllPhotos: () => apiCall("/photos"),
   getMyPhotos: () => apiCall("/me/my-photos"),

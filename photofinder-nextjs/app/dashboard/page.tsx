@@ -339,15 +339,6 @@ export default function DashboardPage() {
 
                 <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
                   <Button
-                    onClick={() => router.push("/search")}
-                    size="lg"
-                    className="h-12 rounded-2xl bg-primary px-7 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-[1.02] hover:bg-primary/90 active:scale-95 sm:h-14 sm:text-base"
-                  >
-                    <Sparkles className="mr-2.5 h-5 w-5" />
-                    Manual Search
-                  </Button>
-
-                  <Button
                     onClick={openFilePicker}
                     variant="outline"
                     size="lg"
