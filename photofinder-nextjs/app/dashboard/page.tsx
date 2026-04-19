@@ -26,7 +26,7 @@ interface Photo {
   confidence: number
 }
 
-const DEFAULT_MIN_MATCH_CONFIDENCE = 0.6
+const DEFAULT_MIN_MATCH_CONFIDENCE = 0.05
 
 function getMinMatchConfidence(): number {
   const parsed = Number(process.env.NEXT_PUBLIC_MIN_MATCH_CONFIDENCE ?? DEFAULT_MIN_MATCH_CONFIDENCE)

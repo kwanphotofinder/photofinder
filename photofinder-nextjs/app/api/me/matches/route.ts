@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-const DEFAULT_MIN_MATCH_CONFIDENCE = 0.6; // 60%
+const DEFAULT_MIN_MATCH_CONFIDENCE = 0.05; // 5%
 
 function getMinMatchConfidence(): number {
   const parsed = Number(process.env.MATCH_MIN_CONFIDENCE ?? DEFAULT_MIN_MATCH_CONFIDENCE);
