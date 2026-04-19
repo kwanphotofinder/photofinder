@@ -23,9 +23,10 @@ interface PhotoGridProps {
   onRemove?: (photoId: string) => void
   showRank?: boolean
   compact?: boolean
+  showConfidence?: boolean
 }
 
-export function PhotoGrid({ photos, onRemove, showRank = false, compact = false }: PhotoGridProps) {
+export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
@@ -131,7 +132,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false 
               )}
 
               {/* Confidence Percentage Badge - Top Right */}
-              {photo.confidence !== undefined && photo.confidence > 0 && (
+              {showConfidence && photo.confidence !== undefined && photo.confidence > 0 && (
                 <div className={`absolute top-2 right-2 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md z-10 ${
                   photo.confidence * 100 >= 80 ? 'bg-green-500' :
                   photo.confidence * 100 >= 60 ? 'bg-yellow-500' :

@@ -184,7 +184,7 @@ export default function FavoritesPage() {
                   </CardContent>
                 </Card>
               ) : savedPhotos.length > 0 ? (
-                <PhotoGrid photos={savedPhotos} onRemove={handleRemoveFromFavorites} />
+                <PhotoGrid photos={savedPhotos} onRemove={handleRemoveFromFavorites} showConfidence={false} />
               ) : (
                 <Card className="border-dashed border-border/70 bg-card/70">
                   <CardContent className="p-10 text-center">
