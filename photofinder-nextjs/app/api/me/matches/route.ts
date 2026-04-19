@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-const DEFAULT_MIN_MATCH_CONFIDENCE = 0.05; // 5%
-
-function getMinMatchConfidence(): number {
-  const parsed = Number(process.env.MATCH_MIN_CONFIDENCE ?? DEFAULT_MIN_MATCH_CONFIDENCE);
-  if (!Number.isFinite(parsed)) return DEFAULT_MIN_MATCH_CONFIDENCE;
-  if (parsed < 0) return 0;
-  if (parsed > 1) return 1;
-  return parsed;
-}
-
 export async function GET(req: NextRequest) {
   try {
-    const minMatchConfidence = getMinMatchConfidence();
+    const MIN_MATCH_RATE = 0.05; // minimum match rate
+
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -64,11 +55,11 @@ export async function GET(req: NextRequest) {
       new Map(rawResults.map(r => [r.id, r])).values()
     );
 
-    const filteredResults = uniqueResults.filter((result) => result.confidence >= minMatchConfidence);
-    const finalResults = filteredResults.slice(0, 10); // Standard limit
+    const topResults = uniqueResults.slice(0, 10); // Standard limit of photos shown
+    const finalResults = topResults.filter((result) => result.confidence >= MIN_MATCH_RATE);
 
     return NextResponse.json({
-      message: `Found ${finalResults.length} background matches (>= ${Math.round(minMatchConfidence * 100)}%)!`,
+      message: `Found ${finalResults.length} background matches!`,
       results: finalResults,
     });
 
