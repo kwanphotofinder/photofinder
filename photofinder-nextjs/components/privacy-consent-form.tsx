@@ -37,6 +37,7 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
                             checked={consent.globalFaceSearch}
                             onCheckedChange={() => onChange("globalFaceSearch")}
                             disabled={disabled}
+                            onClick={(event) => event.stopPropagation()}
                             className="h-full w-full border-0 bg-transparent ring-0 focus-visible:ring-0 data-[state=checked]:bg-transparent data-[state=checked]:text-primary-foreground"
                         />
                     </div>
@@ -78,6 +79,7 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
                             checked={consent.dataProcessing}
                             onCheckedChange={() => onChange("dataProcessing")}
                             disabled={disabled}
+                            onClick={(event) => event.stopPropagation()}
                             className="h-full w-full border-0 bg-transparent ring-0 focus-visible:ring-0 data-[state=checked]:bg-transparent data-[state=checked]:text-primary-foreground"
                         />
                     </div>
