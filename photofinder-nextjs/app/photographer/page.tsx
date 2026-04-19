@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api-client"
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
@@ -963,18 +964,18 @@ export default function PhotographerPage() {
                     <label className="text-sm font-medium text-slate-700">Event selection</label>
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Step 1 of 3</span>
                   </div>
-                  <select
-                    value={selectedEvent}
-                    onChange={(e) => setSelectedEvent(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 hover:border-slate-300"
-                  >
-                    <option value="">-- Select an event --</option>
-                    {events.map((event) => (
-                      <option key={event.id} value={event.id}>
-                        {event.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                    <SelectTrigger className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 hover:border-slate-300">
+                      <SelectValue placeholder="-- Select an event --" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border border-slate-200 bg-white shadow-lg">
+                      {events.map((event) => (
+                        <SelectItem key={event.id} value={event.id} className="cursor-pointer">
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-slate-500">
                     {selectedEventName ? `Files will be uploaded to ${selectedEventName}.` : "Pick the event that matches the photos you are uploading."}
                   </p>
