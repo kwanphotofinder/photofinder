@@ -93,10 +93,62 @@ export async function POST(req: NextRequest) {
       }
 
       // 6. Complete Photo processing status
-      await prisma.photo.update({
+      const completedPhoto = await prisma.photo.update({
         where: { id: photo.id },
         data: { processingStatus: 'COMPLETED' },
+        include: { event: true },
       });
+
+      // 7. Match faces against all registered UserFace embeddings
+      //    and send LINE notifications to matched users
+      try {
+        const SIMILARITY_THRESHOLD = 0.55; // Cosine distance threshold (lower = more similar)
+
+        // For each detected face, find matching UserFace in DB using pgvector
+        for (const face of faces) {
+          const vectorString = `[${face.embedding.join(',')}]`;
+
+          // Query: find all UserFaces within similarity threshold
+          const matches = await prisma.$queryRawUnsafe<Array<{
+            userId: string;
+            distance: number;
+          }>>(`
+            SELECT uf."userId", (uf."embedding" <=> $1::vector) AS distance
+            FROM "user_faces" uf
+            WHERE uf."embedding" IS NOT NULL
+              AND (uf."embedding" <=> $1::vector) < $2
+            ORDER BY distance ASC
+          `, vectorString, SIMILARITY_THRESHOLD);
+
+          // For each matched user, send LINE notification if they have linked LINE
+          for (const match of matches) {
+            const matchedUser = await prisma.user.findUnique({
+              where: { id: match.userId },
+              select: { lineUserId: true },
+            });
+
+            if (matchedUser?.lineUserId) {
+              const confidence = 1 - match.distance; // Convert distance to confidence score
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+              const actionUrl = `${appUrl}/dashboard`;
+
+              const { pushPhotoMatchNotification } = await import('@/lib/line');
+              await pushPhotoMatchNotification(
+                matchedUser.lineUserId,
+                completedPhoto.event.name,
+                confidence,
+                completedPhoto.storageUrl,
+                actionUrl
+              );
+
+              console.log(`[LINE] Sent notification to user ${match.userId} (confidence: ${(confidence * 100).toFixed(1)}%)`);
+            }
+          }
+        }
+      } catch (notifyError) {
+        // Notification failure should NOT fail the upload response
+        console.error('[LINE] Notification error (non-critical):', notifyError);
+      }
 
       return NextResponse.json({
         photoId: photo.id,

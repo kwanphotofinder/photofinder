@@ -27,6 +27,7 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
   * **Save:** Add photos to a personal "Saved Photos" (Favorites) collection.
   * **Download:** Download the photo to their local device.
   * **Request Removal:** Submit a takedown request (Privacy/Delete) if they do not want a specific photo on the platform.
+* **Profile Management & Notifications:** Students can link their LINE account (via LINE Login) on the Profile page to receive personalized, real-time push notifications (via LINE Official Account Flex Messages) when the AI pipeline detects a match in newly uploaded photos.
 
 ### 3.2. Photographer Features
 * **Event Selection:** Choose which published or draft event to upload photos to.
@@ -55,7 +56,7 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
 * **Matching Logic:** Searches are performed at the database level using Cosine Similarity (`<=>` operator in pgvector) to calculate the mathematical distance between a search face and event faces.
 
 ## 5. Database Schema Overview
-* **User:** Stores Google auth details, role, and PDPA consent status.
+* **User:** Stores Google auth details, role, PDPA consent status, and an optional `lineUserId` for push notifications.
 * **UserFace:** Stores the student's reference selfie embedding for Auto-Match.
 * **Event:** Stores event metadata (Name, Date, Status: Draft/Published/Archived).
 * **Photo:** Represents an uploaded image, linked to an Event and a Uploader (Photographer). Includes storage URLs and processing status.

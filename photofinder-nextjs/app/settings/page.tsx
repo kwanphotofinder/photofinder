@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertCircle, CheckCircle2, Download, Loader2, Lock, Mail, Shield, Trash2, User, BadgeCheck, Sparkles } from "lucide-react"
+import { AlertCircle, CheckCircle2, Download, Loader2, Lock, Mail, Shield, Trash2, User, BadgeCheck, Sparkles, MessageSquare } from "lucide-react"
 import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
 import { apiClient } from "@/lib/api-client"
 
@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const [deletionStatus, setDeletionStatus] = useState<"idle" | "processing" | "completed" | "failed">("idle")
   const [deletionSummary, setDeletionSummary] = useState("")
   const [privacyActionError, setPrivacyActionError] = useState("")
+  const [lineLinked, setLineLinked] = useState<boolean | null>(null)
+  const [isUnlinkingLine, setIsUnlinkingLine] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user_data")
@@ -113,6 +115,44 @@ export default function SettingsPage() {
 
     loadConsent()
   }, [])
+
+  // Check LINE link status + handle success/error redirect params
+  useEffect(() => {
+    const authToken = localStorage.getItem("auth_token")
+    if (!authToken) return
+
+    fetch("/api/me/line", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((res) => res.json())
+      .then((data) => setLineLinked(!!data.linked))
+      .catch(() => setLineLinked(false))
+
+    // Check if redirected back from LINE with success/error
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("success") === "LINE_LINKED") {
+      setLineLinked(true)
+      window.history.replaceState({}, "", "/settings")
+    } else if (params.get("error")?.startsWith("LINE")) {
+      setLineLinked(false)
+      window.history.replaceState({}, "", "/settings")
+    }
+  }, [])
+
+  const handleUnlinkLine = async () => {
+    const authToken = localStorage.getItem("auth_token")
+    if (!authToken) return
+    setIsUnlinkingLine(true)
+    try {
+      await fetch("/api/me/line", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      setLineLinked(false)
+    } catch {
+      // silently fail
+    } finally {
+      setIsUnlinkingLine(false)
+    }
+  }
 
   const handleConsentChange = (key: keyof ConsentData) => {
     setConsent((prev) => ({
@@ -342,6 +382,64 @@ export default function SettingsPage() {
                     <p className="leading-relaxed">
                       This profile information is synced from your Google account. To update your name or photo, modify your Google account settings and sign out and back in to refresh it here.
                     </p>
+                  </div>
+
+                  <div className="mt-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00B900]/10 text-[#00B900]">
+                            <MessageSquare className="h-5 w-5 fill-current" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-slate-900">LINE Notifications</h3>
+                            <p className="text-sm text-slate-500">Receive real-time Flex Messages via LINE OA when we find new photos of you.</p>
+                          </div>
+                        </div>
+                        {/* Status badge */}
+                        {lineLinked === null ? (
+                          <div className="h-6 w-24 animate-pulse rounded-full bg-slate-200" />
+                        ) : lineLinked ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Connected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            Not linked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Action button */}
+                      {lineLinked === null ? (
+                        <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
+                      ) : lineLinked ? (
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm text-slate-600">Your LINE account is linked. You will receive notifications automatically.</span>
+                          <Button
+                            onClick={handleUnlinkLine}
+                            disabled={isUnlinkingLine}
+                            className="ml-auto border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs px-3 py-1 h-auto"
+                          >
+                            {isUnlinkingLine ? <Loader2 className="h-3 w-3 animate-spin" /> : "Unlink"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            const token = localStorage.getItem("auth_token") || "";
+                            if (!token) return alert('Please login again first');
+                            window.location.href = `/api/auth/line/login?token=${token}`;
+                          }}
+                          className="max-w-[200px] bg-[#00B900] text-white shadow-md hover:bg-[#009b00]"
+                        >
+                          Link LINE Account
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
