@@ -2,20 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-function getMinMatchConfidence(): number {
-  const rawValue = process.env.MIN_MATCH_CONFIDENCE;
-  if (!rawValue) return 0.05;
-
-  const parsed = Number.parseFloat(rawValue);
-  if (!Number.isFinite(parsed)) return 0.05;
-
-  // Clamp to a valid confidence range.
-  return Math.max(0, Math.min(1, parsed));
-}
-
 export async function GET(req: NextRequest) {
   try {
-    const minMatchConfidence = getMinMatchConfidence();
+    const MIN_MATCH_CONFIDENCE = 0.05; // Minimum confidence threshold for matches
+    
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -65,7 +55,7 @@ export async function GET(req: NextRequest) {
       new Map(rawResults.map(r => [r.id, r])).values()
     );
 
-    const filteredResults = uniqueResults.filter((result) => result.confidence >= minMatchConfidence);
+    const filteredResults = uniqueResults.filter((result) => result.confidence >= MIN_MATCH_CONFIDENCE);
     const finalResults = filteredResults.slice(0, 10); // Standard limit
 
     return NextResponse.json({
