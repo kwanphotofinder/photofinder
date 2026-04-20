@@ -417,7 +417,7 @@ export default function DashboardPage() {
                 </Card>
               ) : hasReferenceFace ? (
                 autoMatches.length > 0 ? (
-                  <PhotoGrid photos={autoMatches} showRank={true} compact={true} />
+                  <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={false} />
                 ) : (
                   <Card className="border-dashed border-border/70 bg-card/70">
                     <CardContent className="p-10 text-center">

@@ -24,6 +24,7 @@ interface PhotoGridProps {
   showRank?: boolean
   compact?: boolean
   showConfidence?: boolean
+  showShare?: boolean
 }
 
 function formatDayMonthYear(dateValue?: string) {
@@ -33,7 +34,7 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true }: PhotoGridProps) {
+export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true, showShare = true }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [openShareSheet, setOpenShareSheet] = useState(false)
@@ -179,14 +180,16 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 >
                   <Download className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="bg-white/90 hover:bg-white text-black shadow-lg"
-                  onClick={(e) => handleShare(photo, e)}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
+                {showShare && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-white/90 hover:bg-white text-black shadow-lg"
+                    onClick={(e) => handleShare(photo, e)}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                )}
                 {onRemove && (
                   <Button
                     size="sm"
@@ -246,13 +249,15 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 >
                   <Download className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => handleShare(photo, e)}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
+                {showShare && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => handleShare(photo, e)}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                )}
                 {onRemove && (
                   <Button
                     size="sm"
