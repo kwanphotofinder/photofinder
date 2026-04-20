@@ -412,6 +412,26 @@ export default function SettingsPage() {
                         )}
                       </div>
 
+                      <div className="rounded-xl border border-[#00B900]/20 bg-[#00B900]/5 p-4 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-900">Before linking, please add our LINE OA as a friend first.</p>
+                        <p className="mt-1 leading-relaxed">
+                          Add via link:
+                          <a
+                            href="https://lin.ee/6oiEili"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 font-semibold text-[#00B900] underline underline-offset-2 hover:text-[#009b00]"
+                          >
+                            https://lin.ee/6oiEili
+                          </a>
+                          <span className="mx-1">or search ID:</span>
+                          <span className="font-semibold text-slate-900">@042nimvi</span>
+                        </p>
+                        <p className="mt-2 text-xs text-slate-600">
+                          If you do not add the OA first, LINE account linking and notifications will not work.
+                        </p>
+                      </div>
+
                       {/* Action button */}
                       {lineLinked === null ? (
                         <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
