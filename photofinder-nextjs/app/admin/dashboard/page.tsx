@@ -262,6 +262,16 @@ export default function AdminDashboardPage() {
     return styles[status as keyof typeof styles] || styles.DRAFT
   }
 
+  const formatDayMonthYear = (dateValue: string | Date) => {
+    const date = new Date(dateValue)
+    if (Number.isNaN(date.getTime())) return "-"
+
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const year = String(date.getFullYear())
+    return `${day}/${month}/${year}`
+  }
+
   const activeEvents = events.filter((e) => e.status === "PUBLISHED").length
   const pendingRequests = removalRequests.length
   const totalUsers = allUsers.length
@@ -432,7 +442,7 @@ export default function AdminDashboardPage() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
                                 <p className="text-muted-foreground">Date</p>
-                                <p className="font-medium text-foreground">{new Date(event.date).toLocaleDateString()}</p>
+                                <p className="font-medium text-foreground">{formatDayMonthYear(event.date)}</p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground">Created</p>
