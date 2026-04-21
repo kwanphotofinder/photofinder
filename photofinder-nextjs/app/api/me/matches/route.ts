@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    const MIN_MATCH_CONFIDENCE = 0.05; // Minimum confidence threshold for matches
+    const MIN_MATCH_CONFIDENCE = 0.60; // 60% confidence required to protect privacy
     
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
     const vectorString = referenceFaceQuery[0].embedding_str;
 
     // 2. Search Postgres using pgvector's Cosine Distance (<=>)
+    //    Filter by confidence threshold directly in SQL to avoid over-fetching,
+    //    and only return photos from PUBLISHED events.
     const rawResults = await prisma.$queryRawUnsafe<Array<{
       id: string;
       confidence: number;
@@ -46,17 +48,16 @@ export async function GET(req: NextRequest) {
       FROM "faces" f
       JOIN "photos" p ON f."photoId" = p."id"
       JOIN "events" e ON p."eventId" = e."id"
+      WHERE (1 - (f.embedding <=> $1::vector)) >= $2
+        AND e."status" = 'PUBLISHED'
       ORDER BY f.embedding <=> $1::vector ASC
-      LIMIT 20
-    `, vectorString);
+      LIMIT 10
+    `, vectorString, MIN_MATCH_CONFIDENCE);
 
     // 3. Filter out duplicates by photo ID
-    const uniqueResults = Array.from(
+    const finalResults = Array.from(
       new Map(rawResults.map(r => [r.id, r])).values()
     );
-
-    const filteredResults = uniqueResults.filter((result) => result.confidence >= MIN_MATCH_CONFIDENCE);
-    const finalResults = filteredResults.slice(0, 10); // Standard limit
 
     return NextResponse.json({
       message: `Found ${finalResults.length} background matches!`,

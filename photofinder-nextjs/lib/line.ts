@@ -94,24 +94,7 @@ export async function pushPhotoMatchNotification(
           },
         ],
       },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        contents: [
-          {
-            type: 'button',
-            style: 'primary',
-            height: 'sm',
-            action: {
-              type: 'uri',
-              label: 'View Full Photo',
-              uri: actionUrl,
-            },
-          },
-        ],
-        flex: 0,
-      },
+
     },
   };
 
