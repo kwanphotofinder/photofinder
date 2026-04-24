@@ -41,6 +41,8 @@ export default function SettingsPage() {
   const [privacyActionError, setPrivacyActionError] = useState("")
   const [lineLinked, setLineLinked] = useState<boolean | null>(null)
   const [isUnlinkingLine, setIsUnlinkingLine] = useState(false)
+  const [emailEnabled, setEmailEnabled] = useState<boolean | null>(null)
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user_data")
@@ -137,6 +139,17 @@ export default function SettingsPage() {
     }
   }, [])
 
+  // Fetch email notification status
+  useEffect(() => {
+    const authToken = localStorage.getItem("auth_token")
+    if (!authToken) return
+
+    fetch("/api/me/email-notifications", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((res) => res.json())
+      .then((data) => setEmailEnabled(!!data.enabled))
+      .catch(() => setEmailEnabled(false))
+  }, [])
+
   const handleUnlinkLine = async () => {
     const authToken = localStorage.getItem("auth_token")
     if (!authToken) return
@@ -151,6 +164,28 @@ export default function SettingsPage() {
       // silently fail
     } finally {
       setIsUnlinkingLine(false)
+    }
+  }
+
+  const handleToggleEmail = async () => {
+    const authToken = localStorage.getItem("auth_token")
+    if (!authToken) return
+    setIsUpdatingEmail(true)
+    try {
+      const res = await fetch("/api/me/email-notifications", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ enabled: !emailEnabled })
+      })
+      const data = await res.json()
+      setEmailEnabled(!!data.enabled)
+    } catch {
+      // silently fail
+    } finally {
+      setIsUpdatingEmail(false)
     }
   }
 
@@ -461,6 +496,56 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Email Notifications Card */}
+                  <div className="mt-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+                            <Mail className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-slate-900">Email Notifications</h3>
+                            <p className="text-sm text-slate-500">Receive a summary email when we find photos of you at an event.</p>
+                          </div>
+                        </div>
+                        {/* Status badge */}
+                        {emailEnabled === null ? (
+                          <div className="h-6 w-24 animate-pulse rounded-full bg-slate-200" />
+                        ) : emailEnabled ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            Enabled
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            Disabled
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <Button
+                          onClick={handleToggleEmail}
+                          disabled={isUpdatingEmail || emailEnabled === null}
+                          className={`w-full sm:w-auto shadow-md ${emailEnabled
+                              ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                        >
+                          {isUpdatingEmail ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : emailEnabled ? (
+                            "Disable Email Notifications"
+                          ) : (
+                            "Enable Email Notifications"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -480,11 +565,10 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div
-                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${
-                          consent.globalFaceSearch 
-                          ? "bg-emerald-500 text-white shadow-emerald-200" 
-                          : "bg-slate-200 text-slate-600 shadow-slate-100"
-                        }`}
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${consent.globalFaceSearch
+                            ? "bg-emerald-500 text-white shadow-emerald-200"
+                            : "bg-slate-200 text-slate-600 shadow-slate-100"
+                          }`}
                       >
                         <div className={`h-2 w-2 rounded-full ${consent.globalFaceSearch ? "bg-white animate-pulse" : "bg-slate-400"}`} />
                         {consent.globalFaceSearch ? "Opted In" : "Opted Out"}
@@ -492,15 +576,13 @@ export default function SettingsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6 pt-6">
-                    <div className={`rounded-2xl border p-5 transition-all duration-500 ${
-                      consent.globalFaceSearch 
-                      ? "border-emerald-100 bg-emerald-50/30 text-emerald-900" 
-                      : "border-slate-100 bg-slate-50/50 text-slate-600"
-                    }`}>
+                    <div className={`rounded-2xl border p-5 transition-all duration-500 ${consent.globalFaceSearch
+                        ? "border-emerald-100 bg-emerald-50/30 text-emerald-900"
+                        : "border-slate-100 bg-slate-50/50 text-slate-600"
+                      }`}>
                       <div className="flex gap-4">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                          consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
-                        }`}>
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
+                          }`}>
                           {consent.globalFaceSearch ? <CheckCircle2 className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
                         </div>
                         <p className="text-sm leading-relaxed">
@@ -598,13 +680,12 @@ export default function SettingsPage() {
                       </div>
 
                       {deletionStatus !== "idle" && (
-                        <div className={`rounded-lg border p-3 text-sm ${
-                          deletionStatus === "completed"
+                        <div className={`rounded-lg border p-3 text-sm ${deletionStatus === "completed"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                             : deletionStatus === "processing"
                               ? "border-blue-200 bg-blue-50 text-blue-800"
                               : "border-red-200 bg-red-50 text-red-800"
-                        }`}>
+                          }`}>
                           <p className="font-semibold">
                             Deletion status: {deletionStatus === "processing" ? "Processing" : deletionStatus === "completed" ? "Completed" : "Failed"}
                           </p>

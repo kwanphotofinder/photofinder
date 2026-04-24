@@ -1,91 +1,93 @@
-const LINE_MESSAGING_API = 'https://api.line.me/v2/bot/message/push';
+const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
 export async function pushPhotoMatchNotification(
   lineUserId: string,
   eventName: string,
   confidence: number,
   photoUrl: string,
-  actionUrl: string
+  actionUrl: string,
 ) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  
+
   if (!token) {
-    console.warn('LINE_CHANNEL_ACCESS_TOKEN is missing. Skipping LINE notification.');
+    console.warn(
+      "LINE_CHANNEL_ACCESS_TOKEN is missing. Skipping LINE notification.",
+    );
     return;
   }
 
   const flexMessage = {
-    type: 'flex',
+    type: "flex",
     altText: `New photo found at ${eventName}`,
     contents: {
-      type: 'bubble',
+      type: "bubble",
       hero: {
-        type: 'image',
+        type: "image",
         url: photoUrl,
-        size: 'full',
-        aspectRatio: '20:13',
-        aspectMode: 'cover',
+        size: "full",
+        aspectRatio: "20:13",
+        aspectMode: "cover",
         action: {
-          type: 'uri',
+          type: "uri",
           uri: actionUrl,
         },
       },
       body: {
-        type: 'box',
-        layout: 'vertical',
+        type: "box",
+        layout: "vertical",
         contents: [
           {
-            type: 'text',
-            text: 'New Photo Found!',
-            weight: 'bold',
-            size: 'xl',
+            type: "text",
+            text: "New Photo Found!",
+            weight: "bold",
+            size: "xl",
           },
           {
-            type: 'box',
-            layout: 'vertical',
-            margin: 'lg',
-            spacing: 'sm',
+            type: "box",
+            layout: "vertical",
+            margin: "lg",
+            spacing: "sm",
             contents: [
               {
-                type: 'box',
-                layout: 'baseline',
-                spacing: 'sm',
+                type: "box",
+                layout: "baseline",
+                spacing: "sm",
                 contents: [
                   {
-                    type: 'text',
-                    text: 'Event',
-                    color: '#aaaaaa',
-                    size: 'sm',
+                    type: "text",
+                    text: "Event",
+                    color: "#aaaaaa",
+                    size: "sm",
                     flex: 2,
                   },
                   {
-                    type: 'text',
+                    type: "text",
                     text: eventName,
                     wrap: true,
-                    color: '#666666',
-                    size: 'sm',
+                    color: "#666666",
+                    size: "sm",
                     flex: 5,
                   },
                 ],
               },
               {
-                type: 'box',
-                layout: 'baseline',
-                spacing: 'sm',
+                type: "box",
+                layout: "baseline",
+                spacing: "sm",
                 contents: [
                   {
-                    type: 'text',
-                    text: 'AI Match',
-                    color: '#aaaaaa',
-                    size: 'sm',
+                    type: "text",
+                    text: "AI Match",
+                    color: "#aaaaaa",
+                    size: "sm",
                     flex: 2,
                   },
                   {
-                    type: 'text',
+                    type: "text",
                     text: `${(confidence * 100).toFixed(1)}%`,
                     wrap: true,
-                    color: '#666666',
-                    size: 'sm',
+                    color: "#666666",
+                    size: "sm",
                     flex: 5,
                   },
                 ],
@@ -94,15 +96,14 @@ export async function pushPhotoMatchNotification(
           },
         ],
       },
-
     },
   };
 
   try {
     const response = await fetch(LINE_MESSAGING_API, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
@@ -113,9 +114,136 @@ export async function pushPhotoMatchNotification(
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Failed to send LINE notification:', errorData);
+      console.error("Failed to send LINE notification:", errorData);
     }
   } catch (error) {
-    console.error('Error sending LINE notification:', error);
+    console.error("Error sending LINE notification:", error);
+  }
+}
+
+export async function pushBatchPhotoMatchNotification(
+  lineUserId: string,
+  eventName: string,
+  matchCount: number,
+  actionUrl: string,
+) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+
+  if (!token) {
+    console.warn(
+      "LINE_CHANNEL_ACCESS_TOKEN is missing. Skipping LINE notification.",
+    );
+    return;
+  }
+
+  const flexMessage = {
+    type: "flex",
+    altText: `${matchCount} photos found at ${eventName}`,
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "Photos Found!",
+            weight: "bold",
+            size: "xl",
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            margin: "lg",
+            spacing: "sm",
+            contents: [
+              {
+                type: "box",
+                layout: "baseline",
+                spacing: "sm",
+                contents: [
+                  {
+                    type: "text",
+                    text: "Event",
+                    color: "#aaaaaa",
+                    size: "sm",
+                    flex: 2,
+                  },
+                  {
+                    type: "text",
+                    text: eventName,
+                    wrap: true,
+                    color: "#666666",
+                    size: "sm",
+                    flex: 5,
+                  },
+                ],
+              },
+              {
+                type: "box",
+                layout: "baseline",
+                spacing: "sm",
+                contents: [
+                  {
+                    type: "text",
+                    text: "Matches",
+                    color: "#aaaaaa",
+                    size: "sm",
+                    flex: 2,
+                  },
+                  {
+                    type: "text",
+                    text: `${matchCount} photos`,
+                    wrap: true,
+                    color: "#666666",
+                    size: "sm",
+                    flex: 5,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "View Photos",
+              uri: actionUrl,
+            },
+          },
+        ],
+        flex: 0,
+      },
+    },
+  };
+
+  try {
+    const response = await fetch(LINE_MESSAGING_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        to: lineUserId,
+        messages: [flexMessage],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Failed to send LINE notification:", errorData);
+    }
+  } catch (error) {
+    console.error("Error sending LINE notification:", error);
   }
 }

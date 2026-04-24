@@ -57,9 +57,10 @@ model User {
   avatarUrl    String?
   role         Role     @default(STUDENT)
   isActive     Boolean  @default(true)
-  pdpaConsent  Boolean  @default(false)
-  lineUserId   String?  @unique
-  createdAt    DateTime @default(now())
+  pdpaConsent         Boolean  @default(false)
+  lineUserId          String?  @unique
+  emailNotifications  Boolean  @default(false)
+  createdAt           DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   deliveries      Delivery[]
@@ -116,13 +117,13 @@ model Photo {
 model Face {
   id         String @id @default(uuid())
   photoId    String
-  
-  // pgvector extension field. 
+
+  // pgvector extension field.
   // Make sure your AI model's output dimension matches this (e.g. 512, 768, 1536)
-  embedding  Unsupported("vector(512)")? 
-  
+  embedding  Unsupported("vector(512)")?
+
   confidence Float?  // Detection confidence
-  
+
   // Bounding box (optional)
   x          Float?
   y          Float?
@@ -137,13 +138,13 @@ model Face {
 model UserFace {
   id         String @id @default(uuid())
   userId     String @unique
-  
+
   // Store the Cloudinary URL of their reference selfie
   imageUrl   String?
 
   // pgvector extension field to store their reference face math
-  embedding  Unsupported("vector(512)")? 
-  
+  embedding  Unsupported("vector(512)")?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -208,4 +209,18 @@ model RemovalRequest {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("removal_requests")
+}
+
+model PhotoEngagement {
+  id          BigInt   @id @default(autoincrement())
+  photoId     String
+  eventId     String
+  uploaderId  String?
+  viewerId    String?
+  action      String   // "VIEW" | "DOWNLOAD" | "SHARE"
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([uploaderId, eventId, action], name: "idx_photo_engagements_uploader_event_action")
+  @@index([photoId], name: "idx_photo_engagements_photo")
+  @@map("photo_engagements")
 }

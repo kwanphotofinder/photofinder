@@ -79,6 +79,8 @@ export default function PhotographerPage() {
   })
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"analytics" | "upload" | "manage_uploads">("upload")
   const [trendDays, setTrendDays] = useState<7 | 14>(14)
+  const [isNotifying, setIsNotifying] = useState(false)
+  const [notifyStatus, setNotifyStatus] = useState<string | null>(null)
   
   useEffect(() => {
     // Silently wake up the AI service in the background
@@ -363,6 +365,32 @@ export default function PhotographerPage() {
     setTimeout(() => {
       clearAllFiles()
     }, 2000)
+  }
+
+  const handleNotifyMatches = async () => {
+    if (!selectedEvent) return
+    setIsNotifying(true)
+    setNotifyStatus(null)
+    try {
+      const authToken = localStorage.getItem('auth_token')
+      const response = await fetch(`/api/events/${selectedEvent}/notify`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setNotifyStatus(`Success: Notified ${data.notified} user(s).`)
+        setTimeout(() => setNotifyStatus(null), 5000)
+      } else {
+        setNotifyStatus(`Error: ${data.error || 'Failed to send notifications'}`)
+      }
+    } catch (err) {
+      setNotifyStatus("Error: Network failure")
+    } finally {
+      setIsNotifying(false)
+    }
   }
 
   const handleDeletePhoto = async (photoId: string) => {
@@ -1141,6 +1169,46 @@ export default function PhotographerPage() {
                     </>
                   )}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Batch Notification Action Card */}
+            <Card className="relative overflow-hidden border-none bg-gradient-to-br from-blue-600/90 to-indigo-700/90 text-white shadow-2xl shadow-blue-200/40 backdrop-blur-2xl xl:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.15),_transparent_40%)]" />
+              <CardContent className="relative flex flex-col gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-blue-200" />
+                    <p className="text-lg font-bold">Finish & Notify Users</p>
+                  </div>
+                  <p className="text-sm leading-relaxed text-blue-100 max-w-md">
+                    Done uploading? Click this to send out summarized notifications to all users who have matches in this event.
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <Button
+                    onClick={handleNotifyMatches}
+                    disabled={isNotifying || !selectedEvent || uploadedPhotos.length === 0}
+                    className="gap-3 rounded-full bg-white text-blue-700 px-8 py-4 text-base font-bold shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    {isNotifying ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Notifying Users...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-5 w-5" />
+                        Finish & Notify
+                      </>
+                    )}
+                  </Button>
+                  {notifyStatus && (
+                    <p className={`text-xs font-semibold px-3 py-1 rounded-full ${notifyStatus.startsWith('Error') ? 'bg-red-500/20 text-red-100' : 'bg-green-500/20 text-green-100'}`}>
+                      {notifyStatus}
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
             </>
