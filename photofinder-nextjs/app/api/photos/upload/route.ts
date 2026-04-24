@@ -4,6 +4,7 @@ import { extractFaces } from '@/lib/ai';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { optimizeForStorage } from '@/lib/image';
+import { getAppBaseUrl } from '@/lib/url';
 
 // Allow Vercel Hobby tier to wait up to 180 seconds for Hugging Face AI to wake up
 export const maxDuration = 180;
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
 
             if (matchedUser?.lineUserId) {
               const confidence = 1 - match.distance; // Convert distance to confidence score
-              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+              const appUrl = getAppBaseUrl();
               const actionUrl = `${appUrl}/dashboard`;
 
               const { pushPhotoMatchNotification } = await import('@/lib/line');
