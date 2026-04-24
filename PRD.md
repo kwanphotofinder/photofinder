@@ -21,7 +21,6 @@ The platform supports four distinct user roles, managed via Google OAuth (specif
 * **PDPA Consent:** Mandatory privacy consent flow upon first login before accessing the platform.
 * **Consent Intelligence:** When users withdraw consent, the system provides a soft warning explaining impact, offers one-click data export, and supports one-click full privacy delete with status feedback.
 * **Auto-Match (Reference Selfie):** Students can upload a default "reference face". The system automatically notifies them and displays matches from all past and future events without needing to search manually.
-* **Manual Face Search:** Students can upload a temporary selfie to perform a one-time search against specific events or the entire database.
 * **Photo Actions:** 
   * **View:** View high-resolution photos with match confidence percentages (e.g., 95% Match).
   * **Save:** Add photos to a personal "Saved Photos" (Favorites) collection.
