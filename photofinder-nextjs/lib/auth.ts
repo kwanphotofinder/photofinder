@@ -6,6 +6,7 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  pdpaConsent: boolean;
 }
 
 export async function getUserFromRequest(req: NextRequest) {
@@ -38,7 +39,8 @@ export async function getUserFromRequest(req: NextRequest) {
     return {
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      pdpaConsent: user.pdpaConsent
     } as JwtPayload;
   } catch (error) {
     return null;

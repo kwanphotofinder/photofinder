@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
 
     // 1. Check if they have a reference face
     // we use a raw query because we need to fetch the vector, which Prisma doesn't map natively by default

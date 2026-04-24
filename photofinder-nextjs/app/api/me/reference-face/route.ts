@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
 
     const userFace = await prisma.userFace.findUnique({
       where: { userId: user.sub },
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
 
     if (!process.env.CLOUDINARY_URL) {
       return NextResponse.json({ error: 'CLOUDINARY_URL is not configured' }, { status: 500 });
@@ -52,8 +54,9 @@ export async function POST(req: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
-    if (file.size > 15 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large (max 15MB)' }, { status: 413 });
+    // Limit selfies to 5MB to protect Cloudinary free tier (previously 15MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 413 });
     }
 
     // 1. Read old reference face (we only delete old assets after new one is saved)
@@ -122,6 +125,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
 
     const existingFace = await prisma.userFace.findUnique({ where: { userId: user.sub } });
     if (existingFace) {
