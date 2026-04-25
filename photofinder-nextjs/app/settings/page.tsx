@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AlertCircle, CheckCircle2, Download, Loader2, Lock, Mail, Shield, Trash2, User, BadgeCheck, Sparkles, MessageSquare } from "lucide-react"
+import { FaLine } from "react-icons/fa"
+import { SiGmail } from "react-icons/si"
 import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
 import { apiClient } from "@/lib/api-client"
 
@@ -424,7 +426,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00B900]/10 text-[#00B900]">
-                            <MessageSquare className="h-5 w-5 fill-current" />
+                            <FaLine className="h-6 w-6 fill-current" />
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-slate-900">LINE Notifications</h3>
@@ -503,7 +505,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
-                            <Mail className="h-5 w-5" />
+                            <SiGmail className="h-5 w-5" />
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-slate-900">Email Notifications</h3>
