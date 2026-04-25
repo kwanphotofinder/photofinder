@@ -347,8 +347,12 @@ export default function DashboardPage() {
                     className={`h-12 rounded-2xl border-2 px-7 text-sm font-bold backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-primary sm:h-14 sm:text-base sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50" : "hover:scale-[1.02] active:scale-95"}`}
                     disabled={isUploading || isDeletingReference}
                   >
-                    <UploadCloud className="mr-2.5 h-5 w-5" />
-                    {hasReferenceFace ? "Update Profile" : "Upload Selfie"}
+                    {isUploading ? (
+                      <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="mr-2.5 h-5 w-5" />
+                    )}
+                    {isUploading ? "Uploading..." : hasReferenceFace ? "Update Profile" : "Upload Selfie"}
                   </Button>
                 </div>
               </div>
