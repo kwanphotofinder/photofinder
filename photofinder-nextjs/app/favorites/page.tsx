@@ -86,34 +86,6 @@ export default function FavoritesPage() {
     checkAuthAndLoad()
   }, [router])
 
-  const handleRemoveFromFavorites = async (photoId: string) => {
-    // Optimistic UI update
-    const previousPhotos = [...savedPhotos]
-    setSavedPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-
-    try {
-      const userId = localStorage.getItem("user_id")
-      if (!userId) return
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-      const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photoId}`, {
-        method: "DELETE",
-        headers: {
-          "user-id": userId,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete favorite")
-      }
-    } catch (err) {
-      console.error("Error removing favorite:", err)
-      alert("Unable to remove this photo from Favorites right now.")
-      // Revert the optimistic update if API fails
-      setSavedPhotos(previousPhotos)
-    }
-  }
-
   // Prevent UI flash while checking auth
   if (isAuthChecking) {
     return (
@@ -186,7 +158,7 @@ export default function FavoritesPage() {
                   </CardContent>
                 </Card>
               ) : savedPhotos.length > 0 ? (
-                <PhotoGrid photos={savedPhotos} onRemove={handleRemoveFromFavorites} showConfidence={false} />
+                <PhotoGrid photos={savedPhotos} compact={true} showConfidence={false} showShare={false} />
               ) : (
                 <Card className="border-dashed border-border/70 bg-card/70">
                   <CardContent className="p-10 text-center">
