@@ -567,7 +567,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div
-                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 ${consent.globalFaceSearch
+                        className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 w-full sm:w-auto ${consent.globalFaceSearch
                             ? "bg-emerald-500 text-white shadow-emerald-200"
                             : "bg-slate-200 text-slate-600 shadow-slate-100"
                           }`}
