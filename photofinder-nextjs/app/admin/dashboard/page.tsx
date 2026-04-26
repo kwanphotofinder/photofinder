@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 
@@ -23,10 +23,9 @@ export default function AdminDashboardPage() {
   const [eventSearch, setEventSearch] = useState("")
   const [photoSearch, setPhotoSearch] = useState("")
   const [lowConfidencePhotos, setLowConfidencePhotos] = useState<any[]>([])
-  const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.55)
+  const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.65)
   const [lowConfidenceSearch, setLowConfidenceSearch] = useState("")
   const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
-  const [dismissedLowConfidenceIds, setDismissedLowConfidenceIds] = useState<string[]>([])
   const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
   const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
 
@@ -65,7 +64,6 @@ export default function AdminDashboardPage() {
   const filteredLowConfidencePhotos = useMemo(() => {
     const q = lowConfidenceSearch.trim().toLowerCase()
     return lowConfidencePhotos.filter((photo) => {
-      if (dismissedLowConfidenceIds.includes(photo.id)) return false
       if (!q) return true
 
       return (
@@ -73,11 +71,11 @@ export default function AdminDashboardPage() {
         (photo.storageUrl || "").toLowerCase().includes(q)
       )
     })
-  }, [dismissedLowConfidenceIds, lowConfidencePhotos, lowConfidenceSearch])
+  }, [lowConfidencePhotos, lowConfidenceSearch])
 
   const unresolvedLowConfidenceCount = useMemo(() => {
-    return lowConfidencePhotos.filter((photo) => !dismissedLowConfidenceIds.includes(photo.id)).length
-  }, [dismissedLowConfidenceIds, lowConfidencePhotos])
+    return lowConfidencePhotos.length
+  }, [lowConfidencePhotos])
 
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
@@ -145,7 +143,6 @@ export default function AdminDashboardPage() {
       await apiClient.deletePhoto(photoId)
       setPhotos(photos.filter(p => p.id !== photoId))
       setLowConfidencePhotos(lowConfidencePhotos.filter((p) => p.id !== photoId))
-      setDismissedLowConfidenceIds((prev) => prev.filter((id) => id !== photoId))
     } catch (error) {
       console.error("Failed to delete photo", error)
       alert("Failed to delete photo")
@@ -171,8 +168,21 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const dismissLowConfidenceItem = (photoId: string) => {
-    setDismissedLowConfidenceIds((prev) => [...prev, photoId])
+  const dismissLowConfidenceItem = async (photoId: string) => {
+    try {
+      setLowConfidenceLoading(true)
+      const res = await apiClient.dismissLowConfidencePhoto(photoId)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      setLowConfidencePhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    } catch (error) {
+      console.error("Failed to dismiss low-confidence photo", error)
+      alert("Failed to dismiss this item")
+    } finally {
+      setLowConfidenceLoading(false)
+    }
   }
 
   const openLowConfidenceModal = (photo: any) => {
@@ -185,9 +195,9 @@ export default function AdminDashboardPage() {
     setSelectedLowConfidencePhoto(null)
   }
 
-  const handleKeepFromModal = () => {
+  const handleDismissFromModal = async () => {
     if (!selectedLowConfidencePhoto) return
-    dismissLowConfidenceItem(selectedLowConfidencePhoto.id)
+    await dismissLowConfidenceItem(selectedLowConfidencePhoto.id)
     closeLowConfidenceModal()
   }
 
@@ -551,15 +561,20 @@ export default function AdminDashboardPage() {
                         onChange={(e) => setLowConfidenceSearch(e.target.value)}
                         className="w-full sm:w-64 border-border/70 bg-background/80"
                       />
-                      <select
-                        value={String(lowConfidenceThreshold)}
-                        onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
-                        className="h-10 rounded-md border border-border/70 bg-background/80 px-3 text-sm"
-                      >
-                        <option value="0.45">Threshold: 0.45</option>
-                        <option value="0.55">Threshold: 0.55</option>
-                        <option value="0.65">Threshold: 0.65</option>
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={String(lowConfidenceThreshold)}
+                          onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
+                          className="h-10 appearance-none rounded-md border border-border/70 bg-background/80 pl-3 pr-9 text-sm"
+                        >
+                          <option value="0.65">Threshold: 0.65</option>
+                          <option value="0.55">Threshold: 0.55</option>
+                          <option value="0.45">Threshold: 0.45</option>
+                        </select>
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
+                          <ChevronDown className="h-4 w-4" />
+                        </span>
+                      </div>
                       <Button variant="outline" onClick={refreshLowConfidenceQueue} disabled={lowConfidenceLoading}>
                         {lowConfidenceLoading ? "Refreshing..." : "Refresh"}
                       </Button>
@@ -667,8 +682,8 @@ export default function AdminDashboardPage() {
                       Preview
                     </Button>
                     <div className="flex gap-2">
-                      <Button variant="ghost" onClick={handleKeepFromModal}>
-                        Keep
+                      <Button variant="ghost" onClick={handleDismissFromModal} disabled={lowConfidenceLoading}>
+                        {lowConfidenceLoading ? "Dismissing..." : "Dismiss"}
                       </Button>
                       <Button variant="destructive" onClick={handleDeleteFromModal}>
                         Delete

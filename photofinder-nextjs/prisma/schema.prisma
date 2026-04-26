@@ -101,6 +101,8 @@ model Photo {
   mimeType         String?
   width            Int?
   height           Int?
+  lowConfidenceDismissedAt DateTime?
+  lowConfidenceDismissedBy String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -110,6 +112,8 @@ model Photo {
   abuseReports AbuseReport[]
   savedBy      SavedPhoto[]
   removalRequests RemovalRequest[]
+
+  @@index([lowConfidenceDismissedAt], name: "photos_lowConfidenceDismissedAt_idx")
 
   @@map("photos")
 }

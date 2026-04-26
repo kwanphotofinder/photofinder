@@ -197,6 +197,11 @@ export const apiClient = {
     apiCall<any>(`/admin/admins/${userId}`, {
       method: "DELETE",
     }),
-  getLowConfidencePhotos: (threshold = 0.55) =>
+  getLowConfidencePhotos: (threshold = 0.65) =>
     apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`),
+  dismissLowConfidencePhoto: (photoId: string) =>
+    apiCall<any>("/admin/low-confidence", {
+      method: "PATCH",
+      body: JSON.stringify({ photoId }),
+    }),
 };
