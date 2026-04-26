@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge"
 export default function PrivacyPolicyPage() {
   const router = useRouter()
   const [backUrl, setBackUrl] = useState("/")
-  const [backText, setBackText] = useState("Back to Home")
 
   useEffect(() => {
     // Check if the user is already logged in
@@ -20,14 +19,11 @@ export default function PrivacyPolicyPage() {
 
     if (adminToken) {
       setBackUrl("/admin/dashboard")
-      setBackText("Back to Dashboard")
     } else if (authToken) {
       if (userRole === "photographer") {
         setBackUrl("/photographer")
-        setBackText("Back to Upload Photos")
       } else {
         setBackUrl("/dashboard")
-        setBackText("Back to Dashboard")
       }
     }
   }, [])
@@ -41,9 +37,10 @@ export default function PrivacyPolicyPage() {
           </Link>
           <button 
             onClick={() => router.push(backUrl)} 
-            className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 sm:text-sm"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+            aria-label="Go back"
           >
-            <ArrowLeft className="w-4 h-4" /> {backText}
+            <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
       </nav>
