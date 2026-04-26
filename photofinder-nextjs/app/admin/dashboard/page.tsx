@@ -177,6 +177,15 @@ export default function AdminDashboardPage() {
       }
 
       setLowConfidencePhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+
+      // Refresh approved/visible photos so newly approved items appear in All Photos immediately.
+      const photosRes = await apiClient.getAllPhotos()
+      if (photosRes.error) {
+        throw new Error(photosRes.error)
+      }
+      if (photosRes.data && Array.isArray(photosRes.data)) {
+        setPhotos(photosRes.data)
+      }
     } catch (error) {
       console.error("Failed to dismiss low-confidence photo", error)
       alert("Failed to dismiss this item")
@@ -682,8 +691,13 @@ export default function AdminDashboardPage() {
                       Preview
                     </Button>
                     <div className="flex gap-2">
-                      <Button variant="ghost" onClick={handleDismissFromModal} disabled={lowConfidenceLoading}>
-                        {lowConfidenceLoading ? "Dismissing..." : "Dismiss"}
+                      <Button
+                        variant="default"
+                        onClick={handleDismissFromModal}
+                        disabled={lowConfidenceLoading}
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        {lowConfidenceLoading ? "Approving..." : "Approve"}
                       </Button>
                       <Button variant="destructive" onClick={handleDeleteFromModal}>
                         Delete

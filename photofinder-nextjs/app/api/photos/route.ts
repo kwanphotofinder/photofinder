@@ -9,7 +9,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const LOW_CONFIDENCE_THRESHOLD = 0.65;
+
     const photos = await prisma.photo.findMany({
+      where: {
+        OR: [
+          {
+            lowConfidenceDismissedAt: {
+              not: null,
+            },
+          },
+          {
+            faces: {
+              none: {
+                confidence: {
+                  lt: LOW_CONFIDENCE_THRESHOLD,
+                },
+              },
+            },
+          },
+        ],
+      },
       include: { event: true },
       orderBy: { createdAt: 'desc' }
     });
