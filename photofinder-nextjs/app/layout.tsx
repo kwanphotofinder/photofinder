@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
+import { ChatWrapper } from "@/components/chat-wrapper";
 import "./globals.css";
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className={`${_notoSansThai.variable} font-sans antialiased`}>
         <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
         {children}
+        <ChatWrapper />
         <Analytics />
       </body>
     </html>
