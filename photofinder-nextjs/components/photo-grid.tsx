@@ -216,11 +216,11 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
 
             {/* Action Buttons - Always visible below the image */}
             <div className="p-3 pt-0 2xl:hidden">
-              <div className="flex gap-2">
+              <div className="flex gap-2 overflow-x-auto pb-1">
                 <Button
                   size="sm"
                   variant="outline"
-                  className={`flex-1 ${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary' : ''}`}
+                  className={`shrink-0 ${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSavePhoto(photo.id, e)
@@ -232,7 +232,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1"
+                  className="shrink-0"
                   onClick={(e) => {
                     e.stopPropagation()
                     setSelectedPhoto(photo)
@@ -245,6 +245,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 <Button
                   size="sm"
                   variant="outline"
+                  className="shrink-0"
                   onClick={(e) => handleDownload(photo, e)}
                 >
                   <Download className="w-4 h-4" />
@@ -253,6 +254,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                   <Button
                     size="sm"
                     variant="outline"
+                    className="shrink-0"
                     onClick={(e) => handleShare(photo, e)}
                   >
                     <Share2 className="w-4 h-4" />
@@ -262,6 +264,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                   <Button
                     size="sm"
                     variant="destructive"
+                    className="shrink-0"
                     onClick={(e) => {
                       e.stopPropagation()
                       if (confirm("Remove this photo from My Photos?")) {
