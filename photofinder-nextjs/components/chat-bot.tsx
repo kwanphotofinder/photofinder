@@ -2,16 +2,33 @@
 
 import { useChat } from '@ai-sdk/react';
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle, Sparkles, Ghost } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle, Sparkles, Ghost, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [isTrollMode, setIsTrollMode] = useState(false);
+  const [showTrollInfo, setShowTrollInfo] = useState(false);
 
   const [inputValue, setInputValue] = useState('');
+
+  // Handle clicking outside the info bubble to dismiss it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (infoRef.current && !infoRef.current.contains(event.target as Node)) {
+        setShowTrollInfo(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   const chatState = useChat({
     api: '/api/chat',
@@ -57,35 +74,72 @@ export function ChatBot() {
         <div className="mb-4 w-[350px] sm:w-[400px] h-[500px] max-h-[80vh] bg-white/80 backdrop-blur-xl border border-white/60 shadow-2xl rounded-2xl overflow-hidden flex flex-col transition-all duration-300 ease-in-out origin-bottom-right">
           {/* Header */}
           <div className="bg-primary/5 border-b border-primary/10 p-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <div className="bg-primary/20 p-2 rounded-full text-primary">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="bg-primary/20 p-2 rounded-full text-primary shrink-0">
                 {isTrollMode ? <Ghost className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-800">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-slate-800 whitespace-nowrap truncate">
                   {isTrollMode ? "Meanie Assistant" : "PhotoFinder Assistant"}
                 </h3>
-                <p className="text-xs text-slate-500">
-                  {isTrollMode ? "Prepare to be roasted..." : "Ask me anything about the app!"}
+                <p className="text-xs text-slate-500 whitespace-nowrap truncate">
+                  {isTrollMode ? "Prepare to be roasted..." : "Ask anything about the app"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsTrollMode(!isTrollMode)}
-                className={cn(
-                  "p-1.5 rounded-lg transition-all flex items-center gap-1.5",
-                  isTrollMode
-                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                    : "hover:bg-slate-100 text-slate-400 hover:text-slate-600"
-                )}
-                title={isTrollMode ? "Switch to Helpful Mode" : "Switch to Troll Mode"}
-              >
-                {isTrollMode ? <Ghost className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                <span className="text-[10px] font-bold uppercase tracking-tight">
-                  {isTrollMode ? "Troll" : "Normal"}
-                </span>
-              </button>
+              {/* Animated Icon Switch */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsTrollMode(!isTrollMode)}
+                  className={cn(
+                    "relative w-20 h-8 rounded-full transition-all duration-300 flex items-center p-1",
+                    isTrollMode ? "bg-amber-200 shadow-inner" : "bg-slate-200 shadow-inner"
+                  )}
+                  title={isTrollMode ? "Switch to Helpful Mode" : "Switch to Troll Mode"}
+                >
+                  <div 
+                    className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 transform shadow-md z-10",
+                      isTrollMode 
+                        ? "translate-x-12 bg-amber-600 text-white rotate-12" 
+                        : "translate-x-0 bg-slate-800 text-white rotate-0"
+                    )}
+                  >
+                    {isTrollMode ? <Ghost className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                  </div>
+                  
+                  {/* Symmetrical text labels */}
+                  <span className={cn(
+                    "absolute text-[10px] font-bold uppercase transition-all duration-300 tracking-wider",
+                    isTrollMode ? "left-3 opacity-100 text-amber-900" : "left-10 opacity-0"
+                  )}>
+                    Troll
+                  </span>
+                  <span className={cn(
+                    "absolute text-[10px] font-bold uppercase transition-all duration-300 tracking-wider",
+                    isTrollMode ? "right-10 opacity-0" : "right-3 opacity-100 text-slate-900"
+                  )}>
+                    Help
+                  </span>
+                </button>
+                <div className="relative flex items-center" ref={infoRef}>
+                  <button 
+                    onClick={() => setShowTrollInfo(!showTrollInfo)}
+                    onMouseEnter={() => setShowTrollInfo(true)}
+                    onMouseLeave={() => setShowTrollInfo(false)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors ml-1 p-2 rounded-full hover:bg-slate-50 active:bg-slate-100"
+                    aria-label="Troll mode info"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                  {showTrollInfo && (
+                    <div className="absolute top-full right-0 mt-1 w-32 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 pointer-events-none text-center">
+                      Troll mode works better in English
+                    </div>
+                  )}
+                </div>
+              </div>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100"
