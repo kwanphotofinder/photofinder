@@ -2,13 +2,14 @@
 
 import { useChat } from '@ai-sdk/react';
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle, Sparkles, Ghost } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [rateLimitHit, setRateLimitHit] = useState(false);
+  const [isTrollMode, setIsTrollMode] = useState(false);
 
   const [inputValue, setInputValue] = useState('');
 
@@ -22,8 +23,6 @@ export function ChatBot() {
     }
   });
 
-  console.log("useChat exports:", Object.keys(chatState));
-  
   const { messages, error, sendMessage, status } = chatState;
 
   // In the new SDK version, status replaces isLoading
@@ -40,11 +39,13 @@ export function ChatBot() {
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (rateLimitHit || !inputValue.trim() || isLoading) return;
-    
-    // Safely try to send the message using the new format
+
+    // Pass the current trollMode state to the backend
     sendMessage({
       role: 'user',
       content: inputValue,
+    }, {
+      body: { trollMode: isTrollMode }
     });
     setInputValue(''); // Clear input after sending
   };
@@ -58,19 +59,40 @@ export function ChatBot() {
           <div className="bg-primary/5 border-b border-primary/10 p-4 flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="bg-primary/20 p-2 rounded-full text-primary">
-                <Bot className="w-5 h-5" />
+                {isTrollMode ? <Ghost className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">PhotoFinder Assistant</h3>
-                <p className="text-xs text-slate-500">Ask me anything about the app!</p>
+                <h3 className="font-semibold text-slate-800">
+                  {isTrollMode ? "Meanie Assistant" : "PhotoFinder Assistant"}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {isTrollMode ? "Prepare to be roasted..." : "Ask me anything about the app!"}
+                </p>
               </div>
             </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsTrollMode(!isTrollMode)}
+                className={cn(
+                  "p-1.5 rounded-lg transition-all flex items-center gap-1.5",
+                  isTrollMode
+                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                    : "hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                )}
+                title={isTrollMode ? "Switch to Helpful Mode" : "Switch to Troll Mode"}
+              >
+                {isTrollMode ? <Ghost className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span className="text-[10px] font-bold uppercase tracking-tight">
+                  {isTrollMode ? "Troll" : "Normal"}
+                </span>
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages Area */}
@@ -81,10 +103,10 @@ export function ChatBot() {
                 <p className="text-sm">Hi! I can help you find your photos, explain privacy settings, or navigate the app.</p>
               </div>
             )}
-            
+
             {messages.map((m) => (
-              <div 
-                key={m.id} 
+              <div
+                key={m.id}
                 className={cn(
                   "flex gap-3 max-w-[85%]",
                   m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
@@ -98,8 +120,8 @@ export function ChatBot() {
                 </div>
                 <div className={cn(
                   "rounded-2xl px-4 py-2 text-sm",
-                  m.role === 'user' 
-                    ? "bg-slate-100 text-slate-800 rounded-tr-none" 
+                  m.role === 'user'
+                    ? "bg-slate-100 text-slate-800 rounded-tr-none"
                     : "bg-primary/10 text-slate-800 rounded-tl-none border border-primary/10"
                 )}>
                   {/* Render content: handle both traditional string content and V5+ parts array */}
@@ -130,26 +152,26 @@ export function ChatBot() {
 
             {/* Graceful Failure / Rate Limit Error State */}
             {rateLimitHit && (
-               <div className="flex gap-3 max-w-[90%] mr-auto">
-                 <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                   <AlertCircle className="w-4 h-4" />
-                 </div>
-                 <div className="bg-amber-50 text-amber-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm border border-amber-200">
-                   Oops! I've been helping so many students today that I need a short break. Please try asking your question again in about a minute!
-                 </div>
-               </div>
+              <div className="flex gap-3 max-w-[90%] mr-auto">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="bg-amber-50 text-amber-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm border border-amber-200">
+                  Oops! I've been helping so many students today that I need a short break. Please try asking your question again in about a minute!
+                </div>
+              </div>
             )}
 
             {/* General Error State */}
             {error && !rateLimitHit && (
-               <div className="flex gap-3 max-w-[90%] mr-auto">
-                 <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                   <AlertCircle className="w-4 h-4" />
-                 </div>
-                 <div className="bg-red-50 text-red-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm border border-red-200">
-                   Sorry, I'm having trouble connecting to my server right now. Please try again in a moment!
-                 </div>
-               </div>
+              <div className="flex gap-3 max-w-[90%] mr-auto">
+                <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="bg-red-50 text-red-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm border border-red-200">
+                  Sorry, I'm having trouble connecting to my server right now. Please try again in a moment!
+                </div>
+              </div>
             )}
 
             <div ref={messagesEndRef} />
@@ -168,13 +190,13 @@ export function ChatBot() {
                 placeholder={rateLimitHit ? "Taking a quick break..." : "Ask me anything..."}
                 disabled={isLoading || rateLimitHit}
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={!inputValue.trim() || isLoading || rateLimitHit}
                 className={cn(
                   "absolute right-1 top-1 bottom-1 w-10 flex items-center justify-center rounded-full text-white transition-all",
-                  (!inputValue.trim() || isLoading || rateLimitHit) 
-                    ? "bg-slate-300 cursor-not-allowed" 
+                  (!inputValue.trim() || isLoading || rateLimitHit)
+                    ? "bg-slate-300 cursor-not-allowed"
                     : "bg-primary hover:bg-primary/90"
                 )}
               >
