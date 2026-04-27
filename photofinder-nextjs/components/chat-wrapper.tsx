@@ -5,16 +5,23 @@ import { ChatBot } from './chat-bot';
 
 export function ChatWrapper() {
   const pathname = usePathname();
+  
+  // Check the user role from localStorage (only in the browser)
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('user_role') : null;
+  const isStudent = userRole === 'student';
 
   // Define which paths should display the chatbot
-  // We only show it on student-facing pages to save tokens and keep the UI clean
-  const isStudentPage = 
+  const isStudentPath = 
     pathname.startsWith('/dashboard') || 
     pathname.startsWith('/events') || 
     pathname.startsWith('/profile') ||
-    pathname.startsWith('/privacy'); // Included privacy as it's a student concern
+    pathname.startsWith('/favorites') ||
+    pathname.startsWith('/settings');
 
-  if (!isStudentPage) {
+  // Logic: Show on student-only paths OR show on privacy page only for students
+  const shouldShow = isStudentPath || (pathname.startsWith('/privacy') && isStudent);
+
+  if (!shouldShow) {
     return null;
   }
 

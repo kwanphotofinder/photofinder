@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
     <>
       <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-white/50 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link href={backUrl} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src="/Logo2.png" alt="Photo Finder" className="h-14 w-auto" />
           </Link>
           <button 

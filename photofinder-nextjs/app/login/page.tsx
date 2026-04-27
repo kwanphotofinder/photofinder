@@ -129,7 +129,7 @@ export default function LoginPage() {
         <CardHeader className="text-center space-y-2">
           <CardTitle className="text-3xl font-bold">Sign In</CardTitle>
           <CardDescription className="text-white/80">
-            Sign in with your Google account to continue
+            Sign in with your <strong>@lamduan.mfu.ac.th</strong> student email or an authorized account to continue
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -139,6 +139,12 @@ export default function LoginPage() {
               <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
+
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-[11px] leading-relaxed text-white/70">
+              This service is restricted to <span className="text-white font-semibold">MFU Student Gmails</span> and <span className="text-white font-semibold">Authorized Accounts</span>.
+            </p>
+          </div>
 
           <div className="flex justify-center py-4 min-h-[60px]">
             {isLoading ? (
