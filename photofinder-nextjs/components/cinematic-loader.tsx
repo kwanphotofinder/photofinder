@@ -64,37 +64,55 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className="fixed inset-0 z-[100] bg-[#e5e5e5] flex flex-col items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden"
+      style={{
+        backgroundImage: 'url(/background.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
-      {/* Background Ink Drops & Ripples */}
+      {/* App Theme Dark Overlay */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-none" />
+
+      {/* Background Water Surface Caustics */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(5)].map((_, i) => (
-          <motion.div
-            key={`ink-${i}`}
-            initial={{ scale: 0, opacity: 0, y: -200, x: (i - 2) * 400 }}
-            animate={{
-              scale: [0, 4, 5.5],
-              opacity: [0, 0.4, 0],
-              y: [-200, 300, 600],
-            }}
-            transition={{
-              duration: 12,
-              delay: i * 3,
-              repeat: Infinity,
-              ease: "easeOut"
-            }}
-            className="absolute left-1/2 top-0 w-[400px] h-[400px] bg-black/25 rounded-full blur-[60px] will-change-transform transform-gpu"
-            style={{ filter: 'url(#smokeFilter)' }}
-          />
-        ))}
+        {[...Array(6)].map((_, i) => {
+          const colors = [
+            'bg-cyan-300/20',
+            'bg-white/30',
+            'bg-sky-400/20',
+            'bg-teal-300/15',
+            'bg-white/15',
+            'bg-cyan-400/15'
+          ]
+          return (
+            <motion.div
+              key={`water-caustic-${i}`}
+              initial={{ scale: 0, opacity: 0, y: -150, x: (i - 2.5) * 350 }}
+              animate={{
+                scale: [0.5, 3.5, 6],
+                opacity: [0, 0.5, 0],
+                y: [-100, 300, 600],
+              }}
+              transition={{
+                duration: 14,
+                delay: i * 2,
+                repeat: Infinity,
+                ease: "easeOut"
+              }}
+              className={`absolute left-1/2 top-0 w-[500px] h-[500px] rounded-full blur-[70px] will-change-transform transform-gpu ${colors[i]}`}
+              style={{ filter: 'url(#smokeFilter)' }}
+            />
+          )
+        })}
       </div>
 
       {/* SVG Filter Definition (Safari Optimized) */}
       <svg className="hidden">
         <defs>
           <filter id="smokeFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="1" />
-            <feDisplacementMap in="SourceGraphic" scale="100" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="1" />
+            <feDisplacementMap in="SourceGraphic" scale="120" />
           </filter>
         </defs>
       </svg>
@@ -105,11 +123,11 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
         <motion.img
           src="/Logo.png"
           alt="Official Logo"
-          initial={{ opacity: 0, scale: 0.9, filter: "grayscale(1) brightness(0) blur(8px)" }}
+          initial={{ opacity: 0, scale: 0.9, filter: "grayscale(1) brightness(0) invert(1) blur(8px)" }}
           animate={{ 
             opacity: phase === "converging" ? 1 : 0,
             scale: phase === "converging" ? 1 : 0.9,
-            filter: phase === "converging" ? "grayscale(1) brightness(0) blur(0px)" : "grayscale(1) brightness(0) blur(8px)"
+            filter: phase === "converging" ? "grayscale(1) brightness(0) invert(1) blur(0px)" : "grayscale(1) brightness(0) invert(1) blur(8px)"
           }}
           transition={{ duration: 1.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="h-20 sm:h-28 md:h-36 lg:h-44 w-auto object-contain"
@@ -117,12 +135,12 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
 
         <div className="flex items-center">
           {letters.map((letter, i) => (
-            <div key={i} style={{ filter: 'drop-shadow(0 25px 25px rgba(0,0,0,0.1))' }} className="inline-block">
+            <div key={i} style={{ filter: 'drop-shadow(0 15px 15px rgba(0,0,0,0.3))' }} className="inline-block">
               <motion.span
                 custom={i}
                 variants={letterVariants}
                 animate={phase === "walking" ? "walking" : "converging"}
-                className="inline-block text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-outfit text-black tracking-normal"
+                className="inline-block text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-outfit text-white tracking-normal"
               >
                 {letter}
               </motion.span>
