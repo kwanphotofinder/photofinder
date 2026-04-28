@@ -24,8 +24,7 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
     // Phase transitions
     const convergeTimer = setTimeout(() => setPhase("converging"), 4500)
     const completeTimer = setTimeout(() => {
-      setPhase("complete")
-      setTimeout(onComplete, 1000)
+      onComplete()
     }, 7000)
 
     return () => {
@@ -108,9 +107,9 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
           alt="Official Logo"
           initial={{ opacity: 0, scale: 0.9, filter: "grayscale(1) brightness(0) blur(8px)" }}
           animate={{ 
-            opacity: phase === "converging" || phase === "complete" ? 1 : 0,
-            scale: phase === "converging" || phase === "complete" ? 1 : 0.9,
-            filter: phase === "converging" || phase === "complete" ? "grayscale(1) brightness(0) blur(0px)" : "grayscale(1) brightness(0) blur(8px)"
+            opacity: phase === "converging" ? 1 : 0,
+            scale: phase === "converging" ? 1 : 0.9,
+            filter: phase === "converging" ? "grayscale(1) brightness(0) blur(0px)" : "grayscale(1) brightness(0) blur(8px)"
           }}
           transition={{ duration: 1.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="h-20 sm:h-28 md:h-36 lg:h-44 w-auto object-contain"
@@ -118,18 +117,16 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
 
         <div className="flex items-center">
           {letters.map((letter, i) => (
-            <motion.span
-              key={i}
-              custom={i}
-              variants={letterVariants}
-              animate={phase === "walking" ? "walking" : "converging"}
-              className="inline-block text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-outfit text-black tracking-normal"
-              style={{
-                filter: 'drop-shadow(0 25px 25px rgba(0,0,0,0.1))'
-              }}
-            >
-              {letter}
-            </motion.span>
+            <div key={i} style={{ filter: 'drop-shadow(0 25px 25px rgba(0,0,0,0.1))' }} className="inline-block">
+              <motion.span
+                custom={i}
+                variants={letterVariants}
+                animate={phase === "walking" ? "walking" : "converging"}
+                className="inline-block text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-outfit text-black tracking-normal"
+              >
+                {letter}
+              </motion.span>
+            </div>
           ))}
         </div>
       </div>
