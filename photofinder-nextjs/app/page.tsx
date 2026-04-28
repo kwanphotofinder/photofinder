@@ -18,7 +18,7 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       {showLoader ? (
         <CinematicLoader key="loader" onComplete={() => setShowLoader(false)} />
       ) : (

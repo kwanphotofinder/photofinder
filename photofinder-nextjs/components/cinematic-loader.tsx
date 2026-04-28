@@ -56,6 +56,7 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
     <motion.div
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
       className="fixed inset-0 z-[100] bg-[#e5e5e5] flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Background Ink Drops & Ripples */}
