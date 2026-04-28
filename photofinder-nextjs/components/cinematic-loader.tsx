@@ -83,7 +83,7 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
               repeat: Infinity,
               ease: "easeOut"
             }}
-            className="absolute left-1/2 top-0 w-[500px] h-[500px] bg-black/25 rounded-full blur-[60px]"
+            className="absolute left-1/2 top-0 w-[400px] h-[400px] bg-black/25 rounded-full blur-[60px] will-change-transform transform-gpu"
             style={{ filter: 'url(#smokeFilter)' }}
           />
         ))}
