@@ -13,6 +13,14 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
   const letters = word.split("")
 
   useEffect(() => {
+    // Preload all assets to prevent any layout decoding flicker
+    const img = new Image()
+    img.src = '/background.jpg'
+    const logoImg = new Image()
+    logoImg.src = '/Logo2.png'
+    const introLogo = new Image()
+    introLogo.src = '/Logo.png'
+
     // Phase transitions
     const convergeTimer = setTimeout(() => setPhase("converging"), 4500)
     const completeTimer = setTimeout(() => {
