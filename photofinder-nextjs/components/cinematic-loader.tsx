@@ -9,8 +9,6 @@ interface CinematicLoaderProps {
 
 export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
   const [phase, setPhase] = useState<"walking" | "converging" | "complete">("walking")
-  const word = "PhotoFinder"
-  const letters = word.split("")
 
   useEffect(() => {
     // Preload all assets to prevent any layout decoding flicker
@@ -32,32 +30,6 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
       clearTimeout(completeTimer)
     }
   }, [onComplete])
-
-  // Silky Smooth variants
-  const letterVariants = {
-    walking: (i: number) => ({
-      scale: [0.8, 1.1, 1],
-      z: [i * -40, 0],
-      filter: ["blur(18px)", "blur(0px)"],
-      opacity: [0, 1],
-      y: [40, 0],
-      transition: {
-        duration: 2.4,
-        delay: i * 0.1,
-        ease: [0.22, 1, 0.36, 1]
-      }
-    }),
-    converging: {
-      scale: 1,
-      filter: "blur(0px)",
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 1.8,
-        ease: [0.22, 1, 0.36, 1]
-      }
-    }
-  }
 
   return (
     <motion.div
@@ -117,36 +89,72 @@ export function CinematicLoader({ onComplete }: CinematicLoaderProps) {
         </defs>
       </svg>
 
-      {/* The Letters & Logo Collaboration */}
-      <div className="relative flex items-center justify-center w-full px-8 gap-0">
-        {/* The Official Logo */}
+      {/* The Official Logo */}
+      <div className="relative flex items-center justify-center w-full px-8 h-[70vh]">
+        {/* White Silhouette Logo */}
         <motion.img
           src="/Logo.png"
           alt="Official Logo"
-          initial={{ opacity: 0, scale: 0.9, filter: "grayscale(1) brightness(0) invert(1) blur(8px)" }}
-          animate={{ 
-            opacity: phase === "converging" ? 1 : 0,
-            scale: phase === "converging" ? 1 : 0.9,
-            filter: phase === "converging" ? "grayscale(1) brightness(0) invert(1) blur(0px)" : "grayscale(1) brightness(0) invert(1) blur(8px)"
+          initial={{ 
+            opacity: 0, 
+            scale: 0.85, 
+            filter: "grayscale(1) brightness(0) invert(1) blur(20px)" 
           }}
-          transition={{ duration: 1.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="h-20 sm:h-28 md:h-36 lg:h-44 w-auto object-contain"
+          animate={{ 
+            opacity: [0, 1, 1, 0],
+            scale: 1.15,
+            filter: [
+              "grayscale(1) brightness(0) invert(1) blur(20px)",
+              "grayscale(1) brightness(0) invert(1) blur(0px)",
+              "grayscale(1) brightness(0) invert(1) blur(0px)",
+              "grayscale(1) brightness(0) invert(1) blur(0px)"
+            ]
+          }}
+          transition={{ 
+            opacity: {
+              duration: 7,
+              times: [0, 0.2, 0.6, 0.8],
+              ease: "easeInOut"
+            },
+            scale: {
+              duration: 7,
+              ease: "linear"
+            },
+            filter: {
+              duration: 7,
+              times: [0, 0.2, 0.6, 0.8],
+              ease: "easeInOut"
+            }
+          }}
+          className="absolute h-[70vh] w-auto max-w-[85vw] object-contain"
         />
 
-        <div className="flex items-center">
-          {letters.map((letter, i) => (
-            <div key={i} style={{ filter: 'drop-shadow(0 15px 15px rgba(0,0,0,0.3))' }} className="inline-block">
-              <motion.span
-                custom={i}
-                variants={letterVariants}
-                animate={phase === "walking" ? "walking" : "converging"}
-                className="inline-block text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-outfit text-white tracking-normal"
-              >
-                {letter}
-              </motion.span>
-            </div>
-          ))}
-        </div>
+        {/* Full Color Logo Overlay */}
+        <motion.img
+          src="/Logo.png"
+          alt="Official Logo"
+          initial={{ 
+            opacity: 0, 
+            scale: 0.85, 
+            filter: "brightness(1.5) contrast(1.2) drop-shadow(0 0 50px rgba(255,255,255,0.8))" 
+          }}
+          animate={{ 
+            opacity: [0, 0, 1, 1],
+            scale: 1.15,
+          }}
+          transition={{ 
+            opacity: {
+              duration: 7,
+              times: [0, 0.6, 0.8, 1],
+              ease: "easeInOut"
+            },
+            scale: {
+              duration: 7,
+              ease: "linear"
+            }
+          }}
+          className="absolute h-[70vh] w-auto max-w-[85vw] object-contain"
+        />
       </div>
 
       {/* Soft Top Lighting */}
