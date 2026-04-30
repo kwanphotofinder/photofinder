@@ -1,6 +1,6 @@
 # Infrastructure Limits, Usage, & Capacity Calculations
 
-This document provides a comprehensive analysis of the infrastructure limits for the PhotoFinder facial recognition application. It calculates the maximum capacity based on the free/hobby tiers of the primary services used: **Cloudinary** (Image Storage & CDN), **Vercel** (Next.js 16 Hosting & Serverless Functions), **Neon** (Serverless PostgreSQL with pgvector), and **Hugging Face Spaces** (AI Face Embedding Service via InsightFace/ONNX).
+This document summarizes the practical infrastructure limits for the PhotoFinder facial recognition application. It estimates capacity using the free or hobby tiers of the primary services: **Cloudinary** (Image Storage & CDN), **Vercel** (Next.js 16.2.4 Hosting & Serverless Functions), **Neon** (Serverless PostgreSQL with pgvector), and **Hugging Face Spaces** (AI Face Embedding Service via InsightFace/ONNX).
 
 > **Last Updated:** April 2026. Verify official pricing pages before making financial decisions.
 
@@ -8,27 +8,27 @@ This document provides a comprehensive analysis of the infrastructure limits for
 
 ## 1. Cloudinary (Image Storage & Delivery)
 
-Cloudinary operates on a **Credit** system. The **Free Tier** provides **25 Credits per month**.
+Cloudinary uses a **credit** system. The free tier provides **25 credits per month**.
 - **1 Credit** = 1,000 Transformations **OR** 1 GB Managed Storage **OR** 1 GB Net Viewing Bandwidth.
 
-Credits are shared across all three categories — you decide how to allocate them based on your usage pattern.
+Credits are shared across storage, bandwidth, and transformations, so the practical limit depends on how the app is used.
 
 ### 1.1 Storage Capacity
-Assuming we allocate **10 credits (~40%)** to storage:
+If we allocate **10 credits (~40%)** to storage:
 - **Available Storage:** 10 GB
 - **Average Photo Size (after optimization):** All uploads are resized to max 2048px and converted to WebP (quality 85) before upload. Average stored size is **~500 KB to 1 MB per photo**.
 - **Maximum Photos in Storage:** 10 GB / ~750 KB ≈ **13,000 to 15,000 photos stored at any one time.**
 
-> **Note:** The daily cron job (`/api/cron/cleanup`, scheduled at `15 17 * * *` UTC) deletes events that have passed their `expiresAt` date. This is the primary mechanism for recycling storage — set sensible expiration dates on events to keep storage under control.
+> **Note:** The daily cron job (`/api/cron/cleanup`, scheduled at `15 17 * * *` UTC) deletes events after their `expiresAt` date. This is the main way storage is recycled, so event expiration dates should stay conservative.
 
 ### 1.2 Viewing Bandwidth
-Assuming we allocate **10 credits (~40%)** to bandwidth:
+If we allocate **10 credits (~40%)** to bandwidth:
 - **Available Bandwidth:** 10 GB per month
 - **Average User Session:** Views ~50 thumbnails (50 × 50 KB = 2.5 MB) and downloads ~5 full-res photos (5 × 2 MB = 10 MB). Total bandwidth per session ≈ **12.5 MB**.
 - **Maximum User Sessions:** 10 GB / 12.5 MB ≈ **800 user viewing sessions per month.**
 
 ### 1.3 Transformations (Resizing/Cropping)
-Assuming we allocate **5 credits (~20%)** to transformations:
+If we allocate **5 credits (~20%)** to transformations:
 - **Available Transformations:** 5,000 per month
 - Every uploaded photo may use 1 transformation to generate a thumbnail via Cloudinary URL parameters.
 - **Maximum New Uploads (Transformation Limit):** **5,000 photos per month.**
@@ -49,9 +49,9 @@ This project runs on the **Vercel Hobby (Free) Tier** with **Fluid Compute** ena
 
 ### 2.1 Serverless Function Execution
 - **Maximum Duration (Hobby + Fluid Compute):** Up to **300 seconds** (5 minutes).
-- **Current App Configuration:** All heavy API routes (`/api/photos/upload`, `/api/search/face`, `/api/cron/cleanup`, `/api/me/reference-face`) are configured with `export const maxDuration = 60` (60 seconds).
-- **Upload Flow:** The upload is **synchronous** — a single request handles: Cloudinary upload → AI face extraction (Hugging Face) → pgvector embedding insertion → response. If the Hugging Face Space is cold, the 60-second timeout may be reached.
-- **Mitigation:** The AI service has a `/health` endpoint for wake-up pings. Consider increasing `maxDuration` to 120s or implementing a "warm up then upload" pattern on the frontend.
+- **Current App Configuration:** The app sets route-specific durations: `180s` for `/api/photos/upload` and `/api/me/reference-face`, `60s` for `/api/events/[id]/upload` and `/api/cron/cleanup`, and `10s` for `/api/ai-health`.
+- **Upload Flow:** The upload is **synchronous** — a single request handles: Cloudinary upload → AI face extraction (Hugging Face) → pgvector embedding insertion → response. The upload routes now have enough headroom for a cold AI wake-up, but the AI request itself still has its own 45-second timeout in the app.
+- **Mitigation:** The AI service health ping hits the Space root URL (`GET /`). If cold starts remain a problem, the next lever is reducing batch size or warming the Space before uploads.
 
 ### 2.2 Bandwidth & Edge Requests
 - **Bandwidth Limit:** 100 GB per month.
@@ -113,7 +113,7 @@ Assuming ~400 MB is reserved for Photos and Face Vectors (100 MB for Users, Even
   - **Prisma Configuration:** This project uses `@prisma/adapter-pg` with the pooled `DATABASE_URL` for runtime queries and `DIRECT_URL` for migrations — this is the correct Neon-optimized setup.
 
 ### 3.4 Production Setup (SQL Required)
-*Important:* Vercel's `prisma db push` won't automatically configure your vector indexes or extensions upon deployment. When setting up a new Neon Database or pushing to production for the first time, you **must run these SQL commands manually** in the Neon console's "SQL Editor":
+*Important:* Production deploys use `prisma migrate deploy`. If your Neon database is brand new, make sure the migration history is applied and verify the vector extension and index in the Neon console's "SQL Editor":
 
 ```sql
 -- 1. Enable the pgvector extension
@@ -127,7 +127,7 @@ CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding ve
 
 ## 4. AI Service: Hugging Face Spaces (Docker / FastAPI)
 
-The Python AI microservice (running `insightface` with `onnxruntime`) is deployed as a Docker Space on Hugging Face at `https://kwanphotofinder-photofinder-ai.hf.space`.
+The Python AI microservice, which runs `insightface` with `onnxruntime`, is deployed as a Docker Space on Hugging Face at `https://kwanphotofinder-photofinder-ai.hf.space`.
 
 ### 4.1 Hardware & Memory (Free Tier)
 | Spec | Value |
@@ -136,19 +136,19 @@ The Python AI microservice (running `insightface` with `onnxruntime`) is deploye
 | RAM | 16 GB |
 | Disk | Best-effort (public repos) |
 
-- **Model Load:** InsightFace models consume ~300–500 MB of RAM on startup. With 16 GB available, memory is **not a bottleneck**.
+- **Model Load:** InsightFace models consume about 300–500 MB of RAM on startup. With 16 GB available, memory is not a bottleneck.
 - **CPU Inference Speed:** Without a GPU, ONNX-optimized CPU inference on 2 vCPUs takes roughly **0.5 to 1.5 seconds per photo** (for face detection + 512-dim embedding extraction).
 - **Batch Processing:** Processing 500 photos sequentially ≈ **4 to 12.5 minutes**.
-- **Impact:** Since the upload flow is synchronous (each photo is uploaded one at a time via the frontend → `/api/photos/upload` → AI → DB), the AI throughput is ~1 photo per 1–2 seconds, which is acceptable for individual uploads but slow for bulk operations.
+- **Impact:** Since the upload flow is synchronous, each photo moves one at a time through the frontend, the API route, the AI service, and the database. The throughput is roughly 1 photo per 1–2 seconds, which is fine for individual uploads but slow for bulk operations.
 
 ### 4.2 Cold Starts & Sleep Cycles
-- **Sleep Policy:** Free Hugging Face Spaces automatically sleep after **48 hours of inactivity** (no incoming requests).
-- **Cold Start Time:** Waking a sleeping Docker Space takes **1 to 3 minutes** (container spin-up, dependency installation, model loading, FastAPI boot).
-- **Impact:** If a user uploads a photo to a dormant Space, the first request will either timeout (if Vercel's 60s `maxDuration` is exceeded) or experience a very long delay.
-- **Current Mitigation:** The upload route sets `maxDuration = 60` to accommodate cold starts, but 60 seconds may not be enough if the Space has been sleeping for extended periods.
+- **Sleep Policy:** Free Hugging Face Spaces sleep after **48 hours of inactivity**.
+- **Cold Start Time:** Waking a sleeping Docker Space takes about **1 to 3 minutes** for container spin-up, dependency installation, model loading, and FastAPI startup.
+- **Impact:** If a user uploads a photo to a dormant Space, the first request can still fail if the AI service stays asleep longer than the app's 45-second AI client timeout, even though the upload routes now allow 180 seconds.
+- **Current Mitigation:** The upload routes now allow 180 seconds, but the AI client still times out after 45 seconds inside the app. A warm-up ping or a paid Space is still the main reliability improvement if cold starts continue.
 - **Recommendations:**
-  1. Implement a frontend "warm up" ping (call `/health` on the Space) before the first upload.
-  2. Increase `maxDuration` to 120s for upload routes.
+  1. Implement a frontend "warm up" ping against the Space root URL (`GET /`) before the first upload.
+  2. Keep the current longer upload and reference-face route budgets in place.
   3. For production reliability, upgrade to paid hardware (starts at $0.03/hr) to eliminate the sleep cycle.
 
 ### 4.3 Network & Rate Limits

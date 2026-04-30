@@ -1,7 +1,7 @@
 # Deployment Guide - Photo Finder
 
 ## Overview
-This guide explains how to deploy the unified Next.js full-stack application. The new architecture is significantly simpler, deploying everything to **Vercel** while relying on external free-tier services for the database (Neon), image storage (Cloudinary), and AI processing (Hugging Face).
+This guide explains how to deploy the unified Next.js full-stack application. The current setup runs on **Vercel** and uses external free-tier services for the database (Neon), image storage (Cloudinary), and AI processing (Hugging Face).
 
 ## Prerequisites
 - GitHub account
@@ -20,7 +20,7 @@ This guide explains how to deploy the unified Next.js full-stack application. Th
 3. On the Dashboard, go to **Connection Details**.
 4. Set the dropdown to **Node.js** (or keep standard string). Ensure **Connection pooling** is turned ON.
 5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech/neondb?sslmode=require`)
-6. **Important:** When setting up a new Neon Database or pushing to production for the first time, you **must run these SQL commands manually** in the Neon console's "SQL Editor". `prisma db push` alone will not configure the pgvector dependencies correctly:
+6. **Important:** When setting up a new Neon database or pushing to production for the first time, apply your Prisma migrations first and then verify that the pgvector pieces exist. If the database is brand new, run these SQL commands in the Neon console's "SQL Editor":
 ```sql
 -- 1. Enable the pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -44,6 +44,7 @@ CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding ve
 3. Upload the contents of your Python AI microservice folder.
 4. Hugging Face will automatically build the Dockerfile and start the FastAPI server.
 5. **Save the Space URL** (e.g., `https://yourusername-photofinder-ai.hf.space`)
+   - The app pings the Space root URL (`GET /`) for wake-up checks and sends embeddings to `POST /extract`.
 
 ---
 
@@ -67,6 +68,7 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 | `JWT_SECRET` | `A long, random, secure string (e.g., generate one with openssl rand -base64 32)` |
 | `GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
 | `GOOGLE_CLIENT_SECRET` | `Your Google OAuth Secret` |
+| `CRON_SECRET` | `Shared secret used by /api/cron/cleanup and Vercel Cron` |
 | `DATABASE_URL` | `Your Neon Connection String (Pooler URL)` |
 | `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL, required by Prisma for migrations)` |
 | `CLOUDINARY_URL` | `Your Cloudinary URL` |
@@ -75,16 +77,16 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 ### 3. Deploy
 1. Click **Deploy**.
 2. Vercel will build the Next.js application.
-3. During the build step, Vercel will automatically run `prisma generate` to build the database client.
-4. *(Optional but Recommended):* If this is your first time deploying and your Neon DB is empty, you will need to push your database schema. You can add a `postinstall` script to your `package.json` (`"postinstall": "prisma generate && prisma db push"`) so Vercel does this automatically, or you can run `npx prisma db push` locally against your Neon connection string.
+3. During the build step, Vercel runs `prisma generate` and `prisma migrate deploy` before `next build`.
+4. If this is your first deployment and your Neon database is empty, make sure the migration history is committed and that the `vector` extension plus face index exist after migration.
 
 ---
 
 ## Part 3: Known Limits & Free Tier Behavior
 
 ### Cold Starts
-- **Hugging Face Spaces:** The free tier goes to sleep after 48 hours of inactivity. If a photographer tries to upload a photo after the space has slept, the first photo might take up to 2-3 minutes to process while the container wakes up. Subsequent photos will be fast.
-- **Vercel Serverless Functions:** Next.js API routes run on serverless functions. The very first request after a period of inactivity might take an extra 1-2 seconds (a "cold start").
+- **Hugging Face Spaces:** The free tier sleeps after 48 hours of inactivity. If a photographer uploads a photo after the Space has slept, the first request may take 2-3 minutes while the container wakes up. Subsequent requests are faster.
+- **Vercel Serverless Functions:** Next.js API routes run on serverless functions. The first request after inactivity may take an extra 1-2 seconds because of a cold start. The app allows longer durations for photo upload and reference-face routes, but the AI client still has its own shorter timeout.
 
 ### Storage
 - **Neon:** Free tier includes 500MB of storage. Vector embeddings (`pgvector`) can take up space, but 500MB is enough for hundreds of thousands of faces.
