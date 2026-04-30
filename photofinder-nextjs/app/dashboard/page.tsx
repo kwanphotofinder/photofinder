@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
 import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
+import { UploadLoader } from "@/components/upload-loader"
 
 interface Photo {
   id: string
@@ -370,11 +371,13 @@ export default function DashboardPage() {
                       {hasReferenceFace && referenceFaceUrl ? (
                         <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
                       ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-slate-50 text-slate-300">
-                          <div className="rounded-2xl bg-white p-4 shadow-sm">
-                            <Camera className="h-10 w-10 text-slate-200" />
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">No Image Set</span>
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-50/50 text-slate-400">
+                          <img 
+                            src="/Camera Icon.gif" 
+                            alt="No selfie" 
+                            className="h-44 w-44 object-contain opacity-40 transition-opacity duration-300 group-hover:opacity-60" 
+                          />
+                          <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400/80 relative -top-3">No Image Set</span>
                         </div>
                       )}
                     </div>
@@ -457,6 +460,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+      {/* Branded Loading Overlay */}
+      <UploadLoader 
+        isVisible={isUploading} 
+        message={hasReferenceFace ? "Updating your profile..." : "Ghostsmart is mapping your face..."} 
+      />
     </>
   )
 }
