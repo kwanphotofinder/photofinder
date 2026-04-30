@@ -156,8 +156,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                   className={`${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-white/90 hover:bg-white text-black'} shadow-lg`}
                   onClick={(e) => handleSavePhoto(photo.id, e)}
                 >
-                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
-                  {savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
+                  <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
                 </Button>
                 <Button
                   size="sm"
@@ -169,8 +168,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                     setShowDetail(true)
                   }}
                 >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View
+                  <Eye className="w-4 h-4" />
                 </Button>
                 <Button
                   size="sm"
@@ -226,8 +224,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                     handleSavePhoto(photo.id, e)
                   }}
                 >
-                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
-                  {savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
+                  <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
                 </Button>
                 <Button
                   size="sm"
@@ -239,8 +236,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                     setShowDetail(true)
                   }}
                 >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View
+                  <Eye className="w-4 h-4" />
                 </Button>
                 <Button
                   size="sm"

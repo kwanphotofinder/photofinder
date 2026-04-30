@@ -1,18 +1,25 @@
 "use client";
 
-import { useChat } from '@ai-sdk/react';
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle, Sparkles, Ghost, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+};
 
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [isTrollMode, setIsTrollMode] = useState(false);
   const [showTrollInfo, setShowTrollInfo] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
 
   // Handle clicking outside the info bubble to dismiss it
@@ -30,20 +37,13 @@ export function ChatBot() {
     };
   }, []);
 
-  const chatState = useChat({
-    api: '/api/chat',
-    onError: (err) => {
-      if (err.message.includes('429')) {
-        setRateLimitHit(true);
-        setTimeout(() => setRateLimitHit(false), 60000);
-      }
-    }
-  });
-
-  const { messages, error, sendMessage, status } = chatState;
-
-  // In the new SDK version, status replaces isLoading
-  const isLoading = status === 'submitted' || status === 'streaming';
+    const updateAssistantMessage = (messageId: string, content: string) => {
+      setMessages((currentMessages) =>
+        currentMessages.map((message) =>
+          message.id === messageId ? { ...message, content } : message
+        )
+      );
+    };
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -52,19 +52,59 @@ export function ChatBot() {
     }
   }, [messages, isLoading, rateLimitHit]);
 
-  // Handle form submission using the new sendMessage function
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (rateLimitHit || !inputValue.trim() || isLoading) return;
 
-    // Pass the current trollMode state to the backend
-    sendMessage({
-      role: 'user',
+    const userMessage = {
+      id: crypto.randomUUID(),
+      role: 'user' as const,
       content: inputValue,
-    }, {
-      body: { trollMode: isTrollMode }
-    });
-    setInputValue(''); // Clear input after sending
+    };
+    const assistantMessageId = crypto.randomUUID();
+
+    const nextMessages = [...messages, userMessage];
+    setMessages([...nextMessages, { id: assistantMessageId, role: 'assistant', content: '' }]);
+    setInputValue('');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: nextMessages,
+          trollMode: isTrollMode,
+        }),
+      });
+
+      if (response.status === 429) {
+        setRateLimitHit(true);
+        setTimeout(() => setRateLimitHit(false), 60000);
+        setMessages(nextMessages);
+        return;
+      }
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Unable to reach the chat service.');
+      }
+
+      const assistantContent = String(payload?.message || '').trim();
+      updateAssistantMessage(
+        assistantMessageId,
+        assistantContent || 'Sorry, I could not generate a response just now.'
+      );
+    } catch (submitError) {
+      setMessages(nextMessages);
+      setError(submitError instanceof Error ? submitError.message : 'Unable to send message.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -178,14 +218,7 @@ export function ChatBot() {
                     ? "bg-slate-100 text-slate-800 rounded-tr-none"
                     : "bg-primary/10 text-slate-800 rounded-tl-none border border-primary/10"
                 )}>
-                  {/* Render content: handle both traditional string content and V5+ parts array */}
-                  {m.parts && m.parts.length > 0 ? (
-                    m.parts.map((part, i) => (
-                      part.type === 'text' ? <span key={i}>{part.text}</span> : null
-                    ))
-                  ) : (
-                    m.content
-                  )}
+                  {m.content}
                 </div>
               </div>
             ))}

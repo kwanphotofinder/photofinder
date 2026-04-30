@@ -1,11 +1,6 @@
-import { createGroq } from '@ai-sdk/groq';
-import { streamText, convertToModelMessages } from 'ai';
 import { NextResponse } from 'next/server';
 
-// Create a native Groq provider instance
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export async function POST(req: Request) {
   try {
@@ -66,9 +61,14 @@ export async function POST(req: Request) {
 
     const systemPrompt = isTrollMode ? trollPrompt : normalPrompt;
 
-    // Stream the text response using the Groq Llama 3.3 model
-    // Manually map UI messages to Core messages to completely bypass SDK version mismatches
-    // We also filter out any empty messages, because Groq rejects empty strings
+    if (!process.env.GROQ_API_KEY) {
+      return new NextResponse(
+        JSON.stringify({ error: 'GROQ_API_KEY is not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Groq rejects empty messages, so keep the request payload compact.
     const coreMessages = messages
       .map((msg: any) => {
         let content = msg.content || '';
@@ -90,24 +90,46 @@ export async function POST(req: Request) {
 
     console.log("Mapped Core Messages:", JSON.stringify(coreMessages, null, 2));
 
-    const result = await streamText({
-      model: groq('llama-3.3-70b-versatile'),
-      messages: coreMessages,
-      system: systemPrompt,
+    const groqResponse = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt.trim() },
+          ...coreMessages,
+        ],
+        temperature: 0.7,
+        stream: false,
+      }),
     });
 
-    // In AI SDK v5+, toDataStreamResponse was renamed to toUIMessageStreamResponse
-    if (typeof (result as any).toUIMessageStreamResponse === 'function') {
-      return (result as any).toUIMessageStreamResponse();
-    } else if (typeof result.toDataStreamResponse === 'function') {
-      return result.toDataStreamResponse();
-    } else if (typeof (result as any).toAIStreamResponse === 'function') {
-      return (result as any).toAIStreamResponse();
-    } else {
-      // Fallback if neither exists
-      console.error("Available methods on result:", Object.keys(result));
-      throw new Error("No valid stream response method found.");
+    const data = await groqResponse.json().catch(() => null);
+
+    if (!groqResponse.ok) {
+      const errorMessage = data?.error?.message || data?.error || 'Internal Server Error';
+      if (groqResponse.status === 429 || String(errorMessage).includes('429')) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Rate limit exceeded' }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new NextResponse(
+        JSON.stringify({ error: errorMessage }),
+        { status: groqResponse.status || 500, headers: { 'Content-Type': 'application/json' } }
+      );
     }
+
+    const messageContent = data?.choices?.[0]?.message?.content ?? '';
+
+    return new NextResponse(
+      JSON.stringify({ message: messageContent }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (error: any) {
     console.error('Chat API Error:', error);
     
