@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { convertHeicToJpeg } from "@/lib/heic-converter"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -236,7 +237,8 @@ export default function PhotographerPage() {
     const oversized: string[] = [];
     
     for (const file of files) {
-      if (!file.type.startsWith("image/")) continue;
+      const isHeic = file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+      if (!file.type.startsWith("image/") && !isHeic) continue;
       
       if (file.size > MAX_FILE_SIZE) {
         oversized.push(file.name);
@@ -300,27 +302,31 @@ export default function PhotographerPage() {
     
     // Upload files sequentially to avoid overwhelming Vercel's concurrent functions limit (10 limit on Hobby)
     for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("eventId", selectedEvent)
-      // Attach the photographer's user ID so ownership is tracked
-      if (photographerUser?.id) {
-        formData.append("uploaderId", photographerUser.id)
-      }
-
+      const rawFile = selectedFiles[i];
+      
       try {
-        setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }))
-        setUploadErrors((prev) => { const next = {...prev}; delete next[file.name]; return next; })
+        setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 0 }))
+        setUploadErrors((prev) => { const next = {...prev}; delete next[rawFile.name]; return next; })
+
+        // Convert HEIC to JPEG if needed
+        const file = await convertHeicToJpeg(rawFile);
+
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("eventId", selectedEvent)
+        // Attach the photographer's user ID so ownership is tracked
+        if (photographerUser?.id) {
+          formData.append("uploaderId", photographerUser.id)
+        }
 
         const progressInterval = setInterval(() => {
           setUploadProgress((prev) => {
-            const current = prev[file.name] || 0
+            const current = prev[rawFile.name] || 0
             if (current >= 90) {
               clearInterval(progressInterval)
               return prev
             }
-            return { ...prev, [file.name]: current + 10 }
+            return { ...prev, [rawFile.name]: current + 10 }
           })
         }, 200)
 
@@ -342,17 +348,16 @@ export default function PhotographerPage() {
         clearInterval(progressInterval)
 
         if (response.ok) {
-          const data = await response.json()
-          setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
+          setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 100 }))
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Upload failed' }))
-          setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
-          setUploadErrors((prev) => ({ ...prev, [file.name]: errorData.error || 'Failed' }))
+          setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
+          setUploadErrors((prev) => ({ ...prev, [rawFile.name]: errorData.error || 'Failed' }))
         }
       } catch (error) {
         console.error("[v0] Upload error:", error)
-        setUploadProgress((prev) => ({ ...prev, [file.name]: -1 }))
-        setUploadErrors((prev) => ({ ...prev, [file.name]: 'Network error' }))
+        setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
+        setUploadErrors((prev) => ({ ...prev, [rawFile.name]: 'Network error' }))
       }
     }
 
@@ -1026,7 +1031,7 @@ export default function PhotographerPage() {
                       <input
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept="image/*,.heic,.HEIC"
                         onChange={handleFileSelect}
                         className="hidden"
                         id="file-input"
@@ -1041,6 +1046,7 @@ export default function PhotographerPage() {
                         type="file"
                         {...({ webkitdirectory: "", directory: "" } as any)}
                         multiple
+                        accept="image/*,.heic,.HEIC"
                         onChange={handleFolderSelect}
                         className="hidden"
                         id="folder-input"

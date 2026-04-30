@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
+import { convertHeicToJpeg } from "@/lib/heic-converter"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   AlertDialog,
@@ -211,10 +212,14 @@ export default function DashboardPage() {
     }
 
     setIsUploading(true)
-    const formData = new FormData()
-    formData.append("file", file)
-
+    
     try {
+      // Convert HEIC to JPEG if needed
+      const processedFile = await convertHeicToJpeg(file)
+      
+      const formData = new FormData()
+      formData.append("file", processedFile)
+
       const authToken = localStorage.getItem("auth_token")
       const response = await fetch("/api/me/reference-face", {
         method: "POST",
@@ -283,7 +288,7 @@ export default function DashboardPage() {
   return (
     <>
       <Header userRole="student" />
-      <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleUploadSelfie} />
+      <input type="file" accept="image/*,.heic,.HEIC" className="hidden" ref={fileInputRef} onChange={handleUploadSelfie} />
       <AlertDialog open={showConsentNotice} onOpenChange={setShowConsentNotice}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
