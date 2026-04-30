@@ -81,17 +81,27 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 
 | Name | Value |
 | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | `/api` |
+| **Auth & Security** | |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
-| `JWT_SECRET` | `A long, random, secure string (e.g., generate one with openssl rand -base64 32)` |
 | `GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
 | `GOOGLE_CLIENT_SECRET` | `Your Google OAuth Secret` |
-| `CRON_SECRET` | `Shared secret used by /api/cron/cleanup and Vercel Cron` |
+| `SUPER_ADMIN_EMAIL` | `The email address of the Super Admin (e.g., your@email.com)` |
+| `JWT_SECRET` | `A long, random, secure string` |
+| `CRON_SECRET` | `Shared secret for background cleanup jobs` |
+| **Database (Neon)** | |
 | `DATABASE_URL` | `Your Neon Connection String (Pooler URL)` |
-| `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL, required by Prisma for migrations)` |
-| `CLOUDINARY_URL` | `Your Cloudinary URL` |
+| `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL)` |
+| **Integrations (LINE & Gmail)** | |
+| `LINE_CHANNEL_ID` | `Your LINE Messaging API Channel ID` |
+| `LINE_CHANNEL_SECRET` | `Your LINE Messaging API Channel Secret` |
+| `LINE_CHANNEL_ACCESS_TOKEN` | `Your LINE Channel Access Token (Long-lived)` |
+| `GMAIL_USER` | `The Gmail address used to send notifications` |
+| `GMAIL_APP_PASSWORD` | `Your Google App Password (not your normal password!)` |
+| **Storage & AI** | |
+| `CLOUDINARY_URL` | `Your Cloudinary URL (cloudinary://...)` |
 | `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
-| `GROQ_API_KEY` | `Your Groq API Key (from console.groq.com)` |
+| `GROQ_API_KEY` | `Your Groq API Key for the chatbot` |
+| `NEXT_PUBLIC_API_URL` | `/api` (Keep as is) |
 
 ### 3. Deploy
 1. Click **Deploy**.
