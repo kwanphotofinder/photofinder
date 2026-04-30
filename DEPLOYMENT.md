@@ -1,11 +1,11 @@
 # Deployment Guide - Photo Finder
 
 ## Overview
-This guide explains how to deploy the unified Next.js full-stack application. The current setup runs on **Vercel** and uses external free-tier services for the database (Neon), image storage (Cloudinary), and AI processing (Hugging Face).
+This guide explains how to deploy the unified Next.js full-stack application. The current setup runs on **Vercel** and uses external free-tier services for the database (Neon), image storage (Cloudinary), face embedding AI (Hugging Face), and a user navigation assistant chatbot (Groq AI).
 
 ## Prerequisites
 - GitHub account
-- Accounts on: Neon, Cloudinary, Hugging Face, Vercel
+- Accounts on: Neon, Cloudinary, Hugging Face, Groq, Vercel
 - Your code pushed to a GitHub repository
 
 ---
@@ -46,6 +46,24 @@ CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding ve
 5. **Save the Space URL** (e.g., `https://yourusername-photofinder-ai.hf.space`)
    - The app pings the Space root URL (`GET /`) for wake-up checks and sends embeddings to `POST /extract`.
 
+### 4. Chatbot AI (Groq)
+Groq provides a fast, free LLM API for the in-app chatbot that helps students and staff navigate the PhotoFinder platform.
+
+1. Go to [console.groq.com](https://console.groq.com) → Sign up (free account)
+2. Navigate to **API Keys** in the sidebar
+3. Click **Create API Key**
+4. Name it `photofinder` (optional)
+5. **Copy your API Key** (looks like: `gsk_xxxxxxxxxxxxxxxxxxxx`)
+6. **Save the GROQ_API_KEY**
+
+**Note:** The chatbot is available on all pages of the app and provides MFU-specific guidance about:
+- Finding and downloading photos
+- PDPA consent and privacy rights
+- LINE and email notifications setup
+- Reference selfie upload and matching
+- Photo removal and data deletion
+- Technical troubleshooting
+
 ---
 
 ## Part 2: Deploy to Vercel
@@ -73,6 +91,7 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 | `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL, required by Prisma for migrations)` |
 | `CLOUDINARY_URL` | `Your Cloudinary URL` |
 | `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
+| `GROQ_API_KEY` | `Your Groq API Key (from console.groq.com)` |
 
 ### 3. Deploy
 1. Click **Deploy**.
@@ -91,4 +110,9 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 ### Storage
 - **Neon:** Free tier includes 500MB of storage. Vector embeddings (`pgvector`) can take up space, but 500MB is enough for hundreds of thousands of faces.
 - **Cloudinary:** Free tier includes generous bandwidth and storage credits, more than enough for a university pilot program.
+
+### Chatbot API Rate Limits
+- **Groq AI:** Free tier allows 30 requests per minute. The chatbot is rate-limited by user to prevent abuse.
+- **Response Time:** Groq responses are typically 1-2 seconds, making for a responsive user experience.
+- **Model:** Uses Mixtral 8x7b or faster variants, optimized for low-latency responses.
 
