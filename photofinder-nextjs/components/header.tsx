@@ -136,6 +136,23 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                   </div>
                 </DropdownMenuItem>
 
+                {/* Live Face Verification for students */}
+                {userRole === "student" && (
+                  <DropdownMenuItem
+                    onClick={() => router.push("/student/live-face-verification")}
+                    className="rounded-lg px-3.5 py-2.5 hover:bg-primary/15 focus:bg-primary/15 active:bg-primary/25 transition-all duration-150 cursor-pointer group/item flex items-center gap-2.5"
+                  >
+                    <div className="w-8.5 h-8.5 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover/item:from-primary/30 group-hover/item:to-primary/20 transition-colors duration-150">
+                      {/* You can use a face icon here, e.g., a user icon or camera icon */}
+                      <span role="img" aria-label="face">🧑‍💻</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-900">Live Face Verification</span>
+                      <span className="text-[11px] text-slate-500">Set your face reference vector</span>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuItem
                   onClick={() => router.push("/privacy")}
                   className="rounded-lg px-3.5 py-2.5 hover:bg-primary/15 focus:bg-primary/15 active:bg-primary/25 transition-all duration-150 cursor-pointer group/item flex items-center gap-2.5"
