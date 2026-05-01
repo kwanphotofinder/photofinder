@@ -12,18 +12,41 @@ import os
 from services.face_blur import blur_faces
 from services.liveness import FaceMeshLiveness
 
+# Handle potential import errors for optional dependencies
+try:
+    from insightface.app import FaceAnalysis
+except Exception as e:
+    print(f"Warning: InsightFace is unavailable: {e}")
+    FaceAnalysis = None
+
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+except Exception as e:
+    print(f"Warning: Prometheus instrumentation is unavailable: {e}")
+    Instrumentator = None
+
 app = FastAPI(title="Face Search AI Service")
 
 # Initialize Prometheus metrics
-Instrumentator().instrument(app).expose(app)
+if Instrumentator is not None:
+    Instrumentator().instrument(app).expose(app)
 
-# Initialize InsightFace
+# Initialize InsightFace when available.
 # 'buffalo_l' is a good balance of speed and accuracy
-model = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-model.prepare(ctx_id=0, det_size=(640, 640))
+model = None
+if FaceAnalysis is not None:
+    try:
+        model = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        model.prepare(ctx_id=0, det_size=(640, 640))
+    except Exception as e:
+        print(f"Warning: Could not initialize InsightFace: {e}")
 
-# Initialize Liveness Detector
-liveness_detector = FaceMeshLiveness()
+# Initialize FaceMeshLiveness for liveness detection
+try:
+    liveness_detector = FaceMeshLiveness()
+except Exception as e:
+    print(f"Warning: Could not initialize FaceMeshLiveness: {e}")
+    liveness_detector = None
 
 class FaceEmbedding(BaseModel):
     embedding: List[float]
@@ -47,7 +70,9 @@ async def extract_faces(file: UploadFile = File(...)):
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            # Return empty array instead of error - image can't be decoded
+            return []
+
+        if model is None:
             return []
 
         # Detect faces
@@ -74,15 +99,11 @@ async def extract_faces(file: UploadFile = File(...)):
         return results
 
     except Exception as e:
-        # Log the error but return empty array
         print(f"Error processing image: {str(e)}")
         return []
 
 @app.post("/blur")
 async def blur_image(file: UploadFile = File(...), bboxes: str = ""):
-    """
-    Blur specific faces in an image based on bboxes (x,y,w,h string).
-    """
     try:
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
@@ -100,10 +121,10 @@ async def blur_image(file: UploadFile = File(...), bboxes: str = ""):
 
 @app.post("/liveness")
 async def check_liveness(file: UploadFile = File(...)):
-    """
-    Returns landmarks and pose data for an image.
-    """
     try:
+        if liveness_detector is None:
+            raise HTTPException(status_code=503, detail="Liveness detector not initialized")
+            
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -121,11 +142,10 @@ async def check_liveness(file: UploadFile = File(...)):
 
 @app.post("/compare")
 async def compare_faces(file1: UploadFile = File(...), file2: UploadFile = File(...)):
-    """
-    Compares two faces and returns a similarity score.
-    """
     try:
-        # Extract embeddings for both
+        if model is None:
+            raise HTTPException(status_code=503, detail="Face comparison model not initialized")
+
         def get_emb(f):
             img = cv2.imdecode(np.frombuffer(f, np.uint8), cv2.IMREAD_COLOR)
             faces = model.get(img)
@@ -137,7 +157,6 @@ async def compare_faces(file1: UploadFile = File(...), file2: UploadFile = File(
         if emb1 is None or emb2 is None:
             return {"match": False, "score": 0.0, "error": "No face detected in one or both images"}
             
-        # Calculate cosine similarity
         sim = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
         return {"match": bool(sim > 0.6), "score": float(sim)}
     except Exception as e:

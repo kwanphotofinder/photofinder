@@ -1,10 +1,9 @@
-
-
-
 import cv2
 import numpy as np
 import mediapipe as mp
 from mediapipe import Image, ImageFormat
+from pathlib import Path
+import os
 
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
 FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -20,7 +19,6 @@ class FaceMeshLiveness:
                 "ai-service/face_landmarker.task",
                 "/home/user/app/face_landmarker.task"
             ]
-            import os
             for path in possible_paths:
                 if os.path.exists(path):
                     model_path = path
@@ -28,6 +26,7 @@ class FaceMeshLiveness:
             
             if not model_path:
                 model_path = "face_landmarker.task" # Fallback
+        
         self.options = FaceLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
             num_faces=num_faces,
@@ -65,7 +64,7 @@ class FaceMeshLiveness:
         face_width = np.linalg.norm(np.array(left_cheek) - np.array(right_cheek))
         nose_rel = (nose[0] - left_cheek[0]) / face_width
         # If nose is too close to one side, head is turned
-        return nose_rel < 0.3 or nose_rel > 0.7
+        return nose_rel < 0.35 or nose_rel > 0.65
 
     @staticmethod
     def detect_head_up_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx):
