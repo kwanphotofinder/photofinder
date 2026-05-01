@@ -246,7 +246,7 @@ export default function DashboardPage() {
   }
 
   const handleDeleteSelfie = async () => {
-    if (!confirm("Are you sure you want to delete your auto-search default face?")) return
+    if (!confirm("Are you sure you want to remove your profile selfie?")) return
 
     setIsDeletingReference(true)
     try {
@@ -402,8 +402,17 @@ export default function DashboardPage() {
                     className="h-10 rounded-xl font-bold text-destructive/60 transition-colors hover:bg-destructive/5 hover:text-destructive active:bg-destructive/10"
                     disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
                   >
-                    {isDeletingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    Reset Profile
+                    {isDeletingReference ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Removing...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove Profile
+                      </>
+                    )}
                   </Button>
                 )}
               </div>
