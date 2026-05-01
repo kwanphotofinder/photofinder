@@ -23,6 +23,10 @@ model.prepare(ctx_id=0, det_size=(640, 640))
 class FaceEmbedding(BaseModel):
     embedding: List[float]
     bbox: List[int]
+    face_width: int
+    face_height: int
+    face_center_x: int
+    face_center_y: int
     det_score: float
 
 @app.get("/")
@@ -46,9 +50,19 @@ async def extract_faces(file: UploadFile = File(...)):
         
         results = []
         for face in faces:
+            x1, y1, x2, y2 = face.bbox.astype(int).tolist()
+            face_width = max(0, x2 - x1)
+            face_height = max(0, y2 - y1)
+            face_center_x = x1 + (face_width // 2)
+            face_center_y = y1 + (face_height // 2)
+
             results.append({
                 "embedding": face.embedding.tolist(),
-                "bbox": face.bbox.astype(int).tolist(),
+                "bbox": [x1, y1, x2, y2],
+                "face_width": face_width,
+                "face_height": face_height,
+                "face_center_x": face_center_x,
+                "face_center_y": face_center_y,
                 "det_score": float(face.det_score)
             })
             
