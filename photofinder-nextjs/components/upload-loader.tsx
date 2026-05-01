@@ -7,17 +7,24 @@ interface UploadLoaderProps {
   message?: string
 }
 
-export function UploadLoader({ isVisible, message = "Ghostsmart is analyzing..." }: UploadLoaderProps) {
+export function UploadLoader({ isVisible, message = "AI is analyzing..." }: UploadLoaderProps) {
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl"
+          initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+          animate={{ opacity: 1, backdropFilter: "blur(24px)" }}
+          exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-black/60"
         >
-          <div className="relative flex flex-col items-center max-w-xs text-center px-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 1.1, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "backOut" }}
+            className="relative flex flex-col items-center max-w-xs text-center px-6"
+          >
             {/* Atmospheric Background Glow */}
             <div className="absolute -inset-20 bg-primary/30 blur-[120px] rounded-full animate-pulse" />
             
@@ -36,7 +43,7 @@ export function UploadLoader({ isVisible, message = "Ghostsmart is analyzing..."
             >
               <img 
                 src="/Ghostsmart.gif" 
-                alt="Ghostsmart" 
+                alt="AI Mascot" 
                 className="h-64 w-64 object-contain" 
               />
             </motion.div>
@@ -75,7 +82,7 @@ export function UploadLoader({ isVisible, message = "Ghostsmart is analyzing..."
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Background Detail */}
           <div className="absolute inset-0 opacity-10 pointer-events-none">

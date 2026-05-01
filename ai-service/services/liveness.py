@@ -14,8 +14,20 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 class FaceMeshLiveness:
     def __init__(self, model_path=None, num_faces=1):
         if model_path is None:
-            # Use relative path from project root
-            model_path = "ai-service/face_landmarker.task"
+            # Try multiple locations to support both local and Docker environments
+            possible_paths = [
+                "face_landmarker.task",
+                "ai-service/face_landmarker.task",
+                "/home/user/app/face_landmarker.task"
+            ]
+            import os
+            for path in possible_paths:
+                if os.path.exists(path):
+                    model_path = path
+                    break
+            
+            if not model_path:
+                model_path = "face_landmarker.task" # Fallback
         self.options = FaceLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
             num_faces=num_faces,

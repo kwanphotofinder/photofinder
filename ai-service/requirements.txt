@@ -5,5 +5,6 @@ numpy
 opencv-python-headless
 insightface
 onnxruntime
+mediapipe
 Pillow
 prometheus-fastapi-instrumentator

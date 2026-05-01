@@ -272,6 +272,52 @@ export default function AdminDashboardPage() {
     }
   }
 
+  const handleBlurRequest = async (requestId: string, photoId: string, bboxes: string) => {
+    if (!confirm("Are you sure you want to blur the faces in this photo? This cannot be undone.")) return
+
+    try {
+      const res = await fetch(`/api/photos/${photoId}/blur`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bboxes })
+      })
+      
+      if (!res.ok) throw new Error("Failed to blur photo")
+
+      // Delete the request
+      await apiClient.deleteRemovalRequest(requestId)
+      
+      // Update local state
+      setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
+      alert("Photo blurred successfully and request resolved.")
+    } catch (error) {
+      console.error("Failed to blur request", error)
+      alert("Failed to blur request")
+    }
+  }
+
+  const handleCleanUpOldSelfies = async () => {
+    if (!confirm("WARNING: This will permanently delete ALL old profile selfies and force all users to re-verify their identity. Are you absolutely sure?")) return
+
+    try {
+      const authToken = localStorage.getItem("auth_token")
+      const res = await fetch("/api/admin/clean-old-selfies", { 
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${authToken}`
+        }
+      })
+      const result = await res.json()
+      if (res.ok) {
+        alert(result.message)
+      } else {
+        alert("Error: " + result.error)
+      }
+    } catch (error) {
+      alert("Failed to run clean-up script.")
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const styles = {
       DRAFT: "bg-secondary text-secondary-foreground",
@@ -765,6 +811,16 @@ export default function AdminDashboardPage() {
                             >
                               Approve & Delete
                             </Button>
+                            {request.faceCoordinates && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
+                                className="flex-1 border-primary/30 text-primary hover:bg-primary/5 md:flex-none"
+                              >
+                                Approve & Blur
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
@@ -1091,7 +1147,26 @@ export default function AdminDashboardPage() {
             </TabsContent>
 
             <TabsContent value="health" className="mt-0">
-              <SystemHealth />
+              <div className="space-y-6">
+                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5 text-destructive" /> Danger Zone</CardTitle>
+                    <CardDescription>Actions that permanently modify or delete large amounts of data.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-destructive/20 bg-destructive/5 rounded-xl gap-4">
+                      <div>
+                        <p className="font-bold text-foreground">Wipe All Old Selfies</p>
+                        <p className="text-sm text-muted-foreground">Force all students to re-verify with the new Identity Guard system.</p>
+                      </div>
+                      <Button variant="destructive" onClick={handleCleanUpOldSelfies}>
+                        Wipe & Reset Selfies
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                <SystemHealth />
+              </div>
             </TabsContent>
             </div>
           </Tabs>

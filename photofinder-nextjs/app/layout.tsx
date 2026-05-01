@@ -39,6 +39,8 @@ export const viewport = {
   maximumScale: 1,
 };
 
+import { VerificationGuard } from "@/components/verification-guard";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,7 +53,9 @@ export default function RootLayout({
       </head>
       <body className={`${_notoSansThai.variable} ${_outfit.variable} font-sans antialiased`}>
         <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
-        {children}
+        <VerificationGuard>
+          {children}
+        </VerificationGuard>
         <ChatWrapper />
         <Analytics />
       </body>
