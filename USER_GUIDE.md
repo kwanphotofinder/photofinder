@@ -408,31 +408,36 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
    - Login with admin account
    - Click your profile → **Admin Dashboard**
 
-2. **Navigate to Events**
-   - Click **"Events Management"** in sidebar
-   - Click **"Create New Event"** button
+2. **Navigate to Events Tab**
+   - The page has a left sidebar with tabs
+   - Click the **"Events"** tab (it shows a calendar icon and event count)
+   - You'll see all existing events
 
-3. **Fill Event Details**
+3. **Create New Event**
+   - Click the **"+ Create Event"** button (appears when events list is empty or at the top)
+   - You'll be taken to the event creation page
+
+4. **Fill Event Details**
    - **Event Name**: "Sports Day 2026" (required)
-   - **Event Slug**: "sports-day-2026" (auto-generated, unique identifier)
    - **Event Date**: Select date and time (required)
-   - **Location**: "MFU Sports Complex" (optional but recommended)
-   - **Description**: "Annual university sports competition" (optional)
+   - **Status**: Choose DRAFT or PUBLISHED (required)
+   - ℹ️ Other fields like location/description may be available depending on form
 
-4. **Set Event Status**
-   - **DRAFT**: Not visible to students yet
-   - **PUBLISHED**: Students can search for photos
-   - **ARCHIVED**: Old events, no new uploads
+5. **Set Event Status**
+   - **DRAFT**: Not visible to students yet, photographers can't upload
+   - **PUBLISHED**: Students can search for photos, photographers can upload
+   - **ARCHIVED**: Old events, no new uploads allowed
 
-5. **Save Event**
-   - Click **"Create Event"**
-   - Event is created in DRAFT status
-   - You can edit or delete it anytime
+6. **Save Event**
+   - Click **"Create Event"** or **"Save"**
+   - Event is created with selected status
+   - You can edit or delete it anytime by clicking the **"Edit"** button on the event card
 
-6. **Publish Event**
-   - Once ready, click **"Publish"**
-   - Event becomes searchable
-   - Photographers can now upload photos to this event
+7. **Change Event Status Later**
+   - Find the event in the Events tab
+   - Click **"Edit"** button
+   - Change status from DRAFT to PUBLISHED when ready
+   - Click **"Save"** to confirm
 
 ---
 
@@ -441,38 +446,43 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
 ### Step-by-Step Instructions:
 
 1. **View Removal Requests**
-   - Go to **Admin Dashboard** → **Removal Requests**
+   - Go to **Admin Dashboard**
+   - Click the **"Removal Requests"** tab in the left sidebar (shows a shield icon)
    - Shows all pending requests with:
-     - Student name
-     - Photographer name
-     - Removal type (DELETE, TAKEDOWN, PRIVACY)
-     - Reason provided
+     - Photo thumbnail
+     - Event name
+     - Student name who requested
      - Date submitted
+     - Request reason (if provided)
 
 2. **Review the Photo**
-   - Click on the request
-   - Photo is displayed with full metadata
-   - See student comment and reason
+   - Each request shows a preview of the photo
+   - Hover or click to see full details:
+     - Event name
+     - Photographer name
+     - Student who requested removal
+     - Reason provided
+     - Request type (DELETE, TAKEDOWN, PRIVACY - if visible)
 
 3. **Make Decision**
-   - **APPROVE**: Agree to the removal request
-     - If DELETION: Photo is permanently deleted from system
-     - If PRIVACY: Face is blurred in the photo
-     - If TAKEDOWN: Photo is hidden from public search
+   - **"Approve & Delete"** button (red)
+     - Permanently deletes the photo from the system
+     - Photo removed from all searches and galleries
    
-   - **REJECT**: Deny the removal request
+   - **"Reject"** button (outline)
+     - Denies the removal request
      - Photo stays as-is
-     - Student is notified of rejection
-     - Include reason for rejection
+     - Student is NOT automatically notified
 
-4. **Document Decision**
-   - Type reason for your decision (required)
-   - Example: "Photo meets university standards, denial stands"
+4. **What About Other Request Types?**
+   - Currently, only DELETION is fully implemented in the UI
+   - Other types (TAKEDOWN, PRIVACY) may have different handling
+   - Contact development team for specific implementation details
 
-5. **Notify Student**
-   - Click **"Send Notification"**
-   - Student receives LINE/Email update
-   - Includes decision and reason
+5. **After Decision**
+   - Request disappears from the queue
+   - Photo is either deleted or remains unchanged
+   - ℹ️ Students are NOT currently auto-notified of approval/rejection via this UI
 
 ---
 
