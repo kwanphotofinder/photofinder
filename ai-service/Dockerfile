@@ -22,6 +22,11 @@ WORKDIR $HOME/app
 COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download Face Landmarker model (so we don't have to push the binary to Git)
+RUN apt-get update && apt-get install -y wget && \
+    wget -O face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task && \
+    apt-get remove -y wget && rm -rf /var/lib/apt/lists/*
+
 # Copy application code
 COPY --chown=user . .
 
