@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Supabase-compatible local PostgreSQL with pgvector natively installed
   postgres:

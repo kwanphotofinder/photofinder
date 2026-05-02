@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-3 \
     gcc \
     g++ \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
@@ -18,11 +17,8 @@ RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# Set working directory BEFORE downloading the model
+# Set working directory for the app
 WORKDIR $HOME/app
-
-# Download Face Landmarker model into the app directory
-RUN wget -O face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 
 USER user
 
@@ -33,8 +29,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY --chown=user . .
 
-# Download InsightFace models during build
-RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l').prepare(ctx_id=0)"
+# Download InsightFace models during build using CPU-only runtime settings
+RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']).prepare(ctx_id=-1)"
 
 EXPOSE 7860
 

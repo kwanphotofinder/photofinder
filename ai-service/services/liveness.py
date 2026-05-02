@@ -19,12 +19,18 @@ class FaceMeshLiveness:
         else:
             model_path = self._resolve_model_path(model_path)
 
+        print(f"[FaceMeshLiveness] Initializing with model: {model_path}")
+        print(f"[FaceMeshLiveness] Model file exists: {Path(model_path).exists()}")
+        
         self.options = FaceLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
             num_faces=num_faces,
             running_mode=VisionRunningMode.IMAGE
         )
+        print("[FaceMeshLiveness] FaceLandmarkerOptions created")
+        
         self.landmarker = FaceLandmarker.create_from_options(self.options)
+        print("[FaceMeshLiveness] FaceLandmarker successfully created")
 
     @staticmethod
     def _resolve_model_path(model_path):
@@ -53,10 +59,22 @@ class FaceMeshLiveness:
         return cls._resolve_model_path("face_landmarker.task")
 
     def process_frame(self, image):
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_image)
-        result = self.landmarker.detect(mp_image)
-        return result
+        try:
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            print(f"[FaceMeshLiveness] Image converted to RGB. Shape: {rgb_image.shape}")
+            
+            mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_image)
+            print(f"[FaceMeshLiveness] MediaPipe Image created")
+            
+            result = self.landmarker.detect(mp_image)
+            print(f"[FaceMeshLiveness] Detection completed. Faces found: {len(result.face_landmarks) if result.face_landmarks else 0}")
+            
+            return result
+        except Exception as e:
+            print(f"[FaceMeshLiveness] ERROR in process_frame: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     @staticmethod
     def detect_blink(landmarks, left_eye_indices, right_eye_indices):
@@ -77,20 +95,27 @@ class FaceMeshLiveness:
         return left_ear < EAR_THRESHOLD or right_ear < EAR_THRESHOLD
 
     @staticmethod
-    def detect_head_turn(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):
-        # Simple head turn detection using horizontal nose position
-        # landmarks are normalized (0-1) or pixel coordinates
+    def detect_head_turn_direction(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):
+        # Determine whether the user's head is turned left or right using the nose position
+        # relative to the cheeks. Returns 'left', 'right', or None.
         left_cheek = landmarks[left_cheek_idx]
         right_cheek = landmarks[right_cheek_idx]
         nose = landmarks[nose_idx]
         
         face_width = np.linalg.norm(np.array(left_cheek) - np.array(right_cheek))
         if face_width == 0:
-            return False
+            return None
             
         nose_rel = (nose[0] - left_cheek[0]) / face_width
-        # If nose is too close to one side, head is turned
-        return nose_rel < 0.3 or nose_rel > 0.7
+        if nose_rel < 0.35:
+            return 'right'
+        if nose_rel > 0.65:
+            return 'left'
+        return None
+
+    @staticmethod
+    def detect_head_turn(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):
+        return FaceMeshLiveness.detect_head_turn_direction(landmarks, left_cheek_idx, right_cheek_idx, nose_idx) is not None
 
     @staticmethod
     def detect_head_up_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx):

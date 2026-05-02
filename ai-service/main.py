@@ -31,11 +31,14 @@ if Instrumentator is not None:
 model = None
 if FaceAnalysis is not None:
     model = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-    model.prepare(ctx_id=0, det_size=(640, 640))
+    model.prepare(ctx_id=-1, det_size=(640, 640))
 
 # Initialize FaceMeshLiveness for liveness detection
 try:
-    liveness_detector = FaceMeshLiveness(model_path="ai-service/face_landmarker.task")
+    liveness_detector = FaceMeshLiveness(model_path="face_landmarker.task")
+    # Track blink state for temporal detection
+    liveness_detector.prev_ear_open = True  # Track if eyes were open in previous frame
+    liveness_detector.blink_detected = False  # Flag for current blink state
 except Exception as e:
     print(f"Warning: Could not initialize FaceMeshLiveness: {e}")
     liveness_detector = None
@@ -98,6 +101,65 @@ async def extract_faces(file: UploadFile = File(...)):
         return []
 
 
+@app.post("/test/face-landmarks")
+async def test_face_landmarks(file: UploadFile = File(...)):
+    """
+    Test endpoint to diagnose face landmark detection.
+    Returns diagnostic information about detected face landmarks.
+    """
+    try:
+        print(f"\n[TEST] Diagnostic face landmark test for: {file.filename}")
+        
+        # Read image
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return {"error": "Failed to decode image", "file_size": len(contents)}
+        
+        print(f"[TEST] Image decoded successfully. Shape: {img.shape}")
+        
+        if liveness_detector is None:
+            return {"error": "Liveness detector not initialized"}
+        
+        # Process frame
+        result = liveness_detector.process_frame(img)
+        
+        print(f"[TEST] Process frame returned. Face landmarks count: {len(result.face_landmarks) if result.face_landmarks else 0}")
+        
+        if not result.face_landmarks or len(result.face_landmarks) == 0:
+            return {
+                "status": "no_face_detected",
+                "message": "FaceLandmarker did not detect any faces",
+                "image_shape": img.shape,
+                "landmarks_count": 0
+            }
+        
+        face_landmarks = result.face_landmarks[0]
+        landmark_points = np.array([(pt.x, pt.y, pt.z) for pt in face_landmarks])
+        
+        return {
+            "status": "face_detected",
+            "message": "FaceLandmarker successfully detected a face",
+            "image_shape": img.shape,
+            "landmarks_count": len(face_landmarks),
+            "first_5_landmarks": landmark_points[:5].tolist(),
+            "landmark_x_range": [float(landmark_points[:, 0].min()), float(landmark_points[:, 0].max())],
+            "landmark_y_range": [float(landmark_points[:, 1].min()), float(landmark_points[:, 1].max())],
+        }
+        
+    except Exception as e:
+        print(f"[TEST] Error in diagnostic test: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @app.post("/liveness/detect")
 async def detect_liveness(file: UploadFile = File(...)):
     """
@@ -105,11 +167,15 @@ async def detect_liveness(file: UploadFile = File(...)):
     Returns JSON with liveness detection results.
     """
     try:
+        print(f"\n[LIVENESS] Request received for file: {file.filename}")
+        
         if liveness_detector is None:
+            print("[LIVENESS] ERROR: Liveness detector not initialized")
             return {
                 "face_detected": False,
                 "blink": False,
                 "head_turn": False,
+                "head_turn_direction": None,
                 "head_up": False,
                 "head_down": False,
                 "confidence": 0.0,
@@ -118,27 +184,36 @@ async def detect_liveness(file: UploadFile = File(...)):
 
         # Read image file
         contents = await file.read()
+        print(f"[LIVENESS] File size: {len(contents)} bytes")
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
+            print("[LIVENESS] ERROR: Failed to decode image")
             return {
                 "face_detected": False,
                 "blink": False,
                 "head_turn": False,
+                "head_turn_direction": None,
                 "head_up": False,
                 "head_down": False,
                 "confidence": 0.0,
             }
 
+        print(f"[LIVENESS] Image shape: {img.shape}")
+        
         # Process frame with liveness detection
+        print("[LIVENESS] Processing frame with FaceLandmarker...")
         result = liveness_detector.process_frame(img)
+        print(f"[LIVENESS] FaceLandmarker result: face_landmarks count = {len(result.face_landmarks) if result.face_landmarks else 0}")
 
         if not result.face_landmarks or len(result.face_landmarks) == 0:
+            print("[LIVENESS] No face landmarks detected")
             return {
                 "face_detected": False,
                 "blink": False,
                 "head_turn": False,
+                "head_turn_direction": None,
                 "head_up": False,
                 "head_down": False,
                 "confidence": 0.0,
@@ -150,6 +225,8 @@ async def detect_liveness(file: UploadFile = File(...)):
         
         # Convert normalized landmarks to pixel coordinates
         landmark_points = np.array([(pt.x, pt.y, pt.z) for pt in face_landmarks])
+        print(f"[LIVENESS] Face detected! Landmark points shape: {landmark_points.shape}")
+        print(f"[LIVENESS] Landmark point examples (first 5): {landmark_points[:5]}")
 
         # Landmark indices (MediaPipe 468-point model)
         LEFT_EYE_IDX = [33, 160, 158, 133, 153, 144]
@@ -162,32 +239,72 @@ async def detect_liveness(file: UploadFile = File(...)):
         # Extract x,y coordinates only for liveness checks
         landmark_xy = landmark_points[:, :2]
 
-        # Perform liveness checks
-        blink = liveness_detector.detect_blink(landmark_xy, LEFT_EYE_IDX, RIGHT_EYE_IDX)
-        head_turn = liveness_detector.detect_head_turn(landmark_xy, LEFT_CHEEK_IDX, RIGHT_CHEEK_IDX, NOSE_IDX)
+        # Perform liveness checks with proper blink state tracking
+        # Calculate Eye Aspect Ratio (EAR) for blink detection
+        def eye_aspect_ratio(eye_points):
+            A = np.linalg.norm(eye_points[1] - eye_points[5])
+            B = np.linalg.norm(eye_points[2] - eye_points[4])
+            C = np.linalg.norm(eye_points[0] - eye_points[3])
+            return (A + B) / (2.0 * C) if C > 0 else 1.0
+        
+        left_eye = np.array([landmark_xy[i] for i in LEFT_EYE_IDX])
+        right_eye = np.array([landmark_xy[i] for i in RIGHT_EYE_IDX])
+        left_ear = eye_aspect_ratio(left_eye)
+        right_ear = eye_aspect_ratio(right_eye)
+        current_ear = (left_ear + right_ear) / 2.0
+        
+        EAR_THRESHOLD = 0.21
+        current_ear_open = current_ear >= EAR_THRESHOLD
+        
+        # Track blink: transition from open → closed → open
+        blink = False
+        if hasattr(liveness_detector, 'prev_ear_open'):
+            # If eyes were open and now closed, mark that we detected a closure
+            if liveness_detector.prev_ear_open and not current_ear_open:
+                liveness_detector.blink_detected = True
+                print(f"[BLINK] Eyes closing detected: EAR {current_ear:.3f} < {EAR_THRESHOLD}")
+            # If eyes were closed and now open again, that completes the blink
+            elif not liveness_detector.prev_ear_open and current_ear_open and liveness_detector.blink_detected:
+                blink = True
+                liveness_detector.blink_detected = False
+                print(f"[BLINK] Blink completed! EAR {current_ear:.3f} >= {EAR_THRESHOLD}")
+            liveness_detector.prev_ear_open = current_ear_open
+        else:
+            liveness_detector.prev_ear_open = current_ear_open
+            
+        print(f"[DEBUG] EAR: {current_ear:.3f}, Open: {current_ear_open}, Blink: {blink}, State: {liveness_detector.blink_detected if hasattr(liveness_detector, 'blink_detected') else 'N/A'}")
+        
+        # Other liveness checks
+        head_turn_direction = liveness_detector.detect_head_turn_direction(landmark_xy, LEFT_CHEEK_IDX, RIGHT_CHEEK_IDX, NOSE_IDX)
+        head_turn = head_turn_direction is not None
         head_up = liveness_detector.is_head_up(landmark_xy, NOSE_IDX, LEFT_EYE_IDX[0], RIGHT_EYE_IDX[0], CHIN_IDX)
         head_down = liveness_detector.is_head_down(landmark_xy, NOSE_IDX, LEFT_EYE_IDX[0], RIGHT_EYE_IDX[0], CHIN_IDX)
 
         # Calculate confidence (use face detection confidence or default to high value)
         confidence = 0.85
 
-        return {
+        response = {
             "face_detected": True,
             "blink": bool(blink),
             "head_turn": bool(head_turn),
+            "head_turn_direction": head_turn_direction,
             "head_up": bool(head_up),
             "head_down": bool(head_down),
             "confidence": float(confidence),
         }
+        
+        print(f"[LIVENESS] Response: {response}")
+        return response
 
     except Exception as e:
-        print(f"Error in liveness detection: {str(e)}")
+        print(f"\n[LIVENESS] ERROR in liveness detection: {str(e)}")
         import traceback
         traceback.print_exc()
         return {
             "face_detected": False,
             "blink": False,
             "head_turn": False,
+            "head_turn_direction": None,
             "head_up": False,
             "head_down": False,
             "confidence": 0.0,
