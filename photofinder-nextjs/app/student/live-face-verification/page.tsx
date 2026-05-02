@@ -25,6 +25,14 @@ export default function LiveFaceVerificationPage() {
   const frameInFlightRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const isTaskComplete = () => {
+    if (!livenessData || !livenessData.face_detected) {
+      return false;
+    }
+
+    return !livenessData.blink && !livenessData.head_turn && !livenessData.head_up && !livenessData.head_down;
+  };
+
   const startTest = async () => {
     try {
       setError(null);
@@ -167,6 +175,14 @@ export default function LiveFaceVerificationPage() {
           {/* Video Preview Area */}
           <div className="rounded-lg border border-slate-300 bg-black p-4 shadow-lg">
             <div className="relative overflow-hidden rounded-lg bg-black">
+              <div className="absolute left-3 top-3 z-10 max-w-[60%] rounded-md bg-slate-950/80 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm">
+                Challenge: blink, look down, turn left...
+              </div>
+              {testStarted && (
+                <div className="absolute right-3 top-3 z-10 max-w-[40%] rounded-md border border-red-300 bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-lg">
+                  {isTaskComplete() ? "Complete" : "Incomplete"}
+                </div>
+              )}
               <video
                 ref={videoRef}
                 className="w-full h-auto min-h-[28rem] object-cover bg-black"
@@ -209,38 +225,15 @@ export default function LiveFaceVerificationPage() {
               {/* Real-time Feedback */}
               {livenessData && (
                 <div className="w-full">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Liveness Detection Results</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div
-                      className={`p-4 rounded-lg font-semibold text-center text-base transition-colors ${
-                        livenessData.face_detected
-                          ? "bg-green-50 text-green-800 border border-green-200"
-                          : "bg-red-50 text-red-800 border border-red-200"
-                      }`}
-                    >
-                      {livenessData.face_detected ? "✓ Face Detected" : "✗ No Face Detected"}
-                    </div>
-                    <div
-                      className={`p-4 rounded-lg font-semibold text-center text-base transition-colors ${
-                        !livenessData.blink ? "bg-green-50 text-green-800 border border-green-200" : "bg-yellow-50 text-yellow-800 border border-yellow-200"
-                      }`}
-                    >
-                      {livenessData.blink ? "👁️ Blinking" : "✓ Eyes Open"}
-                    </div>
-                    <div
-                      className={`p-4 rounded-lg font-semibold text-center text-base transition-colors ${
-                        !livenessData.head_turn ? "bg-green-50 text-green-800 border border-green-200" : "bg-yellow-50 text-yellow-800 border border-yellow-200"
-                      }`}
-                    >
-                      {livenessData.head_turn ? "← Head Turned" : "✓ Face Forward"}
-                    </div>
-                    <div
-                      className={`p-4 rounded-lg font-semibold text-center text-base transition-colors ${
-                        !livenessData.head_up && !livenessData.head_down ? "bg-green-50 text-green-800 border border-green-200" : "bg-yellow-50 text-yellow-800 border border-yellow-200"
-                      }`}
-                    >
-                      {livenessData.head_up ? "↑ Head Up" : livenessData.head_down ? "↓ Head Down" : "✓ Level Head"}
-                    </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Face Detection</h3>
+                  <div
+                    className={`p-5 rounded-lg font-semibold text-center text-base transition-colors ${
+                      livenessData.face_detected
+                        ? "bg-green-50 text-green-800 border border-green-200"
+                        : "bg-red-50 text-red-800 border border-red-200"
+                    }`}
+                  >
+                    {livenessData.face_detected ? "✓ Face Detected" : "✗ No Face Detected"}
                   </div>
                 </div>
               )}
