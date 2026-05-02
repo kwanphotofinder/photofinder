@@ -1,22 +1,30 @@
 FROM python:3.10-slim
 
-# Install system dependencies for OpenCV and InsightFace
+# Install system dependencies for OpenCV, InsightFace, and MediaPipe
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
+    libgles2 \
+    libegl1 \
+    libdbus-1-3 \
     gcc \
     g++ \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user to match Hugging Face Spaces requirements
+# Create a non-root user
 RUN useradd -m -u 1000 user
-
-USER user
 
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
+# Set working directory BEFORE downloading the model
 WORKDIR $HOME/app
+
+# Download Face Landmarker model into the app directory
+RUN wget -O face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+
+USER user
 
 # Copy requirements and install
 COPY --chown=user requirements.txt .

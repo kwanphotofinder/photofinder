@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
+import { IdentityVerification } from "@/components/identity-verification"
 import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
 import { UploadLoader } from "@/components/upload-loader"
 
@@ -59,6 +60,7 @@ export default function DashboardPage() {
   const [referenceFaceUrl, setReferenceFaceUrl] = useState("")
   const [isUploading, setIsUploading] = useState(false)
   const [isDeletingReference, setIsDeletingReference] = useState(false)
+  const [showVerification, setShowVerification] = useState(false)
   const [autoMatches, setAutoMatches] = useState<Photo[]>([])
   const [savedPhotos, setSavedPhotos] = useState<Photo[]>([])
   const [hasConsentedToFaceSearch, setHasConsentedToFaceSearch] = useState(true)
@@ -244,7 +246,7 @@ export default function DashboardPage() {
   }
 
   const handleDeleteSelfie = async () => {
-    if (!confirm("Are you sure you want to delete your auto-search default face?")) return
+    if (!confirm("Are you sure you want to remove your profile selfie?")) return
 
     setIsDeletingReference(true)
     try {
@@ -289,7 +291,6 @@ export default function DashboardPage() {
   return (
     <>
       <Header userRole="student" />
-      <input type="file" accept="image/*,.heic,.HEIC" className="hidden" ref={fileInputRef} onChange={handleUploadSelfie} />
       <AlertDialog open={showConsentNotice} onOpenChange={setShowConsentNotice}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
@@ -347,18 +348,20 @@ export default function DashboardPage() {
 
                 <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
                   <Button
-                    onClick={openFilePicker}
+                    onClick={() => {
+                      if (!hasConsentedToFaceSearch) {
+                        setShowConsentNotice(true)
+                        return
+                      }
+                      setShowVerification(true)
+                    }}
                     variant="outline"
                     size="lg"
                     className={`h-12 rounded-2xl border-2 px-7 text-sm font-bold backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-primary sm:h-14 sm:text-base sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50" : "hover:scale-[1.02] active:scale-95"}`}
-                    disabled={isUploading || isDeletingReference}
+                    disabled={isDeletingReference}
                   >
-                    {isUploading ? (
-                      <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
-                    ) : (
-                      <UploadCloud className="mr-2.5 h-5 w-5" />
-                    )}
-                    {isUploading ? "Uploading..." : hasReferenceFace ? "Update Profile" : "Upload Selfie"}
+                    <Camera className="mr-2.5 h-5 w-5" />
+                    {hasReferenceFace ? "Update Profile" : "Verify & Set Selfie"}
                   </Button>
                 </div>
               </div>
@@ -399,8 +402,17 @@ export default function DashboardPage() {
                     className="h-10 rounded-xl font-bold text-destructive/60 transition-colors hover:bg-destructive/5 hover:text-destructive active:bg-destructive/10"
                     disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
                   >
-                    {isDeletingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    Reset Profile
+                    {isDeletingReference ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Removing...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove Profile
+                      </>
+                    )}
                   </Button>
                 )}
               </div>
@@ -463,8 +475,22 @@ export default function DashboardPage() {
       {/* Branded Loading Overlay */}
       <UploadLoader 
         isVisible={isUploading} 
-        message={hasReferenceFace ? "Updating your profile..." : "Ghostsmart is mapping your face..."} 
+        message={hasReferenceFace ? "Updating your profile..." : "Mapping your face..."} 
       />
+      {/* Identity Verification Modal */}
+      {showVerification && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg">
+            <IdentityVerification
+              onSuccess={async () => {
+                setShowVerification(false)
+                await fetchDashboardData()
+              }}
+              onCancel={() => setShowVerification(false)}
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }
