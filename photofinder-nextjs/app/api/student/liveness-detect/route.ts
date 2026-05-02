@@ -13,8 +13,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Forward to AI service for liveness detection
-    // Default to port 8000 (host) where the AI container is exposed
-    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    // Prefer local AI in development to avoid forwarding to external URLs
+    const isDev = process.env.NODE_ENV !== 'production';
+    const defaultLocal = 'http://localhost:8000';
+    let aiServiceUrl = process.env.AI_SERVICE_URL || defaultLocal;
+    if (
+      isDev &&
+      process.env.AI_SERVICE_URL &&
+      !process.env.AI_SERVICE_URL.startsWith('http://localhost') &&
+      !process.env.AI_SERVICE_URL.startsWith('http://127.0.0.1')
+    ) {
+      console.log('[LIVENESS API] Development mode: overriding AI_SERVICE_URL to', defaultLocal);
+      aiServiceUrl = defaultLocal;
+    }
+
     const detectUrl = `${aiServiceUrl}/liveness/detect`;
     console.log('[LIVENESS API] Forwarding to AI service URL:', detectUrl);
 
