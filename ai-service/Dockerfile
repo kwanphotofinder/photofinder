@@ -18,8 +18,9 @@ RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# Set working directory for the app
+# Set working directory for the app and change ownership
 WORKDIR $HOME/app
+RUN chown -R user:user $HOME/app
 
 USER user
 
