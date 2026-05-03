@@ -12,9 +12,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_URL?.split(":")[2].split("@")[0],
 })
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const photoId = params.id
+    const { id: photoId } = await context.params
     const { bboxes } = await req.json() // Expecting "x,y,w,h" string
 
     // 1. Auth check

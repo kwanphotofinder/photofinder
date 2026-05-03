@@ -9,7 +9,6 @@ const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:post
 const directConnectionString = process.env.DIRECT_URL || connectionString
 
 export default defineConfig({
-  earlyAccess: true,
   schema: 'prisma/schema.prisma',
   datasource: {
     url: directConnectionString,

@@ -117,42 +117,4 @@ class FaceMeshLiveness:
     def detect_head_turn(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):
         return FaceMeshLiveness.detect_head_turn_direction(landmarks, left_cheek_idx, right_cheek_idx, nose_idx) is not None
 
-    @staticmethod
-    def detect_head_up_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx):
-        """
-        Detects if the head is tilted up or down by comparing the vertical position of the nose relative to the eyes and chin.
-        Returns:
-            'up' if head is up, 'down' if head is down, None if neutral
-        """
-        nose = np.array(landmarks[nose_idx])
-        left_eye = np.array(landmarks[left_eye_idx])
-        right_eye = np.array(landmarks[right_eye_idx])
-        chin = np.array(landmarks[chin_idx])
-        
-        # Average eye y position
-        eye_y = (left_eye[1] + right_eye[1]) / 2.0
-        # Distance from eyes to chin
-        eyes_to_chin = chin[1] - eye_y
-        # Distance from eyes to nose
-        eyes_to_nose = nose[1] - eye_y
-        
-        # Ratio: higher means nose is closer to chin (head down), lower means nose is closer to eyes (head up)
-        if eyes_to_chin == 0:
-            return None
-            
-        ratio = eyes_to_nose / eyes_to_chin
-        # Thresholds may need tuning based on landmark scale
-        if ratio > 0.6:
-            return 'down'
-        elif ratio < 0.35:
-            return 'up'
-        else:
-            return None
 
-    @staticmethod
-    def is_head_up(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx):
-        return FaceMeshLiveness.detect_head_up_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx) == 'up'
-
-    @staticmethod
-    def is_head_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx):
-        return FaceMeshLiveness.detect_head_up_down(landmarks, nose_idx, left_eye_idx, right_eye_idx, chin_idx) == 'down'
