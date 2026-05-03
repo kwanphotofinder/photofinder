@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
@@ -20,6 +20,10 @@ interface Photo {
   eventDate: string
   uploadDate?: string
   confidence?: number
+  x?: number
+  y?: number
+  w?: number
+  h?: number
 }
 
 interface PhotoDetailModalProps {
@@ -204,7 +208,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
     setIsSubmitting(true)
     try {
-      const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", reason)
+      // Create a bounding box string if coordinates exist
+      const faceCoordinates = (photo.x !== undefined && photo.y !== undefined && photo.w !== undefined && photo.h !== undefined)
+        ? `${Math.round(photo.x)},${Math.round(photo.y)},${Math.round(photo.w)},${Math.round(photo.h)}`
+        : undefined;
+
+      const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", reason, faceCoordinates)
 
       if (response.error) {
         alert("Failed to submit removal request. Please try again.")
@@ -223,7 +232,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{photo.eventName}</DialogTitle>
         </DialogHeader>
@@ -352,26 +361,15 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                     <p className="text-muted-foreground">
                       Our team will review your request within 24 hours. You'll receive an email confirmation.
                     </p>
+                    <div className="bg-primary/5 border border-primary/20 rounded-md p-3 mt-3 flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-foreground/80 leading-relaxed">
+                        <strong className="text-primary font-semibold">Group Photos:</strong> If this photo contains multiple people, our team may choose to apply a mosaic pixelation to your face instead of deleting the entire photo. This ensures your privacy is protected while preserving the memory for others.
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <Button
-                      onClick={handleToggleFavorite}
-                      disabled={isFavoriteLoading || isSubmitting}
-                    variant="outline"
-                    className={`h-12 w-full rounded-xl border transition-all ${
-                      isFavorite
-                        ? "border-pink-200 bg-pink-50 text-pink-600 hover:border-pink-300 hover:bg-pink-100 hover:text-pink-700"
-                        : "border-border bg-background text-foreground hover:border-pink-200 hover:bg-pink-50 hover:text-pink-600"
-                    }`}
-                  >
-                    {isFavoriteLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Heart className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-                    )}
-                    {isFavorite ? "Saved to Favorites" : "Add to Favorites"}
-                  </Button>
 
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1 block">

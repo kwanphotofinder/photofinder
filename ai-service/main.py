@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List
 import io
@@ -108,26 +108,48 @@ async def extract_faces(file: UploadFile = File(...)):
 
 
 @app.post("/blur")
-async def blur_image(file: UploadFile = File(...), bboxes: str = ""):
+async def blur_image(file: UploadFile = File(...), bboxes: str = Form("")):
     try:
+        print(f"\n[BLUR] === /blur endpoint called ===")
+        print(f"[BLUR] Received bboxes string: '{bboxes}' (length: {len(bboxes)})")
+        
         contents = await file.read()
+        print(f"[BLUR] Received file: {len(contents)} bytes")
+        
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
             from fastapi import HTTPException
-
             raise HTTPException(status_code=400, detail="Invalid image")
+        
+        print(f"[BLUR] Image decoded: {img.shape} (height={img.shape[0]}, width={img.shape[1]})")
+        
         if not bboxes:
-            return io.BytesIO(contents).getvalue()
+            print("[BLUR] WARNING: No bboxes provided, returning original image!")
+            from fastapi import Response
+            return Response(content=io.BytesIO(contents).getvalue(), media_type="image/jpeg")
 
         coords = [int(x) for x in bboxes.split(",")]
         bbox_list = [coords[i : i + 4] for i in range(0, len(coords), 4)]
+        print(f"[BLUR] Parsed coords: {coords}")
+        print(f"[BLUR] Bbox list (x,y,w,h): {bbox_list}")
+        
+        for bbox in bbox_list:
+            x, y, w, h = bbox
+            print(f"[BLUR] Face region: x={x}, y={y}, w={w}, h={h} -> covers pixels ({x},{y}) to ({x+w},{y+h})")
+            print(f"[BLUR] Image is {img.shape[1]}x{img.shape[0]} - face region fits: {x+w <= img.shape[1] and y+h <= img.shape[0]}")
+        
         blurred_img = blur_faces(img, bbox_list)
         _, buffer = cv2.imencode(".jpg", blurred_img)
-        return io.BytesIO(buffer).getvalue()
+        print(f"[BLUR] Blur complete. Output: {len(buffer)} bytes")
+        
+        from fastapi import Response
+        return Response(content=io.BytesIO(buffer).getvalue(), media_type="image/jpeg")
     except Exception as e:
+        print(f"[BLUR] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         from fastapi import HTTPException
-
         raise HTTPException(status_code=500, detail=str(e))
 
 

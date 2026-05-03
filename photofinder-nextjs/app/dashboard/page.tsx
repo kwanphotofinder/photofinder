@@ -27,6 +27,10 @@ interface Photo {
   eventDate: string
   uploadDate?: string
   confidence: number
+  x?: number
+  y?: number
+  w?: number
+  h?: number
 }
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {

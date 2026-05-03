@@ -74,7 +74,8 @@ export async function POST(
 
       try {
         // 4. Extract face embeddings and store in pgvector
-        const faces = await extractFaces(fileBuffer, file.name)
+        // CRITICAL: We must use the optimized buffer so the coordinates match the resized image!
+        const faces = await extractFaces(optimized.buffer, file.name)
 
         if (!faces || faces.length === 0) {
           // No faces detected; clean up the blank photo and skip to save storage.

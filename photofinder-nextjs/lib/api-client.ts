@@ -106,6 +106,7 @@ export const apiClient = {
     photoId: string,
     requestType: string,
     reason?: string,
+    faceCoordinates?: string,
   ) =>
     apiCall("/removal-requests", {
       method: "POST",
@@ -113,6 +114,7 @@ export const apiClient = {
         photoId,
         requestType,
         reason,
+        faceCoordinates,
       }),
     }),
   getRemovalRequests: () => apiCall("/removal-requests"),

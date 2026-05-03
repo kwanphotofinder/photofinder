@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
         p."storageUrl" as "url",
         e."name" as "eventName",
         e."date" as "eventDate",
-        p."createdAt" as "uploadDate"
+        p."createdAt" as "uploadDate",
+        f.x, f.y, f.w, f.h
       FROM "faces" f
       JOIN "photos" p ON f."photoId" = p."id"
       JOIN "events" e ON p."eventId" = e."id"

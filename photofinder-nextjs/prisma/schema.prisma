@@ -205,6 +205,7 @@ model RemovalRequest {
   userId      String
   requestType RemovalRequestType
   reason      String?
+  faceCoordinates String?               // Added to store x,y,w,h for blurring
   status      RemovalRequestStatus  @default(PENDING)
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt

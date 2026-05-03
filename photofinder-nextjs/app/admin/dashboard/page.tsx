@@ -276,9 +276,13 @@ export default function AdminDashboardPage() {
     if (!confirm("Are you sure you want to blur the faces in this photo? This cannot be undone.")) return
 
     try {
+      const token = localStorage.getItem("auth_token")
       const res = await fetch(`/api/photos/${photoId}/blur`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ bboxes })
       })
       
@@ -816,7 +820,7 @@ export default function AdminDashboardPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
-                                className="flex-1 border-primary/30 text-primary hover:bg-primary/5 md:flex-none"
+                                className="flex-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors md:flex-none"
                               >
                                 Approve & Blur
                               </Button>

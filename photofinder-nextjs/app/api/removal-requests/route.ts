@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { photoId, requestType, reason } = body;
+    const { photoId, requestType, reason, faceCoordinates } = body;
 
     if (!photoId) {
       return NextResponse.json({ error: 'Photo ID required' }, { status: 400 });
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
         // Enforcing strictly typed Enum from Prisma
         requestType: requestType?.toUpperCase() as RemovalRequestType || RemovalRequestType.DELETE,
         reason,
+        faceCoordinates,
       },
     });
 
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
       reason: req.reason,
       createdAt: req.createdAt,
       status: req.status,
+      faceCoordinates: req.faceCoordinates,
       photo: req.photo ? {
         id: req.photo.id,
         url: req.photo.storageUrl,
