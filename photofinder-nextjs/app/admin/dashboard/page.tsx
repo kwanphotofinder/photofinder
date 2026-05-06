@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2 } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 
@@ -38,6 +38,7 @@ export default function AdminDashboardPage() {
   const [newAdminEmail, setNewAdminEmail] = useState("")
   const [userMgmtLoading, setUserMgmtLoading] = useState(false)
   const [userMgmtMessage, setUserMgmtMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [requestProcessingId, setRequestProcessingId] = useState<string | null>(null)
 
   const filteredAndSortedUsers = useMemo(() => {
     let result = allUsers
@@ -244,6 +245,7 @@ export default function AdminDashboardPage() {
   const handleApproveRequest = async (requestId: string, photoId: string) => {
     if (!confirm("Are you sure you want to approve this removal request and delete the photo?")) return
 
+    setRequestProcessingId(requestId)
     try {
       // Delete the request first to avoid foreign-key constraint conflicts when deleting the photo.
       await apiClient.deleteRemovalRequest(requestId)
@@ -256,12 +258,15 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error("Failed to approve request", error)
       alert("Failed to approve request")
+    } finally {
+      setRequestProcessingId(null)
     }
   }
 
   const handleRejectRequest = async (requestId: string) => {
     if (!confirm("Are you sure you want to reject this removal request?")) return
 
+    setRequestProcessingId(requestId)
     try {
       await apiClient.deleteRemovalRequest(requestId)
       setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
@@ -269,12 +274,15 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error("Failed to reject request", error)
       alert("Failed to reject request")
+    } finally {
+      setRequestProcessingId(null)
     }
   }
 
   const handleBlurRequest = async (requestId: string, photoId: string, bboxes: string) => {
     if (!confirm("Are you sure you want to blur the faces in this photo? This cannot be undone.")) return
 
+    setRequestProcessingId(requestId)
     try {
       const token = localStorage.getItem("auth_token")
       const res = await fetch(`/api/photos/${photoId}/blur`, {
@@ -297,6 +305,8 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error("Failed to blur request", error)
       alert("Failed to blur request")
+    } finally {
+      setRequestProcessingId(null)
     }
   }
 
@@ -811,27 +821,51 @@ export default function AdminDashboardPage() {
                             <Button
                               size="sm"
                               onClick={() => handleApproveRequest(request.id, request.photoId)}
-                              className="flex-1 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 md:flex-none"
+                              disabled={requestProcessingId === request.id}
+                              className="flex-1 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
                             >
-                              Approve & Delete
+                              {requestProcessingId === request.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                "Approve & Delete"
+                              )}
                             </Button>
                             {request.faceCoordinates && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
-                                className="flex-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors md:flex-none"
+                                disabled={requestProcessingId === request.id}
+                                className="flex-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
                               >
-                                Approve & Blur
+                                {requestProcessingId === request.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  "Approve & Blur"
+                                )}
                               </Button>
                             )}
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleRejectRequest(request.id)}
-                              className="flex-1 md:flex-none"
+                              disabled={requestProcessingId === request.id}
+                              className="flex-1 disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
                             >
-                              Reject
+                              {requestProcessingId === request.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                "Reject"
+                              )}
                             </Button>
                           </div>
                         </div>
