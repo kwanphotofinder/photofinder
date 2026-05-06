@@ -95,7 +95,13 @@ class FaceMeshLiveness:
         return left_ear < EAR_THRESHOLD or right_ear < EAR_THRESHOLD
 
     @staticmethod
-    def detect_head_turn_direction(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):
+    def detect_head_turn_direction(
+        landmarks,
+        left_cheek_idx,
+        right_cheek_idx,
+        nose_idx,
+        threshold=0.40,
+    ):
         # Determine whether the user's head is turned left or right using the nose position
         # relative to the cheeks. Returns 'left', 'right', or None.
         left_cheek = landmarks[left_cheek_idx]
@@ -107,9 +113,9 @@ class FaceMeshLiveness:
             return None
             
         nose_rel = (nose[0] - left_cheek[0]) / face_width
-        if nose_rel < 0.35:
+        if nose_rel < threshold:
             return 'right'
-        if nose_rel > 0.65:
+        if nose_rel > 1.0 - threshold:
             return 'left'
         return None
 
