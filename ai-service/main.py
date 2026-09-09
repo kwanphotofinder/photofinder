@@ -23,9 +23,6 @@ except Exception as e:
 
 app = FastAPI(title="Face Search AI Service")
 
-BLINK_EAR_THRESHOLD = float(os.getenv("LIVENESS_EAR_THRESHOLD", "0.23"))
-HEAD_TURN_THRESHOLD = float(os.getenv("LIVENESS_HEAD_TURN_THRESHOLD", "0.40"))
-
 # Initialize Prometheus metrics
 if Instrumentator is not None:
     Instrumentator().instrument(app).expose(app)
@@ -354,7 +351,8 @@ async def detect_liveness(file: UploadFile = File(...)):
         right_ear = eye_aspect_ratio(right_eye)
         current_ear = (left_ear + right_ear) / 2.0
 
-        current_ear_open = current_ear >= BLINK_EAR_THRESHOLD
+        EAR_THRESHOLD = 0.21
+        current_ear_open = current_ear >= EAR_THRESHOLD
 
         # Track blink: transition from open → closed → open
         blink = False
@@ -363,7 +361,7 @@ async def detect_liveness(file: UploadFile = File(...)):
             if liveness_detector.prev_ear_open and not current_ear_open:
                 liveness_detector.blink_detected = True
                 print(
-                    f"[BLINK] Eyes closing detected: EAR {current_ear:.3f} < {BLINK_EAR_THRESHOLD}"
+                    f"[BLINK] Eyes closing detected: EAR {current_ear:.3f} < {EAR_THRESHOLD}"
                 )
             # If eyes were closed and now open again, that completes the blink
             elif (
@@ -374,7 +372,7 @@ async def detect_liveness(file: UploadFile = File(...)):
                 blink = True
                 liveness_detector.blink_detected = False
                 print(
-                    f"[BLINK] Blink completed! EAR {current_ear:.3f} >= {BLINK_EAR_THRESHOLD}"
+                    f"[BLINK] Blink completed! EAR {current_ear:.3f} >= {EAR_THRESHOLD}"
                 )
             liveness_detector.prev_ear_open = current_ear_open
         else:
@@ -386,7 +384,7 @@ async def detect_liveness(file: UploadFile = File(...)):
 
         # Other liveness checks
         head_turn_direction = liveness_detector.detect_head_turn_direction(
-            landmark_xy, LEFT_CHEEK_IDX, RIGHT_CHEEK_IDX, NOSE_IDX, HEAD_TURN_THRESHOLD
+            landmark_xy, LEFT_CHEEK_IDX, RIGHT_CHEEK_IDX, NOSE_IDX
         )
         head_turn = head_turn_direction is not None
 
