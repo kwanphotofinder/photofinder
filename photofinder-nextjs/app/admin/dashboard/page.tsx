@@ -370,22 +370,6 @@ export default function AdminDashboardPage() {
     <>
       <Header userRole="admin" />
 
-      {/* REG MFU Breadcrumbs & System Status Bar */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between text-xs text-slate-600">
-          <div className="flex items-center gap-2">
-            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.home")}</span>
-            <span className="text-slate-400">/</span>
-            <span>{t("breadcrumb.admin")}</span>
-            <span className="text-slate-400">/</span>
-            <span className="font-semibold text-[#82181a]">{t("breadcrumb.dashboard")}</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-slate-500 font-medium">{t("portal.system_online")}</span>
-          </div>
-        </div>
-      </div>
 
       <main className="min-h-screen bg-[#f0f2f5] pb-12">
         {/* Academic Portal Header Banner */}
