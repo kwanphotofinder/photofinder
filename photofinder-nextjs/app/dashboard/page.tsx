@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
 import { IdentityVerification } from "@/components/identity-verification"
-import { AlertCircle, Camera, CheckCircle2, Loader2, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
+import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, Search, ShieldCheck, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
 import { UploadLoader } from "@/components/upload-loader"
+import { useLanguage } from "@/lib/language-context"
 
 interface Photo {
   id: string
@@ -56,6 +57,7 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string |
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [userName, setUserName] = useState("")
@@ -66,7 +68,7 @@ export default function DashboardPage() {
   const [isDeletingReference, setIsDeletingReference] = useState(false)
   const [showVerification, setShowVerification] = useState(false)
   const [autoMatches, setAutoMatches] = useState<Photo[]>([])
-  const [savedPhotos, setSavedPhotos] = useState<Photo[]>([])
+  const [savedPhotoCount, setSavedPhotoCount] = useState(0)
   const [hasConsentedToFaceSearch, setHasConsentedToFaceSearch] = useState(true)
   const [showConsentNotice, setShowConsentNotice] = useState(false)
 
@@ -75,22 +77,22 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => [
       {
-        label: "Auto matches",
+        label: t("student.auto_matches"),
         value: autoMatches.length,
         icon: Sparkles,
       },
       {
-        label: "Saved moments",
-        value: savedPhotos.length,
-        icon: CheckCircle2,
-      },
-      {
-        label: "Profile status",
-        value: hasReferenceFace ? "Active" : "Inactive",
+        label: t("student.profile_status"),
+        value: hasReferenceFace ? t("student.active") : t("student.inactive"),
         icon: User,
       },
+      {
+        label: t("student.saved_moments"),
+        value: savedPhotoCount,
+        icon: CheckCircle2,
+      },
     ],
-    [autoMatches.length, hasReferenceFace, savedPhotos.length],
+    [autoMatches.length, hasReferenceFace, savedPhotoCount, t],
   )
 
   const fetchDashboardData = async () => {
@@ -174,19 +176,11 @@ export default function DashboardPage() {
       const savedRes = await fetch(`${apiUrl}/saved-photos/${storedId}`)
       if (savedRes.ok) {
         const savedData = await savedRes.json()
-        setSavedPhotos(
-          savedData.map((item: any) => ({
-            id: item.photo.id,
-            url: item.photo.storageUrl,
-            eventName: item.photo.event?.name || "Unknown",
-            eventDate: item.photo.event?.date || item.photo.createdAt,
-              uploadDate: item.photo.createdAt,
-            confidence: 0.95,
-          })),
-        )
+        setSavedPhotoCount(savedData.length)
       } else {
-        setSavedPhotos([])
+        setSavedPhotoCount(0)
       }
+
     } catch (err) {
       console.error("Failed to load dashboard:", err)
     } finally {
@@ -328,29 +322,22 @@ export default function DashboardPage() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      <main className="min-h-screen relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent pointer-events-none" />
-        <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#82181a]/12 blur-3xl pointer-events-none" />
-        <div className="absolute top-48 left-0 h-64 w-64 rounded-full bg-[#82181a]/10 blur-3xl pointer-events-none" />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-          <section className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-6 shadow-2xl shadow-primary/5 backdrop-blur-2xl transition-all duration-500 sm:p-10">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_40%),linear-gradient(to_bottom_right,rgba(255,255,255,0.4),rgba(255,255,255,0))]" />
-            <div className="relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex-1 space-y-6">
-                <div className="space-y-4">
-                    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                    <span className="block text-foreground">Welcome back,</span>
-                    <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent drop-shadow-sm select-none">
-                      {displayName}
-                    </span>
-                  </h1>
-                    <p className="text-sm text-muted-foreground sm:text-base">
-                      Upload a clear selfie once, then we will keep matching new event photos for you automatically.
-                    </p>
+      <main className="min-h-screen bg-[#faf9f7] text-slate-950">
+        <div className="border-b border-[#e2ddd6] bg-[#f5f3ef]">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
+            <div className="grid overflow-hidden border border-[#d8d2ca] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
+              <div className="relative flex min-h-70 flex-col justify-between overflow-hidden bg-[#fbf8f5] p-6 sm:p-9 lg:p-10">
+                <div className="relative z-10 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">
+                  <Sparkles className="h-4 w-4" /> {t("student.space")}
                 </div>
-
-                <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
+                <div className="relative z-10 mt-12">
+                  <p className="mb-2 text-sm font-medium text-slate-500">{t("student.welcome")}</p>
+                  <h1 className="max-w-xl text-3xl font-black tracking-[-0.03em] text-[#421012] sm:text-4xl lg:text-5xl">{displayName}</h1>
+                  <p className="mt-4 max-w-lg text-sm leading-6 text-slate-600 sm:text-base">
+                    {t("student.description")}
+                  </p>
+                </div>
+                <div className="relative z-10 mt-8 flex flex-wrap gap-3">
                   <Button
                     onClick={() => {
                       if (!hasConsentedToFaceSearch) {
@@ -359,121 +346,73 @@ export default function DashboardPage() {
                       }
                       setShowVerification(true)
                     }}
-                    variant="outline"
                     size="lg"
-                    className={`h-12 rounded-2xl border-2 px-7 text-sm font-bold backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-primary sm:h-14 sm:text-base sm:w-auto ${!hasConsentedToFaceSearch ? "opacity-50" : "hover:scale-[1.02] active:scale-95"}`}
+                    className="h-11 rounded-none bg-[#82181a] px-5 text-sm font-bold text-white hover:bg-[#641416]"
                     disabled={isDeletingReference}
                   >
-                    <Camera className="mr-2.5 h-5 w-5" />
-                    {hasReferenceFace ? "Update Profile" : "Verify & Set Selfie"}
+                    <Camera className="mr-2 h-4 w-4" />
+                    {hasReferenceFace ? t("student.update_profile") : t("student.set_selfie")}
+                  </Button>
+                  <Button onClick={() => router.push("/search")} variant="outline" size="lg" className="h-11 rounded-none border-[#cfc8bf] bg-white px-5 text-sm font-bold text-[#82181a] hover:bg-[#f5f3ef]">
+                    <Search className="mr-2 h-4 w-4" /> {t("student.browse_photos")}
                   </Button>
                 </div>
               </div>
-
-              <div className="flex flex-col items-center justify-center gap-6 lg:w-72">
-                <div className={`group relative transition-all duration-500 ${!hasConsentedToFaceSearch ? "opacity-40 grayscale" : "hover:scale-105"}`}>
-                  <div className={`absolute -inset-4 rounded-full blur-2xl transition-all duration-500 group-hover:blur-3xl ${hasReferenceFace ? "bg-primary/20" : "bg-slate-200/50"}`} />
-                  <div className={`relative flex h-48 w-48 items-center justify-center rounded-3xl p-1 shadow-2xl transition-all duration-500 sm:h-56 sm:w-56 ${hasReferenceFace ? "bg-gradient-to-br from-primary via-primary/30 to-white" : "bg-white"}`}>
-                    <div className="h-full w-full overflow-hidden rounded-[calc(1.5rem-2px)] bg-slate-100 shadow-inner">
-                      {hasReferenceFace && referenceFaceUrl ? (
-                        <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-50/50 text-slate-400">
-                          <img 
-                            src="/Camera Icon.gif" 
-                            alt="No selfie" 
-                            className="h-44 w-44 object-contain opacity-40 transition-opacity duration-300 group-hover:opacity-60" 
-                          />
-                          <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400/80 relative -top-3">No Image Set</span>
-                        </div>
-                      )}
-                    </div>
-                    {hasReferenceFace && (
-                      <div className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-white p-1 shadow-xl">
-                        <div className="flex h-full w-full items-center justify-center rounded-xl bg-emerald-500 text-white">
-                          <CheckCircle2 className="h-5 w-5" />
-                        </div>
-                      </div>
+              <div className="relative min-h-70 border-l-4 border-l-[#f4c66a] bg-[#721719] p-6 text-white sm:p-9 lg:p-10">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#f4c66a]">
+                  <span>{t("student.profile_signal")}</span>
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="mt-7 flex items-center gap-5">
+                  <div className={`h-28 w-28 shrink-0 overflow-hidden border-4 border-white bg-[#ded4c5] shadow-lg sm:h-36 sm:w-36 ${!hasConsentedToFaceSearch ? "grayscale opacity-50" : ""}`}>
+                    {hasReferenceFace && referenceFaceUrl ? (
+                      <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover" />
+                    ) : (
+                      <img src="/Camera Icon.gif" alt="No selfie" className="h-full w-full object-contain p-3 opacity-50" />
                     )}
                   </div>
+                  <div>
+                    <p className="text-xl font-black tracking-tight text-white">{hasReferenceFace ? t("student.ready") : t("student.not_set_up")}</p>
+                    <p className="mt-2 max-w-42.5 text-sm leading-5 text-white/70">{hasReferenceFace ? t("student.ready_description") : t("student.not_set_up_description")}</p>
+                  </div>
                 </div>
-
                 {hasReferenceFace && (
-                  <Button
-                    onClick={handleDeleteSelfie}
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 rounded-xl font-bold text-destructive/60 transition-colors hover:bg-destructive/5 hover:text-destructive active:bg-destructive/10"
-                    disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
-                  >
-                    {isDeletingReference ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Removing...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Remove Profile
-                      </>
-                    )}
+                  <Button onClick={handleDeleteSelfie} variant="ghost" size="sm" className="mt-6 h-9 rounded-none px-0 font-bold text-[#f4c66a] hover:bg-transparent hover:text-white" disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}>
+                    {isDeletingReference ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Remove profile
                   </Button>
                 )}
               </div>
             </div>
-
-              <div className="mt-10 grid gap-6 sm:grid-cols-3">
-              {stats.map((stat) => (
-                <StatCard key={stat.label} {...stat} />
+            <div className="grid border-x border-b border-[#d8d2ca] bg-white sm:grid-cols-3">
+              {stats.map((stat, index) => (
+                <div key={stat.label} className={`flex items-center justify-between px-5 py-5 sm:px-7 ${index > 0 ? "border-t border-[#d8d2ca] sm:border-l sm:border-t-0" : ""}`}>
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{stat.label}</p><p className="mt-1 text-2xl font-black tracking-tight text-[#421012]">{stat.value}</p></div>
+                  <stat.icon className="h-5 w-5 text-[#82181a]" />
+                </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+          <section>
+            <div className="mb-7 flex items-end justify-between gap-4 border-b border-[#d8d2ca] pb-4">
+              <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">{t("student.collection")}</p><h2 className="mt-2 text-2xl font-black tracking-[-0.02em] sm:text-3xl">{t("student.recently_matched")}</h2></div>
+              <Button onClick={() => router.push("/search")} variant="ghost" className="hidden rounded-none px-0 font-bold text-[#82181a] hover:bg-transparent sm:flex">{t("student.view_all")} <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
+            </div>
+            {isLoading ? (
+              <div className="border border-dashed border-[#cfc8bf] bg-white p-12 text-center text-sm text-slate-500">Loading your dashboard...</div>
+            ) : hasReferenceFace && autoMatches.length > 0 ? (
+              <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={false} />
+            ) : (
+              <div className="relative flex min-h-36 items-center justify-center overflow-hidden py-10">
+                <ImageIcon className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" />
+                <p className="select-none text-center text-3xl font-black uppercase tracking-[0.12em] text-[#82181a] opacity-[0.08] sm:text-4xl">{t("student.no_matches")}</p>
+              </div>
+            )}
           </section>
 
-          <div className="mt-12 space-y-12">
-            <section className="space-y-8">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-6">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Recently Matched</h2>
-                </div>
-              </div>
-
-              {isLoading ? (
-                <Card className="border-dashed border-border/70 bg-card/70">
-                    <CardContent className="p-10 text-center text-sm text-muted-foreground">
-                    Loading your dashboard...
-                  </CardContent>
-                </Card>
-              ) : hasReferenceFace ? (
-                autoMatches.length > 0 ? (
-                  <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={false} />
-                ) : (
-                  <Card className="border-dashed border-border/70 bg-card/70">
-                    <CardContent className="p-10 text-center">
-                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-base font-semibold sm:text-lg">No matches yet</h3>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        We’ll keep checking new events.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )
-              ) : (
-                <Card className="border-dashed border-border/70 bg-card/70">
-                  <CardContent className="p-10 text-center">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Camera className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-base font-semibold sm:text-lg">Upload a selfie to start</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      We’ll match you to event photos automatically.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </section>
-          </div>
         </div>
       </main>
       {/* Branded Loading Overlay */}
@@ -483,7 +422,7 @@ export default function DashboardPage() {
       />
       {/* Identity Verification Modal */}
       {showVerification && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-110 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg">
             <IdentityVerification
               onSuccess={async () => {
