@@ -71,6 +71,13 @@ const translations: Record<Language, Record<string, string>> = {
     "favorites.error": "ไม่สามารถโหลดรายการโปรดได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง",
     "favorites.empty": "ยังไม่มีรูปที่บันทึกไว้",
     "favorites.empty_description": "กดไอคอนหัวใจบนรูปที่คุณชอบเพื่อบันทึกไว้ที่นี่",
+    "search.space": "คลังรูปภาพ",
+    "search.title": "ดูรูปภาพ",
+    "search.description": "ค้นหารูปภาพจากกิจกรรมในมหาวิทยาลัย",
+    "search.count": "รูปภาพ",
+    "search.loading": "กำลังโหลดรูปภาพ...",
+    "search.error": "ไม่สามารถโหลดรูปภาพได้",
+    "search.empty": "ยังไม่มีรูปภาพ",
 
     // Dashboard Banner & Metrics
     "dash.title": "แดชบอร์ดผู้ดูแลระบบ (Admin Dashboard)",
@@ -512,6 +519,13 @@ const translations: Record<Language, Record<string, string>> = {
     "favorites.error": "Unable to load your favorites at this time. Please try again later.",
     "favorites.empty": "No saved photos yet",
     "favorites.empty_description": "Tap the heart icon on any photo you love to save it here.",
+    "search.space": "Photo library",
+    "search.title": "Browse photos",
+    "search.description": "Find photos from campus events.",
+    "search.count": "photos",
+    "search.loading": "Loading photos...",
+    "search.error": "Unable to load photos.",
+    "search.empty": "No photos yet",
 
     // Dashboard Banner & Metrics
     "dash.title": "Admin Dashboard",
