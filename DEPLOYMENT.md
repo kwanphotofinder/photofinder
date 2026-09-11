@@ -91,17 +91,21 @@ Expand the "Environment Variables" section and add the following keys. Make sure
 | **Database (Neon)** | |
 | `DATABASE_URL` | `Your Neon Connection String (Pooler URL)` |
 | `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL)` |
-| **Integrations (LINE & Gmail)** | |
+| **Application URLs** | |
+| `APP_URL` | `https://your-production-domain.com` (or Vercel URL) |
+| `NEXT_PUBLIC_APP_URL` | `https://your-production-domain.com` (or Vercel URL) |
+| `NEXT_PUBLIC_API_URL` | `/api` (Keep as is) |
+| **Storage, AI & Chatbot** | |
+| `CLOUDINARY_URL` | `Your Cloudinary URL (cloudinary://...)` |
+| `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
+| `GROQ_API_KEY` | `Your Groq API Key for the chatbot (Optional)` |
+| **Integrations (LINE & Gmail - Optional)** | |
 | `LINE_CHANNEL_ID` | `Your LINE Messaging API Channel ID` |
 | `LINE_CHANNEL_SECRET` | `Your LINE Messaging API Channel Secret` |
 | `LINE_CHANNEL_ACCESS_TOKEN` | `Your LINE Channel Access Token (Long-lived)` |
+| `LINE_REDIRECT_URI` | `https://your-production-domain.com/api/auth/line/callback` |
 | `GMAIL_USER` | `The Gmail address used to send notifications` |
 | `GMAIL_APP_PASSWORD` | `Your Google App Password (not your normal password!)` |
-| **Storage & AI** | |
-| `CLOUDINARY_URL` | `Your Cloudinary URL (cloudinary://...)` |
-| `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
-| `GROQ_API_KEY` | `Your Groq API Key for the chatbot` |
-| `NEXT_PUBLIC_API_URL` | `/api` (Keep as is) |
 
 ### 3. Deploy
 1. Click **Deploy**.

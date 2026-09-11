@@ -47,50 +47,47 @@ npm install
 
 ### 3. Environment Variables
 
-Create a `.env.local` file in the `photofinder-nextjs` directory. You will need credentials for the database, Google OAuth, Cloudinary, and the AI service.
+Copy `.env.example` to create your local `.env` (for Docker) or `.env.local` (for `npm run dev`):
 
-```env
-# Frontend Config
-NEXT_PUBLIC_API_URL="/api"
-NEXT_PUBLIC_GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
+```bash
+# For Docker Compose (Root)
+cp .env.example .env
 
-# Backend Secrets
-JWT_SECRET="your_super_secret_jwt_key"
-GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="your_google_client_secret"
-CRON_SECRET="your_shared_cron_secret"
-
-# AI Service (Python Microservice)
-AI_SERVICE_URL="http://localhost:8000" # Or your live Hugging Face URL
-
-# Database (Neon or Local Postgres with pgvector)
-DATABASE_URL="postgresql://user:password@localhost:5432/facesearch"
-DIRECT_URL="postgresql://user:password@localhost:5432/facesearch"
-
-# Cloudinary
-CLOUDINARY_URL="cloudinary://api_key:api_secret@cloud_name"
+# Or for local Next.js dev server:
+cp .env.example photofinder-nextjs/.env.local
 ```
+
+Refer to [.env.example](./.env.example) for the complete list of variables and status badges (Mandatory vs Pre-configured vs Optional).
 
 ### 4. Database Setup
 
-Apply the Prisma migrations so the database schema matches the current app:
+When using Docker, PostgreSQL + pgvector is initialized automatically. Apply Prisma migrations to set up the database schema:
 
 ```bash
+cd photofinder-nextjs
 npx prisma migrate dev
 ```
 
-**Important:** If you are bootstrapping a new Neon database, verify that the `vector` extension and the `faces_embedding_idx` index exist after migrations are applied:
+### 5. Start the Application
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
-```
+You can run PhotoFinder in either of two modes:
 
-### 5. Start the Development Server
+* **Mode A: Full Docker Stack (Frontend + AI + Postgres)**
+  ```bash
+  docker compose up --build -d
+  ```
 
-```bash
-npm run dev
-```
+* **Mode B: Fast Dev Server (Hot-Reload)**
+  ```bash
+  # 1. Start backend containers
+  docker compose up postgres ai-service -d
+
+  # 2. Start Next.js dev server
+  cd photofinder-nextjs
+  npm run dev
+  ```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 

@@ -87,32 +87,41 @@ The host machine only requires standard container runtime software:
 ## 6. Environment Configuration Reference (`.env`)
 
 ```env
-# --- Database Configuration ---
+# --- 1. Database Configuration ---
 DATABASE_URL="postgresql://photofinder:your_strong_password@postgres:5432/photofinder_db"
 DIRECT_URL="postgresql://photofinder:your_strong_password@postgres:5432/photofinder_db"
 
-# --- AI Microservice URL ---
-AI_SERVICE_URL="http://ai-service:7860"
-NEXT_PUBLIC_API_URL="/api"
-
-# --- Authentication & Security ---
+# --- 2. Security & Authentication ---
 JWT_SECRET="generate_a_long_random_64_char_secret_string"
 SUPER_ADMIN_EMAIL="admin.lead@your-org.ac.th"
 CRON_SECRET="generate_a_secure_cron_token"
 
-# --- Google OAuth Credentials ---
+# --- 3. Google OAuth Credentials ---
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
 GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
 
-# --- Cloud Storage & AI Chatbot ---
+# --- 4. Cloud Image Storage ---
 CLOUDINARY_URL="cloudinary://api_key:api_secret@cloud_name"
+
+# --- 5. AI Face Microservice URL ---
+AI_SERVICE_URL="http://ai-service:7860"
+
+# --- 6. Application URLs ---
+NEXT_PUBLIC_API_URL="/api"
+APP_URL="https://photofinder.your-org.ac.th"
+NEXT_PUBLIC_APP_URL="https://photofinder.your-org.ac.th"
+
+# --- 7. AI Chatbot (Optional) ---
 GROQ_API_KEY="gsk_your_groq_api_key"
 
-# --- Notifications (Optional) ---
+# --- 8. Notifications (Optional) ---
 GMAIL_USER="notifications@your-org.ac.th"
 GMAIL_APP_PASSWORD="your_google_app_password"
+LINE_CHANNEL_ID="your_line_channel_id"
+LINE_CHANNEL_SECRET="your_line_channel_secret"
 LINE_CHANNEL_ACCESS_TOKEN="your_line_token"
+LINE_REDIRECT_URI="https://photofinder.your-org.ac.th/api/auth/line/callback"
 ```
 
 ---

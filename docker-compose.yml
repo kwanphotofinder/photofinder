@@ -1,8 +1,9 @@
 services:
-  # Supabase-compatible local PostgreSQL with pgvector natively installed
+  # 1. PostgreSQL with pgvector natively installed
   postgres:
     image: ankane/pgvector:v0.5.1
     container_name: photofinder_postgres
+    restart: always
     ports:
       - '5432:5432'
     environment:
@@ -14,14 +15,40 @@ services:
     networks:
       - photofinder_net
 
-  # Your Python Face Extraction Model
+  # 2. Python Face Recognition AI Microservice
   ai-service:
     build:
       context: ./ai-service
       dockerfile: Dockerfile
     container_name: photofinder_ai
+    restart: always
     ports:
       - '8000:7860'
+    networks:
+      - photofinder_net
+
+  # 3. Next.js Full-Stack Web Application & API
+  web:
+    build:
+      context: ./photofinder-nextjs
+      dockerfile: Dockerfile
+    container_name: photofinder_web
+    restart: always
+    ports:
+      - '3000:3000'
+    env_file:
+      - path: ./photofinder-nextjs/.env
+        required: false
+      - path: ./.env
+        required: false
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/facesearch
+      - DIRECT_URL=postgresql://postgres:postgres@postgres:5432/facesearch
+      - AI_SERVICE_URL=http://ai-service:7860
+      - NEXT_PUBLIC_API_URL=/api
+    depends_on:
+      - postgres
+      - ai-service
     networks:
       - photofinder_net
 
