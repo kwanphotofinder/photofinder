@@ -1,98 +1,46 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getUserFromRequest } from "@/lib/auth"
-import prisma from "@/lib/prisma"
-import { v2 as cloudinary } from "cloudinary"
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
+import { deleteFromCloudinary } from '@/lib/cloudinary';
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000"
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_URL?.split("@")[1],
-  api_key: process.env.CLOUDINARY_URL?.split("//")[1].split(":")[0],
-  api_secret: process.env.CLOUDINARY_URL?.split(":")[2].split("@")[0],
-})
-
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id: photoId } = await context.params
-    const { bboxes } = await req.json() // Expecting "x,y,w,h" string
-
-    console.log(`[BLUR] === Starting blur for photo ${photoId} ===`)
-    console.log(`[BLUR] Received bboxes: "${bboxes}" (type: ${typeof bboxes})`)
-
-    // 1. Auth check using standard helper
-    const user = await getUserFromRequest(req)
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const p = await params;
+    const user = await getUserFromRequest(req);
     
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // Optional: Protect route
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const photo = await prisma.photo.findUnique({
+      where: { id: p.id },
+      include: { faces: true },
+    });
+
+    if (!photo) {
+      return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    // 2. Fetch photo from DB
-    const photo = await prisma.photo.findUnique({ where: { id: photoId } })
-    if (!photo) return NextResponse.json({ error: "Photo not found" }, { status: 404 })
-
-    console.log(`[BLUR] Photo storageUrl: ${photo.storageUrl}`)
-    console.log(`[BLUR] Photo dimensions in DB: ${photo.width}x${photo.height}`)
-
-    // 3. Download image from Cloudinary
-    const imageRes = await fetch(photo.storageUrl)
-    const imageBlob = await imageRes.blob()
-    console.log(`[BLUR] Downloaded image blob: ${imageBlob.size} bytes, type: ${imageBlob.type}`)
-
-    // 4. Call AI Service to Blur
-    const formData = new FormData()
-    formData.append("file", imageBlob, "image.jpg")
-    formData.append("bboxes", bboxes)
-
-    console.log(`[BLUR] Sending to AI service: ${AI_SERVICE_URL}/blur`)
-    const blurRes = await fetch(`${AI_SERVICE_URL}/blur`, {
-      method: "POST",
-      body: formData,
-    })
-
-    console.log(`[BLUR] AI service response: ${blurRes.status} ${blurRes.statusText}`)
-    if (!blurRes.ok) {
-      const errText = await blurRes.text()
-      console.error(`[BLUR] AI error body: ${errText}`)
-      throw new Error("AI Service failed to blur image")
+    // Check if the user is authorized to delete this photo
+    // ADMIN and SUPER_ADMIN can delete anything, otherwise only the uploader
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && photo.uploaderId !== user.sub) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const blurredImageBuffer = await blurRes.arrayBuffer()
-    console.log(`[BLUR] Received blurred image: ${blurredImageBuffer.byteLength} bytes`)
 
-    // 5. Upload blurred image back to Cloudinary (Overwrite)
-    // Correctly extract the full public_id (including folders)
-    const urlParts = photo.storageUrl.split('/upload/')
-    if (urlParts.length !== 2) throw new Error("Invalid Cloudinary URL")
-    
-    let endPath = decodeURIComponent(urlParts[1])
-    if (endPath.match(/^v\d+\//)) {
-      endPath = endPath.replace(/^v\d+\//, '')
-    }
-    const lastDotIndex = endPath.lastIndexOf('.')
-    const publicId = lastDotIndex !== -1 ? endPath.substring(0, lastDotIndex) : endPath
+    // 1. Delete the photo from Postgres.
+    // Thanks to Prisma Cascade deletes, all connected faces, reports, and saved records will be wiped automatically.
+    await prisma.photo.delete({
+      where: { id: p.id },
+    });
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream({
-        public_id: publicId,
-        overwrite: true,
-        invalidate: true,
-        resource_type: "image",
-      }, (error, result) => {
-        if (error) reject(error)
-        else resolve(result)
-      }).end(Buffer.from(blurredImageBuffer))
-    }) as any
+    // 3. Delete original file from Cloudinary 
+    await deleteFromCloudinary(photo.storageUrl);
 
-    // Update DB with the new secure_url (which has a new version string, breaking browser cache)
-    await prisma.photo.update({
-      where: { id: photoId },
-      data: { storageUrl: uploadResult.secure_url }
-    })
-
-    return NextResponse.json({ success: true, url: uploadResult.secure_url })
-
-  } catch (error: any) {
-    console.error("Blur error:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ message: 'Photo deleted successfully', id: p.id });
+  } catch (error) {
+    console.error('DELETE /api/photos/[id] error:', error);
+    return NextResponse.json({ error: 'Failed to delete photo' }, { status: 500 });
   }
 }
