@@ -1,0 +1,297 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Eye, Trash2, Heart, Download, Share2 } from "lucide-react"
+import { PhotoDetailModal } from "./photo-detail-modal"
+import { downloadPhoto } from "@/lib/download"
+import { trackPhotoEngagement } from "@/lib/engagement-client"
+
+interface Photo {
+  id: string
+  url: string
+  eventName: string
+  eventDate: string
+  uploadDate?: string
+  confidence?: number
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+}
+
+interface PhotoGridProps {
+  photos: Photo[]
+  onRemove?: (photoId: string) => void
+  showRank?: boolean
+  compact?: boolean
+  showConfidence?: boolean
+  showShare?: boolean
+}
+
+function formatDayMonthYear(dateValue?: string) {
+  if (!dateValue) return "-"
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return "-"
+  return new Intl.DateTimeFormat("en-GB").format(date)
+}
+
+export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true, showShare = true }: PhotoGridProps) {
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
+  const [showDetail, setShowDetail] = useState(false)
+  const [openShareSheet, setOpenShareSheet] = useState(false)
+  const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
+
+  useEffect(() => {
+    // Load saved photos from API
+    const loadSavedPhotos = async () => {
+      try {
+        const userId = localStorage.getItem('user_id') || 'guest'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        if (response.ok) {
+          const savedPhotos = await response.json()
+          setSavedPhotoIds(savedPhotos.map((item: any) => item.photo.id))
+        }
+      } catch (err) {
+        console.error('Failed to load saved photos:', err)
+      }
+    }
+    loadSavedPhotos()
+  }, [])
+
+  const handleSavePhoto = async (photoId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const userId = localStorage.getItem('user_id') || 'guest'
+
+      if (savedPhotoIds.includes(photoId)) {
+        // Unsave
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photoId}`, {
+          method: 'DELETE',
+          headers: { 'user-id': userId },
+        })
+        if (response.ok) {
+          setSavedPhotoIds(savedPhotoIds.filter(id => id !== photoId))
+        }
+      } else {
+        // Save
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const response = await fetch(`${apiUrl}/saved-photos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'user-id': userId,
+          },
+          body: JSON.stringify({ photoId }),
+        })
+        if (response.ok) {
+          setSavedPhotoIds([...savedPhotoIds, photoId])
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save/unsave photo:', err)
+      alert('Failed to update saved photos. Please try again.')
+    }
+  }
+
+  const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
+    e.stopPropagation()
+    trackPhotoEngagement(photo.id, "DOWNLOAD")
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
+  }
+
+  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
+    e.stopPropagation()
+    trackPhotoEngagement(photo.id, "SHARE")
+    setSelectedPhoto(photo)
+    setOpenShareSheet(true)
+    setShowDetail(true)
+  }
+
+  return (
+    <>
+      <div className={`grid gap-4 ${compact ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
+        {photos.map((photo) => (
+          <Card
+            key={photo.id}
+            className="overflow-hidden border border-border hover:border-primary/50 transition-colors group"
+          >
+            <div 
+              className={`relative bg-muted overflow-hidden cursor-pointer ${compact ? "aspect-[4/5]" : "aspect-square"}`}
+              onClick={() => {
+                setSelectedPhoto(photo)
+                setShowDetail(true)
+              }}
+            >
+              <Image
+                src={photo.url || "/placeholder.svg"}
+                alt={photo.eventName}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform"
+              />
+
+              {/* Rank Badge - Top Left */}
+              {showRank && (
+                <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md z-10">
+                  #{photos.indexOf(photo) + 1}
+                </div>
+              )}
+
+              {/* Confidence Percentage Badge - Top Right */}
+              {showConfidence && photo.confidence !== undefined && photo.confidence > 0 && (
+                <div className={`absolute top-2 right-2 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md z-10 ${
+                  photo.confidence * 100 >= 80 ? 'bg-green-500' :
+                  photo.confidence * 100 >= 60 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}>
+                  {Math.round(photo.confidence * 100)}%
+                </div>
+              )}
+
+              {/* Desktop: Overlay on hover - Only works with mouse */}
+              <div className="hidden 2xl:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={`${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-white/90 hover:bg-white text-black'} shadow-lg`}
+                  onClick={(e) => handleSavePhoto(photo.id, e)}
+                >
+                  <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedPhoto(photo)
+                    setShowDetail(true)
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
+                  onClick={(e) => handleDownload(photo, e)}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                {showShare && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-white/90 hover:bg-white text-black shadow-lg"
+                    onClick={(e) => handleShare(photo, e)}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                )}
+                {onRemove && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="shadow-lg"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm("Remove this photo from My Photos?")) {
+                        onRemove(photo.id)
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Photo Info */}
+            <div className="p-3 space-y-1">
+              <p className={`font-semibold text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{photo.eventName}</p>
+              <p className="text-xs text-muted-foreground">{formatDayMonthYear(photo.uploadDate || photo.eventDate)}</p>
+            </div>
+
+            {/* Action Buttons - Always visible below the image */}
+            <div className="p-3 pt-0 2xl:hidden">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`shrink-0 ${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSavePhoto(photo.id, e)
+                  }}
+                >
+                  <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedPhoto(photo)
+                    setShowDetail(true)
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={(e) => handleDownload(photo, e)}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                {showShare && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={(e) => handleShare(photo, e)}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                )}
+                {onRemove && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm("Remove this photo from My Photos?")) {
+                        onRemove(photo.id)
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {selectedPhoto && (
+        <PhotoDetailModal
+          photo={selectedPhoto}
+          isOpen={showDetail}
+          onClose={() => {
+            setShowDetail(false)
+            setOpenShareSheet(false)
+          }}
+          initialShareOpen={openShareSheet}
+        />
+      )}
+    </>
+  )
+}
