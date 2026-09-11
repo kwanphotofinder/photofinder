@@ -3,15 +3,17 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Header } from "@/components/header"
-import { SearchResultGrid } from "@/components/search-result-grid"
+import { PhotoGrid } from "@/components/photo-grid"
 import { AlertCircle, Loader2, Search } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 
 interface Photo {
   id: string
-  storageUrl: string
-  createdAt: string
-  event?: { name: string; date: string }
+  url: string
+  uploadDate: string
+  eventName: string
+  eventDate: string
+  confidence: number
 }
 
 export default function SearchPage() {
@@ -42,12 +44,16 @@ export default function SearchPage() {
       }
 
       try {
-        const response = await fetch("/api/photos", {
+        const response = await fetch("/api/me/matches", {
           headers: { Authorization: `Bearer ${authToken}` },
         })
-        if (!response.ok) throw new Error("Failed to load photos")
-        const data: Photo[] = await response.json()
-        setPhotos(data)
+        const data = await response.json()
+        if (response.status === 404 && data.error?.includes("reference face")) {
+          setPhotos([])
+          return
+        }
+        if (!response.ok) throw new Error(data.error || "Failed to load matched photos")
+        setPhotos(data.results || [])
       } catch {
         setError(true)
       } finally {
@@ -82,7 +88,7 @@ export default function SearchPage() {
           ) : error ? (
             <div className="flex min-h-48 items-center justify-center text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{t("search.error")}</div>
           ) : photos.length > 0 ? (
-            <SearchResultGrid photos={photos.map((photo) => ({ id: photo.id, url: photo.storageUrl, eventName: photo.event?.name || "Campus event", eventDate: photo.event?.date || photo.createdAt, uploadDate: photo.createdAt, confidence: 1 }))} />
+            <PhotoGrid photos={photos} showRank={true} compact={true} showShare={false} />
           ) : (
             <div className="relative flex min-h-48 items-center justify-center overflow-hidden"><Search className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" /><p className="select-none text-center text-3xl font-black uppercase tracking-[0.12em] text-[#82181a] opacity-[0.08] sm:text-4xl">{t("search.empty")}</p></div>
           )}
