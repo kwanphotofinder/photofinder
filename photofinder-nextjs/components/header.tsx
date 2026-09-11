@@ -128,7 +128,9 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                   </Avatar>
                   <div className="hidden sm:flex flex-col text-left">
                     <span className="text-xs font-semibold text-slate-800 leading-tight truncate max-w-[120px]">{userName}</span>
-                    <span className="text-[10px] text-slate-500 capitalize">{userRole}</span>
+                    <span className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                      {userRole === "admin" ? t("role.admin") : userRole === "photographer" ? t("role.photographer") : t("role.student")}
+                    </span>
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                 </Button>

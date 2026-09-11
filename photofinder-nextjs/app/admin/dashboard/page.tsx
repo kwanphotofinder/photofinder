@@ -379,7 +379,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t("dash.title")}</h1>
                   <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                     {t("dash.welcome")} <span className="font-semibold text-slate-800">{adminName || "Administrator"}</span>
                   </p>
@@ -1083,10 +1083,10 @@ export default function AdminDashboardPage() {
                                 } as Record<string, string>)[u.role] || "bg-slate-100 text-slate-700 border-slate-300"
         
                                 const roleLabel = {
-                                  SUPER_ADMIN: "Super Admin",
-                                  ADMIN: "Admin",
-                                  PHOTOGRAPHER: "Photographer",
-                                  STUDENT: "Student",
+                                  SUPER_ADMIN: t("role.super_admin"),
+                                  ADMIN: t("role.admin"),
+                                  PHOTOGRAPHER: t("role.photographer"),
+                                  STUDENT: t("role.student"),
                                 }[u.role as string] || u.role
         
                                 return (

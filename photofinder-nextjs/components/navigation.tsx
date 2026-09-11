@@ -15,8 +15,8 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
 
   const getNavItems = () => {
     const baseItems = [
-      { href: "/dashboard", label: "My Photos", icon: Users },
-      { href: "/favorites", label: "Favorites", icon: Heart },
+      { href: "/dashboard", label: t("nav.my_photos"), icon: Users },
+      { href: "/favorites", label: t("nav.favorites"), icon: Heart },
     ]
 
     if (userRole === "photographer") {

@@ -174,7 +174,7 @@ export default function PhotographerProfilePage() {
             {/* Performance Statistics Grid */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                สถิติการทำงานในระบบ (Activity Metrics)
+                {t("photo.profile.metrics_title")}
               </h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="border border-slate-200 rounded p-3.5 bg-slate-50/50">
@@ -202,7 +202,7 @@ export default function PhotographerProfilePage() {
             <div className="flex items-center gap-2 pb-3 mb-4 border-b border-slate-100">
               <Shield className="w-4 h-4 text-[#82181a]" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                ข้อกำหนดและแนวทางการปฏิบัติงานสำหรับช่างภาพ (Photographer Guidelines)
+                {t("photo.profile.guidelines_title")}
               </h3>
             </div>
 
@@ -210,32 +210,32 @@ export default function PhotographerProfilePage() {
               <div className="border border-slate-100 rounded p-3.5 bg-slate-50/60 flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-800">การระบุกิจกรรมที่ถูกต้อง</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">เลือกกิจกรรมเป้าหมายให้ถูกต้องก่อนอัปโหลด เพื่อให้ระบบ AI ทำการวิเคราะห์และดัชนีใบหน้าตรงตามงาน</p>
+                  <p className="font-bold text-slate-800">{t("photo.profile.guide1_title")}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{t("photo.profile.guide1_desc")}</p>
                 </div>
               </div>
 
               <div className="border border-slate-100 rounded p-3.5 bg-slate-50/60 flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-800">คุณภาพของไฟล์ภาพ</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">รองรับไฟล์ JPG, PNG และ HEIC (แปลงให้อัตโนมัติ) ขนาดไฟล์สูงสุดไม่เกิน 15MB ต่อภาพ</p>
+                  <p className="font-bold text-slate-800">{t("photo.profile.guide2_title")}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{t("photo.profile.guide2_desc")}</p>
                 </div>
               </div>
 
               <div className="border border-slate-100 rounded p-3.5 bg-slate-50/60 flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-800">การแจ้งเตือนผู้มีสิทธิ์</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">หลังการอัปโหลดครบทุกรูป สามารถกดปุ่ม Notify เพื่อส่งสรุปผลการจับคู่ภาพไปยังนักศึกษา</p>
+                  <p className="font-bold text-slate-800">{t("photo.profile.guide3_title")}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{t("photo.profile.guide3_desc")}</p>
                 </div>
               </div>
 
               <div className="border border-slate-100 rounded p-3.5 bg-slate-50/60 flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-800">การปฏิบัติตามมาตรฐาน PDPA</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">ระบบจะบันทึกประวัติการอัปโหลดและจัดการข้อมูลภาพถ่ายอย่างเคร่งครัดตามนโยบายความเป็นส่วนตัว</p>
+                  <p className="font-bold text-slate-800">{t("photo.profile.guide4_title")}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{t("photo.profile.guide4_desc")}</p>
                 </div>
               </div>
             </div>

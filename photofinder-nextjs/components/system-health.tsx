@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Users, Calendar, Image, Scan, CalendarCheck } from "lucide-react"
 import ReactECharts from 'echarts-for-react'
 import * as echarts from 'echarts'
+import { useLanguage } from "@/lib/language-context"
 
 interface MetricValue {
     value: number
@@ -28,6 +29,7 @@ interface DatabaseStats {
 }
 
 export function SystemHealth() {
+    const { t } = useLanguage()
     const [metrics, setMetrics] = useState<Metric[]>([])
     const [stats, setStats] = useState<DatabaseStats>({
         totalUsers: 0,
@@ -261,41 +263,41 @@ export function SystemHealth() {
     return (
         <div className="space-y-6">
         <div className="mb-4">
-                    <h2 className="text-2xl font-bold text-slate-800">System Health</h2>
-                    <p className="text-sm text-slate-500">Real-time metrics and performance monitoring</p>
+                    <h2 className="text-2xl font-bold text-slate-800">{t("health.title")}</h2>
+                    <p className="text-sm text-slate-500">{t("health.desc")}</p>
                 </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <StatCard
-                    title="Total Users"
+                    title={t("health.total_users")}
                     value={stats.totalUsers}
                     icon={Users}
                     color="text-blue-600"
                     bgColor="bg-blue-50"
                 />
                 <StatCard
-                    title="Total Events"
+                    title={t("health.total_events")}
                     value={stats.totalEvents}
                     icon={Calendar}
                     color="text-purple-600"
                     bgColor="bg-purple-50"
                 />
                 <StatCard
-                    title="Total Photos"
+                    title={t("health.total_photos")}
                     value={stats.totalPhotos}
                     icon={Image}
                     color="text-green-600"
                     bgColor="bg-green-50"
                 />
                 <StatCard
-                    title="Faces Detected"
+                    title={t("health.faces_detected")}
                     value={stats.facesDetected}
                     icon={Scan}
                     color="text-amber-600"
                     bgColor="bg-amber-50"
                 />
                 <StatCard
-                    title="Active Events"
+                    title={t("health.active_events")}
                     value={stats.activeEvents}
                     icon={CalendarCheck}
                     color="text-emerald-600"
@@ -306,8 +308,8 @@ export function SystemHealth() {
             {/* AI Confidence Gauge */}
             <Card className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-slate-800">AI Model Confidence</CardTitle>
-                    <CardDescription>Average certainty across all predictions</CardDescription>
+                    <CardTitle className="text-lg font-semibold text-slate-800">{t("health.ai_confidence")}</CardTitle>
+                    <CardDescription>{t("health.ai_confidence_desc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ReactECharts option={confidenceGaugeOption} style={{ height: '280px' }} />
@@ -319,8 +321,8 @@ export function SystemHealth() {
                 {/* Events by Status */}
                 <Card className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-slate-800">Events by Status</CardTitle>
-                        <CardDescription>Distribution of event statuses</CardDescription>
+                        <CardTitle className="text-lg font-semibold text-slate-800">{t("health.events_by_status")}</CardTitle>
+                        <CardDescription>{t("health.events_status_desc")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ReactECharts option={eventsChartOption} style={{ height: '280px' }} />
@@ -330,8 +332,8 @@ export function SystemHealth() {
                 {/* Photos by Status */}
                 <Card className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-slate-800">Photos by Status</CardTitle>
-                        <CardDescription>Photo processing breakdown</CardDescription>
+                        <CardTitle className="text-lg font-semibold text-slate-800">{t("health.photos_by_status")}</CardTitle>
+                        <CardDescription>{t("health.photos_status_desc")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ReactECharts option={photosChartOption} style={{ height: '280px' }} />
@@ -341,8 +343,8 @@ export function SystemHealth() {
                 {/* Users by Role */}
                 <Card className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-slate-800">Users by Role</CardTitle>
-                        <CardDescription>User role distribution</CardDescription>
+                        <CardTitle className="text-lg font-semibold text-slate-800">{t("health.users_by_role")}</CardTitle>
+                        <CardDescription>{t("health.users_role_desc")}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ReactECharts option={usersChartOption} style={{ height: '280px' }} />

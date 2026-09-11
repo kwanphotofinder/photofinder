@@ -530,13 +530,13 @@ export default function PhotographerPage() {
     switch (status) {
       case "completed":
       case "processed":
-        return { icon: <CheckCircle className="w-3 h-3" />, variant: "default" as const, label: "Completed" }
+        return { icon: <CheckCircle className="w-3 h-3" />, variant: "default" as const, label: t("photo.status.completed") }
       case "processing":
-        return { icon: <Clock className="w-3 h-3" />, variant: "secondary" as const, label: "Processing" }
+        return { icon: <Clock className="w-3 h-3" />, variant: "secondary" as const, label: t("photo.status.processing") }
       case "failed":
-        return { icon: <XCircle className="w-3 h-3" />, variant: "destructive" as const, label: "Failed" }
+        return { icon: <XCircle className="w-3 h-3" />, variant: "destructive" as const, label: t("photo.status.failed") }
       default:
-        return { icon: <Clock className="w-3 h-3" />, variant: "outline" as const, label: "Pending" }
+        return { icon: <Clock className="w-3 h-3" />, variant: "outline" as const, label: t("photo.status.pending") }
     }
   }
 
@@ -600,8 +600,8 @@ export default function PhotographerPage() {
           <div className="flex flex-col items-center gap-4 rounded border border-slate-200 bg-white px-8 py-10 text-center shadow-2xs">
             <Loader2 className="w-8 h-8 text-[#82181a] animate-spin" />
             <div>
-              <p className="text-sm font-bold text-slate-800">กำลังโหลดข้อมูลพื้นที่ทำงานช่างภาพ...</p>
-              <p className="mt-1 text-xs text-slate-500">Preparing photographer workspace, events, and analytics.</p>
+              <p className="text-sm font-bold text-slate-800">{t("photo.loading.title")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("photo.loading.subtitle")}</p>
             </div>
           </div>
         </main>
@@ -618,16 +618,16 @@ export default function PhotographerPage() {
             <CardHeader className="space-y-2">
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-slate-900">
                 <AlertCircle className="w-5 h-5 text-red-600" />
-                Photographer Access Required
+                {t("photo.auth.title")}
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                กรุณาเข้าสู่ระบบด้วยบัญชีช่างภาพเพื่อเข้าใช้งานระบบอัปโหลดและจัดการภาพถ่าย
+                {t("photo.auth.desc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs text-slate-600">{error || "Authentication required"}</p>
               <Button onClick={() => router.push("/login")} className="w-full bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs font-semibold rounded">
-                เข้าสู่ระบบ (Sign In)
+                {t("photo.auth.signin")}
               </Button>
             </CardContent>
           </Card>
@@ -682,7 +682,7 @@ export default function PhotographerPage() {
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-2">{events.length}</div>
-                <p className="text-[11px] text-slate-400 mt-1">{events.length > 0 ? "พร้อมรับภาพถ่าย" : "ยังไม่มีกิจกรรม"}</p>
+                <p className="text-[11px] text-slate-400 mt-1">{events.length > 0 ? t("photo.metric.ready") : t("photo.metric.no_events")}</p>
               </div>
 
               <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#82181a] p-4 shadow-2xs">
@@ -693,7 +693,7 @@ export default function PhotographerPage() {
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-2">{selectedFiles.length}</div>
-                <p className="text-[11px] text-slate-400 mt-1">{selectedFiles.length > 0 ? `${activeUploads} กำลังประมวลผล` : "ยังไม่มีไฟล์ในคิว"}</p>
+                <p className="text-[11px] text-slate-400 mt-1">{selectedFiles.length > 0 ? `${activeUploads} ${t("photo.metric.processing")}` : t("photo.metric.no_files_queue")}</p>
               </div>
 
               <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#82181a] p-4 shadow-2xs">
@@ -779,7 +779,7 @@ export default function PhotographerPage() {
                         <p className="text-xs text-slate-500 mt-0.5">{t("photo.upload.step1_desc")}</p>
                       </div>
                       <span className="text-[10px] font-bold text-[#82181a] bg-[#82181a]/10 px-2 py-0.5 rounded uppercase tracking-wider">
-                        ขั้นตอนที่ 1
+                        {t("photo.step1_badge")}
                       </span>
                     </div>
 
@@ -798,8 +798,8 @@ export default function PhotographerPage() {
                       </Select>
                       <p className="text-[11px] text-slate-500">
                         {selectedEventName
-                          ? `ภาพจะถูกจัดเก็บเข้าสู่กิจกรรม: "${selectedEventName}"`
-                          : "กรุณาเลือกกิจกรรมก่อนดำเนินการอัปโหลดไฟล์"}
+                          ? `${t("photo.upload.event_selected_prefix")} "${selectedEventName}"`
+                          : t("photo.upload.event_select_prompt")}
                       </p>
                     </div>
                   </div>
@@ -812,7 +812,7 @@ export default function PhotographerPage() {
                         <p className="text-xs text-slate-500 mt-0.5">{t("photo.upload.step2_desc")}</p>
                       </div>
                       <span className="text-[10px] font-bold text-[#82181a] bg-[#82181a]/10 px-2 py-0.5 rounded uppercase tracking-wider">
-                        ขั้นตอนที่ 2
+                        {t("photo.step2_badge")}
                       </span>
                     </div>
 
@@ -873,7 +873,7 @@ export default function PhotographerPage() {
                     <div>
                       <h3 className="text-sm font-bold text-slate-900">{t("photo.upload.step3_title")}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {selectedFiles.length > 0 ? `${selectedFiles.length} ไฟล์ในคิวการอัปโหลด` : t("photo.upload.no_files")}
+                        {selectedFiles.length > 0 ? `${selectedFiles.length} ${t("photo.upload.files_in_queue")}` : t("photo.upload.no_files")}
                       </p>
                     </div>
                     {selectedFiles.length > 0 && !isUploading && (
@@ -932,14 +932,14 @@ export default function PhotographerPage() {
                     <div className="flex-1 flex flex-col items-center justify-center py-16 text-center text-slate-400 border border-dashed border-slate-200 rounded">
                       <FolderOpen className="w-10 h-10 text-slate-300 mb-2" />
                       <p className="text-xs font-semibold text-slate-600">{t("photo.upload.no_files")}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">เลือกไฟล์หรือโฟลเดอร์จากกล่องด้านซ้ายเพื่อเพิ่มรายการ</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{t("photo.upload.queue_empty_guide")}</p>
                     </div>
                   )}
 
                   {/* Primary Batch Upload Button */}
                   <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-4">
                     <span className="text-xs text-slate-500">
-                      {selectedEvent ? `กิจกรรม: ${selectedEventName}` : "ยังไม่ได้เลือกกิจกรรม"}
+                      {selectedEvent ? `${t("photo.upload.event_label")} ${selectedEventName}` : t("photo.upload.no_event_selected")}
                     </span>
                     <Button
                       onClick={handleBatchUpload}
@@ -970,7 +970,7 @@ export default function PhotographerPage() {
                     <h4 className="text-sm font-bold text-slate-900">{t("photo.upload.btn_notify")}</h4>
                   </div>
                   <p className="text-xs text-slate-500 max-w-xl">
-                    เมื่ออัปโหลดภาพกิจกรรมครบถ้วนแล้ว สามารถส่งระบบแจ้งเตือนสรุปผลการจับคู่ใบหน้าไปยังนักศึกษาและผู้เข้าร่วมงานที่มีรูปปรากฏได้ทันที
+                    {t("photo.upload.notify_desc")}
                   </p>
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
@@ -1031,7 +1031,7 @@ export default function PhotographerPage() {
                 <div className="py-20 text-center text-slate-400">
                   <FolderOpen className="w-12 h-12 mx-auto text-slate-300 mb-2" />
                   <p className="text-sm font-semibold text-slate-700">{t("photo.manage.empty")}</p>
-                  <p className="text-xs text-slate-400 mt-1">สลับไปยังแท็บอัปโหลดเพื่อเพิ่มภาพถ่ายเข้าสู่ระบบ</p>
+                  <p className="text-xs text-slate-400 mt-1">{t("photo.manage.empty_guide")}</p>
                 </div>
               ) : (
                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1127,7 +1127,7 @@ export default function PhotographerPage() {
                 {analyticsLoading ? (
                   <div className="py-20 text-center">
                     <Loader2 className="w-8 h-8 mx-auto text-[#82181a] animate-spin mb-2" />
-                    <p className="text-xs text-slate-500">กำลังประมวลผลข้อมูลสถิติ...</p>
+                    <p className="text-xs text-slate-500">{t("photo.analytics.loading")}</p>
                   </div>
                 ) : analyticsError ? (
                   <div className="p-4 bg-red-50 text-red-700 text-xs rounded border border-red-200">
@@ -1209,7 +1209,7 @@ export default function PhotographerPage() {
                       {analyticsData.eventStats.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
-                            ยังไม่มีข้อมูลสถิติรายกิจกรรม
+                            {t("photo.analytics.empty_events")}
                           </td>
                         </tr>
                       ) : (

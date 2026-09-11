@@ -319,11 +319,11 @@ export default function CreateEventPage() {
 
           {/* Info Card */}
           <div className="border border-slate-200 bg-white rounded p-4 mt-4 text-xs text-slate-600 shadow-2xs">
-            <p className="font-bold text-slate-800 text-xs mb-2">ขั้นตอนหลังจากสร้างกิจกรรม:</p>
+            <p className="font-bold text-slate-800 text-xs mb-2">{t("event_form.next_steps_title")}</p>
             <ul className="space-y-1 text-slate-500 list-disc list-inside text-[11px]">
-              <li>กิจกรรมจะแสดงในแผงควบคุมระบบของผู้ดูแลระบบและช่างภาพ</li>
-              <li>ช่างภาพที่ได้รับสิทธิ์สามารถเริ่มอัปโหลดภาพถ่ายเข้าระบบได้ทันที</li>
-              <li>ระบบ AI จะประมวลผลและสร้าง Face Embedding เพื่อให้นักศึกษาค้นหาใบหน้าตนเอง</li>
+              <li>{t("event_form.next_step1")}</li>
+              <li>{t("event_form.next_step2")}</li>
+              <li>{t("event_form.next_step3")}</li>
             </ul>
           </div>
         </div>
