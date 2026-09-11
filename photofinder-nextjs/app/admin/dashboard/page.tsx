@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input"
 import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2 } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
+import { useLanguage } from "@/lib/language-context"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [adminName, setAdminName] = useState("")
   const [events, setEvents] = useState<any[]>([])
   const [photos, setPhotos] = useState<any[]>([])
@@ -334,9 +336,9 @@ export default function AdminDashboardPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      DRAFT: "bg-secondary text-secondary-foreground",
-      PUBLISHED: "bg-primary text-primary-foreground",
-      ARCHIVED: "bg-muted text-muted-foreground",
+      DRAFT: "bg-[#fffbe6] border border-[#ffe58f] text-[#d48806]",
+      PUBLISHED: "bg-[#f6ffed] border border-[#b7eb8f] text-[#389e0d]",
+      ARCHIVED: "bg-slate-100 border border-slate-200 text-slate-600",
     }
     return styles[status as keyof typeof styles] || styles.DRAFT
   }
@@ -367,104 +369,134 @@ export default function AdminDashboardPage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
-        <div className="pointer-events-none absolute -top-20 -left-12 h-64 w-64 rounded-full bg-[#82181a]/12 blur-3xl" />
-        <div className="pointer-events-none absolute top-36 right-0 h-72 w-72 rounded-full bg-[#82181a]/10 blur-3xl" />
 
-        <div className="relative border-b border-border/60 bg-card/75 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-                <p className="text-muted-foreground mt-1">Welcome back, {adminName}</p>
+      {/* REG MFU Breadcrumbs & System Status Bar */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.home")}</span>
+            <span className="text-slate-400">/</span>
+            <span>{t("breadcrumb.admin")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-[#82181a]">{t("breadcrumb.dashboard")}</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="text-slate-500 font-medium">{t("portal.system_online")}</span>
+          </div>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-[#f0f2f5] pb-12">
+        {/* Academic Portal Header Banner */}
+        <div className="bg-white border-b border-slate-200 shadow-2xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    {t("dash.welcome")} <span className="font-semibold text-slate-800">{adminName || "Administrator"}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => router.push("/admin/events/create")}
+                  className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs sm:text-sm font-medium rounded shadow-2xs h-9 px-3.5"
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  {t("dash.btn.create_event")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/admin/settings")}
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white"
+                >
+                  {t("dash.btn.settings")}
+                </Button>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                    Active Events
-                    <Calendar className="h-4 w-4 text-primary" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-foreground">{activeEvents}</div>
-                  <p className="text-xs text-muted-foreground mt-1">currently published</p>
-                </CardContent>
-              </Card>
+            {/* Summary Metric Cards (REG MFU Style with Top Border Stripe) */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-6">
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#82181a] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.active_events")}</span>
+                  <div className="w-8 h-8 rounded bg-[#82181a]/10 flex items-center justify-center text-[#82181a]">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{activeEvents}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.out_of")} {events.length} {t("dash.metric.events_unit")}</p>
+              </div>
 
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                    Total Events
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-foreground">{events.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">all time</p>
-                </CardContent>
-              </Card>
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#c59b27] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.total_events")}</span>
+                  <div className="w-8 h-8 rounded bg-[#c59b27]/15 flex items-center justify-center text-[#9a781c]">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{events.length}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.in_db")}</p>
+              </div>
 
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                    Pending Requests
-                    <Bell className="h-4 w-4 text-primary" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-foreground">{pendingRequests}</div>
-                  <p className="text-xs text-muted-foreground mt-1">awaiting moderation</p>
-                </CardContent>
-              </Card>
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#ef4444] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.pending_requests")}</span>
+                  <div className="w-8 h-8 rounded bg-red-50 flex items-center justify-center text-red-600">
+                    <Bell className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{pendingRequests}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.awaiting_review")}</p>
+              </div>
 
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                    Registered Users
-                    <Users className="h-4 w-4 text-primary" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-foreground">{totalUsers}</div>
-                  <p className="text-xs text-muted-foreground mt-1">all roles combined</p>
-                </CardContent>
-              </Card>
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#2563eb] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.total_users")}</span>
+                  <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Users className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{totalUsers}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.all_roles")}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 items-start">
-          <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-8 md:flex-row md:items-start">
-            <TabsList className="!inline-flex !h-auto sticky top-24 h-auto w-full shrink-0 flex-col items-stretch gap-2 rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-md md:w-64 lg:w-72">
-              <div className="mb-2 border-b border-border/60 px-2 pb-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Dashboard Menu
+        {/* Main Content Area: Sidebar Menu + Tab Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-6 md:flex-row md:items-start">
+            {/* REG MFU / Ant Design Style Left Navigation Menu */}
+            <TabsList className="!inline-flex !h-auto sticky top-20 w-full shrink-0 flex-col items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64">
+              <div className="mb-2 px-3 py-2 border-b border-slate-100">
+                <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  {t("menu.title")}
                 </h3>
               </div>
               {[
-                { value: "events", icon: Calendar, label: "Events", badge: events.length, desc: "Manage campus events" },
-                { value: "photos", icon: ImageIcon, label: "Photos", badge: photos.length, desc: "View all uploads" },
-                { value: "low-confidence", icon: AlertCircle, label: "Low Confidence", badge: unresolvedLowConfidenceCount, desc: "AI review queue" },
-                { value: "requests", icon: Shield, label: `Removal Requests`, badge: removalRequests.length, desc: "Pending review" },
-                { value: "users", icon: Users, label: "User Management", desc: "Roles & access" },
-                { value: "health", icon: BarChart3, label: "System Health", desc: "Metrics & logs" },
+                { value: "events", icon: Calendar, label: t("menu.events"), badge: events.length },
+                { value: "photos", icon: ImageIcon, label: t("menu.photos"), badge: photos.length },
+                { value: "low-confidence", icon: AlertCircle, label: t("menu.low_confidence"), badge: unresolvedLowConfidenceCount },
+                { value: "requests", icon: Shield, label: t("menu.requests"), badge: removalRequests.length },
+                { value: "users", icon: Users, label: t("menu.users"), badge: allUsers.length },
+                { value: "health", icon: BarChart3, label: t("menu.health") },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="group relative !h-auto w-full overflow-hidden rounded-xl border border-transparent px-4 py-3 text-left font-medium transition-all duration-200 hover:bg-muted data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  className="group flex items-center justify-between w-full rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
                 >
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary scale-y-0 group-data-[state=active]:scale-y-100 transition-transform origin-left rounded-r-md"></div>
-                  <tab.icon className="w-5 h-5 mr-3 shrink-0 text-muted-foreground group-data-[state=active]:text-primary transition-colors" />
-                  <div className="flex flex-col flex-1 truncate">
-                    <span className="text-sm font-semibold truncate">{tab.label}</span>
-                    <span className="text-xs font-normal text-muted-foreground group-data-[state=active]:text-primary/70 truncate">{tab.desc}</span>
+                  <div className="flex items-center gap-2.5 truncate">
+                    <tab.icon className="w-4 h-4 shrink-0 text-slate-500 group-data-[state=active]:text-[#82181a]" />
+                    <span className="truncate">{tab.label}</span>
                   </div>
                   {tab.badge !== undefined && (
-                    <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tab.value === "requests" && tab.badge > 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tab.value === "requests" && tab.badge > 0 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`}>
                       {tab.badge}
                     </span>
                   )}
@@ -473,739 +505,777 @@ export default function AdminDashboardPage() {
             </TabsList>
 
             <div className="flex-1 w-full min-w-0">
+              {/* TAB: EVENTS */}
               <TabsContent value="events" className="mt-0 !outline-none border-0">
-                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                  <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle>Events</CardTitle>
-                      <CardDescription>Manage your campus events</CardDescription>
-                    </div>
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search events..."
-                        value={eventSearch}
-                        onChange={(e) => setEventSearch(e.target.value)}
-                        className="border-border/70 bg-background/80 pl-8"
-                      />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="text-center py-8 text-muted-foreground">Loading events...</div>
-                  ) : filteredEvents.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
-                      <Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">No events found</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Try another keyword or create a new event.</p>
-                      <Button onClick={() => router.push("/admin/events/create")} className="mt-4 bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Event
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {filteredEvents.map((event, index) => (
-                        <div key={event.id} className="animate-in fade-in-0 slide-in-from-bottom-2 flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 duration-300 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm md:flex-row md:items-center md:justify-between" style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold text-foreground">{event.name}</h3>
-                              <span
-                                className={`text-xs font-semibold px-2 py-1 rounded capitalize ${getStatusBadge(event.status)}`}
-                              >
-                                {event.status.toLowerCase()}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Date</p>
-                                <p className="font-medium text-foreground">{formatDayMonthYear(event.date)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Created</p>
-                                <p className="font-medium text-foreground">{new Date(event.createdAt).toLocaleDateString()}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => router.push(`/admin/events/${event.id}/edit`)}
-                              className="border-border/70 bg-background/80"
-                            >
-                              <Pencil className="w-4 h-4 mr-2" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="shadow-sm"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="photos" className="mt-0">
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle>All Photos</CardTitle>
-                      <CardDescription>Manage all uploaded photos ({filteredPhotos.length})</CardDescription>
-                    </div>
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by event or filename..."
-                        value={photoSearch}
-                        onChange={(e) => setPhotoSearch(e.target.value)}
-                        className="border-border/70 bg-background/80 pl-8"
-                      />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="text-center py-8 text-muted-foreground">Loading photos...</div>
-                  ) : filteredPhotos.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
-                      <ImageIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">No photos found</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Uploaded photos will appear here for moderation.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {filteredPhotos.map((photo, index) => (
-                        <div key={photo.id} className="animate-in fade-in-0 zoom-in-95 group relative aspect-square overflow-hidden rounded-xl border border-border/70 bg-muted shadow-sm duration-300 transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}>
-                          <img
-                            src={photo.thumbnailUrl || photo.storageUrl}
-                            alt="Event photo"
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("events.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("events.desc")}</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-72">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            placeholder={t("events.search_placeholder")}
+                            value={eventSearch}
+                            onChange={(e) => setEventSearch(e.target.value)}
+                            className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
                           />
-                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/70 to-black/35 opacity-0 transition-opacity group-hover:opacity-100">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeletePhoto(photo.id)}
-                              className="h-8 w-8 p-0 shadow-md"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          <div className="absolute bottom-0 left-0 right-0 truncate bg-black/60 p-2 text-xs text-white">
-                            {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
-                          </div>
                         </div>
-                      ))}
+                        <Button
+                          size="sm"
+                          onClick={() => router.push("/admin/events/create")}
+                          className="h-8 bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs px-2.5 rounded shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> {t("events.create_btn")}
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {isLoading ? (
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("events.loading")}</div>
+                    ) : filteredEvents.length === 0 ? (
+                      <div className="py-12 text-center text-slate-500">
+                        <Inbox className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("events.not_found")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("events.not_found_desc")}</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.name")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.date")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.created")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.status")}</TableHead>
+                              <TableHead className="text-right text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.actions")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredEvents.map((event) => (
+                              <TableRow key={event.id} className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors h-14">
+                                <TableCell className="font-semibold text-slate-800 text-xs">
+                                  {event.name}
+                                </TableCell>
+                                <TableCell className="text-slate-600 text-xs">
+                                  {formatDayMonthYear(event.date)}
+                                </TableCell>
+                                <TableCell className="text-slate-500 text-xs">
+                                  {new Date(event.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded capitalize ${getStatusBadge(event.status)}`}>
+                                    {event.status === "PUBLISHED" ? t("events.status.published") : event.status === "DRAFT" ? t("events.status.draft") : t("events.status.archived")}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1.5">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => router.push(`/admin/events/${event.id}/edit`)}
+                                      className="h-7 px-2.5 text-xs border-slate-300 text-slate-700 hover:text-[#82181a] hover:border-[#82181a] bg-white rounded"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5 mr-1" />
+                                      {t("events.btn.edit")}
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteEvent(event.id)}
+                                      className="h-7 px-2.5 text-xs border-red-200 text-red-600 hover:bg-red-50 bg-white rounded"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                      {t("events.btn.delete")}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="low-confidence" className="mt-0">
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <CardTitle>Low-Confidence Queue</CardTitle>
-                      <CardDescription>Review photos with AI face confidence below the selected threshold.</CardDescription>
+              {/* TAB: PHOTOS */}
+              <TabsContent value="photos" className="mt-0">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("photos.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("photos.desc")} ({filteredPhotos.length} {t("photos.items_count")})</CardDescription>
+                      </div>
+                      <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          placeholder={t("photos.search_placeholder")}
+                          value={photoSearch}
+                          onChange={(e) => setPhotoSearch(e.target.value)}
+                          className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
+                        />
+                      </div>
                     </div>
-                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                      <Input
-                        placeholder="Search event or filename..."
-                        value={lowConfidenceSearch}
-                        onChange={(e) => setLowConfidenceSearch(e.target.value)}
-                        className="w-full sm:w-64 border-border/70 bg-background/80"
-                      />
-                      <div className="relative">
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {isLoading ? (
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("photos.loading")}</div>
+                    ) : filteredPhotos.length === 0 ? (
+                      <div className="py-12 text-center text-slate-500">
+                        <ImageIcon className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("photos.not_found")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("photos.not_found_desc")}</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {filteredPhotos.map((photo) => (
+                          <div key={photo.id} className="group relative aspect-square overflow-hidden rounded border border-slate-200 bg-slate-100 shadow-2xs">
+                            <img
+                              src={photo.thumbnailUrl || photo.storageUrl}
+                              alt="Event photo"
+                              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDeletePhoto(photo.id)}
+                                className="h-8 w-8 p-0 rounded shadow-xs"
+                                title="Delete Photo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 truncate bg-black/70 p-1.5 text-[11px] text-white">
+                              {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* TAB: LOW-CONFIDENCE QUEUE */}
+              <TabsContent value="low-confidence" className="mt-0">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("lc.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("lc.desc")}</CardDescription>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                        <Input
+                          placeholder={t("lc.search_placeholder")}
+                          value={lowConfidenceSearch}
+                          onChange={(e) => setLowConfidenceSearch(e.target.value)}
+                          className="h-8 w-full sm:w-56 border-slate-300 bg-white text-xs rounded"
+                        />
                         <select
                           value={String(lowConfidenceThreshold)}
                           onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
-                          className="h-10 appearance-none rounded-md border border-border/70 bg-background/80 pl-3 pr-9 text-sm"
+                          className="h-8 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700"
                         >
-                          <option value="0.65">Threshold: 0.65</option>
-                          <option value="0.55">Threshold: 0.55</option>
-                          <option value="0.45">Threshold: 0.45</option>
+                          <option value="0.65">{t("lc.threshold")} 0.65</option>
+                          <option value="0.55">{t("lc.threshold")} 0.55</option>
+                          <option value="0.45">{t("lc.threshold")} 0.45</option>
                         </select>
-                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
-                          <ChevronDown className="h-4 w-4" />
-                        </span>
-                      </div>
-                      <Button variant="outline" onClick={refreshLowConfidenceQueue} disabled={lowConfidenceLoading}>
-                        {lowConfidenceLoading ? "Refreshing..." : "Refresh"}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="text-center py-8 text-muted-foreground">Loading queue...</div>
-                  ) : filteredLowConfidencePhotos.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
-                      <CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">No low-confidence photos</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Queue is clear for this threshold.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {filteredLowConfidencePhotos.map((photo) => (
-                        <div
-                          key={photo.id}
-                          className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-sm md:flex-row"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={refreshLowConfidenceQueue}
+                          disabled={lowConfidenceLoading}
+                          className="h-8 border-slate-300 text-xs rounded bg-white"
                         >
-                          <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
-                            <img
-                              src={photo.thumbnailUrl || photo.storageUrl}
-                              alt="Low confidence photo"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-
-                          <div className="flex-1 space-y-2">
-                            <p className="font-semibold text-foreground">{photo.eventName || "Unknown Event"}</p>
-                            <p className="text-sm text-muted-foreground break-all">{photo.storageUrl}</p>
-                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                              <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
-                                Min confidence: {photo.minConfidence !== null ? Number(photo.minConfidence).toFixed(3) : "N/A"}
-                              </span>
-                              <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
-                                Low-confidence faces: {photo.lowConfidenceFaces}
-                              </span>
-                              <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
-                                Total faces: {photo.totalFaces}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2 md:flex-col">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openLowConfidenceModal(photo)}
-                              className="flex-1 md:flex-none"
-                            >
-                              Open Modal
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Dialog open={isLowConfidenceModalOpen} onOpenChange={(open) => {
-                setIsLowConfidenceModalOpen(open)
-                if (!open) setSelectedLowConfidencePhoto(null)
-              }}>
-                <DialogContent className="max-w-3xl">
-                  <DialogHeader>
-                    <DialogTitle>Low-Confidence Photo Review</DialogTitle>
-                    <DialogDescription>
-                      {selectedLowConfidencePhoto?.eventName || "Unknown Event"}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  {selectedLowConfidencePhoto && (
-                    <div className="space-y-4">
-                      <div className="overflow-hidden rounded-lg border border-border/70 bg-muted">
-                        <img
-                          src={selectedLowConfidencePhoto.storageUrl}
-                          alt="Low confidence preview"
-                          className="h-[380px] w-full object-contain bg-black/5"
-                        />
-                      </div>
-
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <p className="break-all">{selectedLowConfidencePhoto.storageUrl}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
-                            Min confidence: {selectedLowConfidencePhoto.minConfidence !== null ? Number(selectedLowConfidencePhoto.minConfidence).toFixed(3) : "N/A"}
-                          </span>
-                          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
-                            Low-confidence faces: {selectedLowConfidencePhoto.lowConfidenceFaces}
-                          </span>
-                          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
-                            Total faces: {selectedLowConfidencePhoto.totalFaces}
-                          </span>
-                        </div>
+                          {lowConfidenceLoading ? t("lc.refreshing") : t("lc.refresh")}
+                        </Button>
                       </div>
                     </div>
-                  )}
-
-                  <DialogFooter className="gap-2 sm:justify-between">
-                    <Button variant="outline" onClick={handlePreviewFromModal}>
-                      Preview
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="default"
-                        onClick={handleDismissFromModal}
-                        disabled={lowConfidenceLoading}
-                        className="bg-emerald-600 text-white hover:bg-emerald-700"
-                      >
-                        {lowConfidenceLoading ? "Approving..." : "Approve"}
-                      </Button>
-                      <Button variant="destructive" onClick={handleDeleteFromModal}>
-                        Delete
-                      </Button>
-                      <Button onClick={handleGoToEventEditFromModal}>
-                        Go to Event Edit
-                      </Button>
-                    </div>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-
-            <TabsContent value="requests" className="mt-0">
-              <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle>Removal Requests</CardTitle>
-                  <CardDescription>Review and manage photo removal requests from users</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="text-center py-8 text-muted-foreground">Loading requests...</div>
-                  ) : removalRequests.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center">
-                      <Shield className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">No pending removal requests</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Requests submitted by users will appear in this queue.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {removalRequests.map((request) => (
-                        <div key={request.id} className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/70 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-sm md:flex-row">
-                          {request.photo && (
-                            <div className="h-32 w-32 flex-shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {isLoading ? (
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("lc.loading")}</div>
+                    ) : filteredLowConfidencePhotos.length === 0 ? (
+                      <div className="py-12 text-center text-slate-500">
+                        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-600" />
+                        <p className="text-sm font-semibold text-slate-700">{t("lc.clear")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("lc.clear_desc")}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredLowConfidencePhotos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            className="flex flex-col gap-4 rounded border border-slate-200 bg-white p-3.5 transition-colors hover:border-slate-300 md:flex-row"
+                          >
+                            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
                               <img
-                                src={request.photo.url}
-                                alt="Requested photo"
-                                className="w-full h-full object-cover"
+                                src={photo.thumbnailUrl || photo.storageUrl}
+                                alt="Low confidence photo"
+                                className="h-full w-full object-cover"
                               />
                             </div>
-                          )}
-                          <div className="flex-1 space-y-2">
-                            <div>
-                              <p className="font-semibold text-foreground">
-                                {request.photo?.eventName || "Unknown Event"}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Requested by <span className="font-medium">{request.userName}</span> on{" "}
-                                {new Date(request.createdAt).toLocaleDateString()} at{" "}
-                                {new Date(request.createdAt).toLocaleTimeString()}
-                              </p>
-                            </div>
-                            {request.reason && (
-                              <div className="p-3 bg-muted rounded-md">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Reason</p>
-                                <p className="text-sm text-foreground">{request.reason}</p>
+
+                            <div className="flex-1 space-y-1.5">
+                              <p className="text-sm font-bold text-slate-800">{photo.eventName || "Untitled"}</p>
+                              <p className="text-xs text-slate-500 break-all">{photo.storageUrl}</p>
+                              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                                <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 font-semibold text-amber-800 text-[11px]">
+                                  {t("lc.min_confidence")} {photo.minConfidence !== null ? Number(photo.minConfidence).toFixed(3) : "N/A"}
+                                </span>
+                                <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600 text-[11px]">
+                                  {t("lc.lc_faces")} {photo.lowConfidenceFaces}
+                                </span>
+                                <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600 text-[11px]">
+                                  {t("lc.total_faces")} {photo.totalFaces}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                          <div className="flex md:flex-col gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApproveRequest(request.id, request.photoId)}
-                              disabled={requestProcessingId === request.id}
-                              className="flex-1 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
-                            >
-                              {requestProcessingId === request.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : (
-                                "Approve & Delete"
-                              )}
-                            </Button>
-                            {request.faceCoordinates && (
+                            </div>
+
+                            <div className="flex items-center gap-2 md:flex-col md:justify-center">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
-                                disabled={requestProcessingId === request.id}
-                                className="flex-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
+                                onClick={() => openLowConfidenceModal(photo)}
+                                className="h-8 px-3 text-xs border-slate-300 rounded bg-white hover:text-[#82181a] hover:border-[#82181a]"
                               >
-                                {requestProcessingId === request.id ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Processing...
-                                  </>
-                                ) : (
-                                  "Approve & Blur"
-                                )}
+                                {t("lc.btn.review")}
                               </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRejectRequest(request.id)}
-                              disabled={requestProcessingId === request.id}
-                              className="flex-1 disabled:opacity-70 disabled:cursor-not-allowed md:flex-none"
-                            >
-                              {requestProcessingId === request.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : (
-                                "Reject"
-                              )}
-                            </Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="users" className="mt-0">
-              <div className="space-y-6">
-                {userMgmtMessage && (
-                  <div className={`flex gap-3 p-4 rounded-lg border ${
-                    userMgmtMessage.type === "success" ? "bg-primary/10 border-primary/20" : "bg-destructive/10 border-destructive/20"
-                  }`}>
-                    {userMgmtMessage.type === "success" ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" /> : <AlertCircle className="w-5 h-5 text-destructive shrink-0" />}
-                    <p className={`text-sm ${userMgmtMessage.type === "success" ? "text-primary" : "text-destructive"}`}>{userMgmtMessage.text}</p>
-                  </div>
-                )}
-
-                {/* Add Photographer */}
-                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Camera className="w-5 h-5" /> Add Photographer</CardTitle>
-                    <CardDescription>Add a Gmail or MFU email. The user will be directed to the photographer page on their next login.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-3">
-                      <Input
-                        placeholder="photographer@gmail.com"
-                        value={newPhotographerEmail}
-                        onChange={(e) => setNewPhotographerEmail(e.target.value)}
-                        className="flex-1 border-border/70 bg-background/80"
-                      />
-                      <Button
-                        disabled={userMgmtLoading || !newPhotographerEmail}
-                        className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
-                        onClick={async () => {
-                          setUserMgmtLoading(true)
-                          setUserMgmtMessage(null)
-                          const res = await apiClient.setUserRole(newPhotographerEmail, "PHOTOGRAPHER")
-                          if (res.error) {
-                            setUserMgmtMessage({ type: "error", text: res.error })
-                          } else {
-                            setUserMgmtMessage({ type: "success", text: `${newPhotographerEmail} is now a Photographer` })
-                            setNewPhotographerEmail("")
-                            const usersRes = await apiClient.getAdminUsers()
-                            if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                          }
-                          setUserMgmtLoading(false)
-                        }}
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" /> Add Photographer
-                      </Button>
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
-                {/* Add Admin (Super Admin only) */}
-                {callerRole === "SUPER_ADMIN" && (
-                  <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5" /> Add Admin</CardTitle>
-                      <CardDescription>Only you (Super Admin) can add or remove admins.</CardDescription>
+                {/* Low Confidence Review Modal */}
+                <Dialog open={isLowConfidenceModalOpen} onOpenChange={(open) => {
+                  setIsLowConfidenceModalOpen(open)
+                  if (!open) setSelectedLowConfidencePhoto(null)
+                }}>
+                  <DialogContent className="max-w-3xl rounded-md border border-slate-200 bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-base font-bold text-slate-800">{t("lc.modal.title")}</DialogTitle>
+                      <DialogDescription className="text-xs text-slate-500">
+                        {selectedLowConfidencePhoto?.eventName || "Untitled"}
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedLowConfidencePhoto && (
+                      <div className="space-y-3">
+                        <div className="overflow-hidden rounded border border-slate-200 bg-slate-900">
+                          <img
+                            src={selectedLowConfidencePhoto.storageUrl}
+                            alt="Low confidence preview"
+                            className="h-[360px] w-full object-contain"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          <p className="break-all text-[11px] text-slate-400">{selectedLowConfidencePhoto.storageUrl}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 font-semibold text-amber-800">
+                              {t("lc.min_confidence")} {selectedLowConfidencePhoto.minConfidence !== null ? Number(selectedLowConfidencePhoto.minConfidence).toFixed(3) : "N/A"}
+                            </span>
+                            <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600">
+                              {t("lc.lc_faces")} {selectedLowConfidencePhoto.lowConfidenceFaces}
+                            </span>
+                            <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600">
+                              {t("lc.total_faces")} {selectedLowConfidencePhoto.totalFaces}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <DialogFooter className="gap-2 sm:justify-between border-t border-slate-100 pt-3 mt-3">
+                      <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
+                        {t("lc.modal.preview_btn")}
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleDismissFromModal}
+                          disabled={lowConfidenceLoading}
+                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          {lowConfidenceLoading ? t("lc.modal.approving") : t("lc.modal.approve_btn")}
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={handleDeleteFromModal} className="h-8 text-xs rounded">
+                          {t("lc.modal.delete_btn")}
+                        </Button>
+                        <Button size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#9c1f22] text-white">
+                          {t("lc.modal.goto_event")}
+                        </Button>
+                      </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </TabsContent>
+
+              {/* TAB: REMOVAL REQUESTS */}
+              <TabsContent value="requests" className="mt-0">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <CardTitle className="text-base font-bold text-slate-800">{t("req.title")}</CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">{t("req.desc")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {isLoading ? (
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("req.loading")}</div>
+                    ) : removalRequests.length === 0 ? (
+                      <div className="py-12 text-center text-slate-500">
+                        <Shield className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("req.clear")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("req.clear_desc")}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {removalRequests.map((request) => (
+                          <div key={request.id} className="flex flex-col gap-4 rounded border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300 md:flex-row">
+                            {request.photo && (
+                              <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
+                                <img
+                                  src={request.photo.url}
+                                  alt="Requested photo"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 space-y-2">
+                              <div>
+                                <p className="text-sm font-bold text-slate-800">
+                                  {request.photo?.eventName || "Untitled"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {t("req.requested_by")} <span className="font-semibold text-slate-700">{request.userName}</span> {t("req.on_date")}{" "}
+                                  {new Date(request.createdAt).toLocaleDateString()} {t("req.at_time")}{" "}
+                                  {new Date(request.createdAt).toLocaleTimeString()}
+                                </p>
+                              </div>
+                              {request.reason && (
+                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs">
+                                  <p className="font-bold text-slate-500 uppercase tracking-wide text-[10px] mb-0.5">{t("req.reason_label")}</p>
+                                  <p className="text-slate-800">{request.reason}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex md:flex-col gap-2 justify-center shrink-0">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveRequest(request.id, request.photoId)}
+                                disabled={requestProcessingId === request.id}
+                                className="h-8 text-xs rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                              >
+                                {requestProcessingId === request.id ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                    {t("req.processing")}
+                                  </>
+                                ) : (
+                                  t("req.btn.approve_delete")
+                                )}
+                              </Button>
+                              {request.faceCoordinates && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
+                                  disabled={requestProcessingId === request.id}
+                                  className="h-8 text-xs rounded border-[#82181a] text-[#82181a] hover:bg-[#82181a] hover:text-white transition-colors disabled:opacity-60"
+                                >
+                                  {requestProcessingId === request.id ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                      {t("req.processing")}
+                                    </>
+                                  ) : (
+                                    t("req.btn.approve_blur")
+                                  )}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectRequest(request.id)}
+                                disabled={requestProcessingId === request.id}
+                                className="h-8 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                              >
+                                {requestProcessingId === request.id ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                    {t("req.processing")}
+                                  </>
+                                ) : (
+                                  t("req.btn.reject")
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* TAB: USER MANAGEMENT */}
+              <TabsContent value="users" className="mt-0">
+                <div className="space-y-4">
+                  {userMgmtMessage && (
+                    <div className={`flex gap-2.5 p-3 rounded border text-xs ${
+                      userMgmtMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800"
+                    }`}>
+                      {userMgmtMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
+                      <p>{userMgmtMessage.text}</p>
+                    </div>
+                  )}
+
+                  {/* Add Photographer */}
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-[#82181a]" /> {t("users.add_photographer.title")}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        {t("users.add_photographer.desc")}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-3">
+                    <CardContent className="p-4 pt-2">
+                      <div className="flex gap-2">
                         <Input
-                          placeholder="admin@gmail.com"
-                          value={newAdminEmail}
-                          onChange={(e) => setNewAdminEmail(e.target.value)}
-                          className="flex-1 border-border/70 bg-background/80"
+                          placeholder={t("users.add_photographer.placeholder")}
+                          value={newPhotographerEmail}
+                          onChange={(e) => setNewPhotographerEmail(e.target.value)}
+                          className="h-8 text-xs border-slate-300 rounded"
                         />
                         <Button
-                          disabled={userMgmtLoading || !newAdminEmail}
-                          className="bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
+                          disabled={userMgmtLoading || !newPhotographerEmail}
+                          className="h-8 text-xs bg-[#82181a] hover:bg-[#9c1f22] text-white rounded shrink-0"
                           onClick={async () => {
                             setUserMgmtLoading(true)
                             setUserMgmtMessage(null)
-                            const res = await apiClient.setUserRole(newAdminEmail, "ADMIN")
+                            const res = await apiClient.setUserRole(newPhotographerEmail, "PHOTOGRAPHER")
                             if (res.error) {
                               setUserMgmtMessage({ type: "error", text: res.error })
                             } else {
-                              setUserMgmtMessage({ type: "success", text: `${newAdminEmail} is now an Admin` })
-                              setNewAdminEmail("")
+                              setUserMgmtMessage({ type: "success", text: `Assigned ${newPhotographerEmail} as photographer` })
+                              setNewPhotographerEmail("")
                               const usersRes = await apiClient.getAdminUsers()
                               if (usersRes.data) setAllUsers(usersRes.data.users || [])
                             }
                             setUserMgmtLoading(false)
                           }}
                         >
-                          <UserPlus className="w-4 h-4 mr-2" /> Add Admin
+                          <UserPlus className="w-3.5 h-3.5 mr-1.5" /> {t("users.add_photographer.btn")}
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                )}
 
-                {/* User List */}
-                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                  <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <CardTitle>All Users</CardTitle>
-                        <CardDescription>{allUsers.length} registered users</CardDescription>
+                  {/* Add Admin (Super Admin only) */}
+                  {callerRole === "SUPER_ADMIN" && (
+                    <Card className="border border-slate-200 bg-white rounded shadow-2xs">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-[#c59b27]" /> {t("users.add_admin.title")}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500">
+                          {t("users.add_admin.desc")}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder={t("users.add_admin.placeholder")}
+                            value={newAdminEmail}
+                            onChange={(e) => setNewAdminEmail(e.target.value)}
+                            className="h-8 text-xs border-slate-300 rounded"
+                          />
+                          <Button
+                            disabled={userMgmtLoading || !newAdminEmail}
+                            className="h-8 text-xs bg-[#82181a] hover:bg-[#9c1f22] text-white rounded shrink-0"
+                            onClick={async () => {
+                              setUserMgmtLoading(true)
+                              setUserMgmtMessage(null)
+                              const res = await apiClient.setUserRole(newAdminEmail, "ADMIN")
+                              if (res.error) {
+                                setUserMgmtMessage({ type: "error", text: res.error })
+                              } else {
+                                setUserMgmtMessage({ type: "success", text: `Assigned ${newAdminEmail} as admin` })
+                                setNewAdminEmail("")
+                                const usersRes = await apiClient.getAdminUsers()
+                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                              }
+                              setUserMgmtLoading(false)
+                            }}
+                          >
+                            <UserPlus className="w-3.5 h-3.5 mr-1.5" /> {t("users.add_admin.btn")}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* User List in REG MFU Table Format */}
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                    <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-base font-bold text-slate-800">{t("users.title")}</CardTitle>
+                          <CardDescription className="text-xs text-slate-500 mt-0.5">{allUsers.length} {t("users.desc")}</CardDescription>
+                        </div>
+                        <div className="relative w-full sm:w-72">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            type="search"
+                            placeholder={t("users.search_placeholder")}
+                            className="h-8 pl-8 text-xs border-slate-300 rounded bg-white"
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                          />
+                        </div>
                       </div>
-                      <div className="relative w-full max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="search"
-                          placeholder="Search by name or email..."
-                          className="pl-8"
-                          value={userSearchQuery}
-                          onChange={(e) => setUserSearchQuery(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border border-border/70 overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50 border-b border-border/70 hover:bg-muted/50">
-                            <TableHead className="w-[45%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">User Details</TableHead>
-                            <TableHead className="w-[15%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Status</TableHead>
-                            <TableHead className="w-[20%] text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Role</TableHead>
-                            <TableHead className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider h-11">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredAndSortedUsers.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="h-48 text-center border-0">
-                                <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                  <Users className="h-8 w-8 mb-3 opacity-50" />
-                                  <p className="text-sm font-medium text-foreground">No users found</p>
-                                  <p className="mt-1 text-sm">Try adjusting your search query.</p>
-                                </div>
-                              </TableCell>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
+                              <TableHead className="w-[40%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.details")}</TableHead>
+                              <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.status")}</TableHead>
+                              <TableHead className="w-[20%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.role")}</TableHead>
+                              <TableHead className="text-right text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.actions")}</TableHead>
                             </TableRow>
-                          ) : (
-                            filteredAndSortedUsers.map((u) => {
-                              const isSuperAdmin = u.role === "SUPER_ADMIN"
-                              const isAdmin = u.role === "ADMIN"
-                              const isPhotographer = u.role === "PHOTOGRAPHER"
-                              const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
-                              
-                              const canDemote = (() => {
-                                if (isSuperAdmin) return false
-                                if (!isStudentEmail) return false // Cannot demote non-university emails to "Student"
-                                if (isAdmin) return callerRole === "SUPER_ADMIN"
-                                if (isPhotographer) return true
-                                return false
-                              })()
-                              const canRemove = (() => {
-                                if (isSuperAdmin) return false
-                                if (isAdmin) return callerRole === "SUPER_ADMIN"
-                                if (isPhotographer) return true
-                                return false
-                              })()
-                              const canPermanentlyRemove = callerRole === "SUPER_ADMIN" && !isSuperAdmin
-                              
-                              const canToggleStatus = (() => {
-                                if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
-                                // Let's use callerRole for checking if they can block
-                                if (u.role === "SUPER_ADMIN") return false
-                                if (u.role === "ADMIN" && callerRole !== "SUPER_ADMIN") return false
-                                // They cannot block themselves
-                                return true // Handled backend
-                              })()
-      
-                              const roleBadge = ({
-                                SUPER_ADMIN: "bg-amber-500/20 text-amber-700 border-amber-500/30",
-                                ADMIN: "bg-blue-500/20 text-blue-700 border-blue-500/30",
-                                PHOTOGRAPHER: "bg-green-500/20 text-green-700 border-green-500/30",
-                                STUDENT: "bg-gray-500/20 text-gray-700 border-gray-500/30",
-                              } as Record<string, string>)[u.role] || "bg-gray-500/20 text-gray-700 border-gray-500/30"
-      
-                              const roleLabel = {
-                                SUPER_ADMIN: "Super Admin",
-                                ADMIN: "Admin",
-                                PHOTOGRAPHER: "Photographer",
-                                STUDENT: "Student",
-                              }[u.role as string] || u.role
-      
-                              return (
-                                <TableRow key={u.id} className="group transition-colors duration-200 hover:bg-muted/40 border-b border-border/40 last:border-0 h-16">
-                                  <TableCell className="font-medium align-middle">
-                                    <div className="flex items-center gap-3.5">
-                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-muted-foreground/20 to-muted flex items-center justify-center text-sm font-semibold text-muted-foreground overflow-hidden shadow-sm ring-1 ring-border/50">
-                                        {u.avatarUrl ? <img src={u.avatarUrl} alt={u.name || "User Avatar"} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
+                          </TableHeader>
+                          <TableBody>
+                            {filteredAndSortedUsers.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="h-32 text-center text-slate-500 text-xs">
+                                  <Users className="h-6 w-6 mx-auto mb-2 text-slate-400" />
+                                  <p className="font-medium text-slate-700">{t("users.not_found")}</p>
+                                  <p className="mt-0.5">{t("users.not_found_desc")}</p>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredAndSortedUsers.map((u) => {
+                                const isSuperAdmin = u.role === "SUPER_ADMIN"
+                                const isAdmin = u.role === "ADMIN"
+                                const isPhotographer = u.role === "PHOTOGRAPHER"
+                                const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
+                                
+                                const canDemote = (() => {
+                                  if (isSuperAdmin) return false
+                                  if (!isStudentEmail) return false
+                                  if (isAdmin) return callerRole === "SUPER_ADMIN"
+                                  if (isPhotographer) return true
+                                  return false
+                                })()
+                                const canPermanentlyRemove = callerRole === "SUPER_ADMIN" && !isSuperAdmin
+                                
+                                const canToggleStatus = (() => {
+                                  if (callerRole === "SUPER_ADMIN" && u.email !== callerEmail) return true
+                                  if (u.role === "SUPER_ADMIN") return false
+                                  if (u.role === "ADMIN" && callerRole !== "SUPER_ADMIN") return false
+                                  return true
+                                })()
+        
+                                const roleBadge = ({
+                                  SUPER_ADMIN: "bg-amber-50 text-amber-800 border-amber-300",
+                                  ADMIN: "bg-blue-50 text-blue-700 border-blue-200",
+                                  PHOTOGRAPHER: "bg-emerald-50 text-emerald-800 border-emerald-300",
+                                  STUDENT: "bg-slate-100 text-slate-700 border-slate-300",
+                                } as Record<string, string>)[u.role] || "bg-slate-100 text-slate-700 border-slate-300"
+        
+                                const roleLabel = {
+                                  SUPER_ADMIN: "Super Admin",
+                                  ADMIN: "Admin",
+                                  PHOTOGRAPHER: "Photographer",
+                                  STUDENT: "Student",
+                                }[u.role as string] || u.role
+        
+                                return (
+                                  <TableRow key={u.id} className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors h-14">
+                                    <TableCell className="align-middle">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded border border-slate-200 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 overflow-hidden shrink-0">
+                                          {u.avatarUrl ? (
+                                            <img src={u.avatarUrl} alt={u.name || "Avatar"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                          ) : (
+                                            u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase()
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col max-w-[200px] sm:max-w-xs truncate">
+                                          <span className="text-xs font-bold text-slate-800 truncate">{u.name || "User"}</span>
+                                          <span className="text-[11px] text-slate-500 truncate">{u.email}</span>
+                                        </div>
                                       </div>
-                                      <div className="flex flex-col max-w-[200px] sm:max-w-xs md:max-w-sm">
-                                        <span className="text-sm font-semibold text-foreground truncate">{u.name || "Unnamed User"}</span>
-                                        <span className="text-[13px] text-muted-foreground truncate">{u.email}</span>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="align-middle">
-                                    {!u.isActive ? (
-                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-destructive/10 text-destructive border border-destructive/20 font-medium text-xs shadow-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-                                        Blocked
-                                      </div>
-                                    ) : (
-                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium text-xs shadow-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        Active
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="align-middle">
-                                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-semibold text-[11px] uppercase tracking-wide shadow-sm ${roleBadge}`}>
-                                      {isSuperAdmin && <Crown className="w-3.5 h-3.5" />}
-                                      {roleLabel}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right align-middle">
-                                    <div className="flex justify-end gap-2 opacity-100 sm:opacity-70 group-hover:opacity-100 transition-opacity">
-                                      {canToggleStatus && u.email !== callerEmail && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className={`h-8 px-3 text-xs font-medium border ${u.isActive ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:text-amber-700" : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700"}`}
-                                          disabled={userMgmtLoading}
-                                          onClick={async () => {
-                                            if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
-                                            setUserMgmtLoading(true)
-                                            setUserMgmtMessage(null)
-                                            const res = await apiClient.setUserStatus(u.id, !u.isActive)
-                                            if (res.error) {
-                                              setUserMgmtMessage({ type: "error", text: res.error })
-                                            } else {
-                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been ${u.isActive ? 'blocked' : 'unblocked'}.` })
-                                              const usersRes = await apiClient.getAdminUsers()
-                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                            }
-                                            setUserMgmtLoading(false)
-                                          }}
-                                          title={u.isActive ? "Block User" : "Unblock User"}
-                                        >
-                                          {u.isActive ? <Ban className="w-3.5 h-3.5 mr-1" /> : <Unlock className="w-3.5 h-3.5 mr-1" />}
-                                          {u.isActive ? "Block" : "Unblock"}
-                                        </Button>
+                                    </TableCell>
+                                    <TableCell className="align-middle">
+                                      {!u.isActive ? (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-medium text-[11px]">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                          {t("users.status.blocked")}
+                                        </div>
+                                      ) : (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[11px]">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                          {t("users.status.active")}
+                                        </div>
                                       )}
-                                      
-                                      {canDemote && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-8 px-3 text-xs font-medium text-destructive border border-transparent hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
-                                          disabled={userMgmtLoading}
-                                          onClick={async () => {
-                                            if (!confirm(`Remove ${u.email} from ${roleLabel}? They will become a Student.`)) return
-                                            setUserMgmtLoading(true)
-                                            setUserMgmtMessage(null)
-                                            const res = await apiClient.removeUserRole(u.id)
-                                            if (res.error) {
-                                              setUserMgmtMessage({ type: "error", text: res.error })
-                                            } else {
-                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been demoted to Student` })
-                                              const usersRes = await apiClient.getAdminUsers()
-                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                            }
-                                            setUserMgmtLoading(false)
-                                          }}
-                                          title="Demote to Student"
-                                        >
-                                          <UserMinus className="w-3.5 h-3.5 mr-1" />
-                                          Demote
-                                        </Button>
-                                      )}
-  
-                                      {canPermanentlyRemove && (
-                                        <Button
-                                          variant="destructive"
-                                          size="sm"
-                                          className="h-8 px-3 text-xs font-medium"
-                                          disabled={userMgmtLoading}
-                                          onClick={async () => {
-                                            const confirmation = prompt(
-                                              `PERMANENT REMOVAL\n\nType REMOVE to permanently remove ${u.email}.\n\nThis action cannot be undone.`
-                                            )
-                                            if (confirmation !== "REMOVE") return
-  
-                                            setUserMgmtLoading(true)
-                                            setUserMgmtMessage(null)
-                                            const res = await apiClient.removeAdmin(u.id)
-                                            if (res.error) {
-                                              setUserMgmtMessage({ type: "error", text: res.error })
-                                            } else {
-                                              setUserMgmtMessage({ type: "success", text: `${u.email} has been permanently removed` })
-                                              const usersRes = await apiClient.getAdminUsers()
-                                              if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                            }
-                                            setUserMgmtLoading(false)
-                                          }}
-                                          title="Permanently remove this user"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5 mr-1" />
-                                          Delete
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="health" className="mt-0">
-              <div className="space-y-6">
-                <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5 text-destructive" /> Danger Zone</CardTitle>
-                    <CardDescription>Actions that permanently modify or delete large amounts of data.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-destructive/20 bg-destructive/5 rounded-xl gap-4">
-                      <div>
-                        <p className="font-bold text-foreground">Wipe All Old Selfies</p>
-                        <p className="text-sm text-muted-foreground">Force all students to re-verify with the new Identity Guard system.</p>
+                                    </TableCell>
+                                    <TableCell className="align-middle">
+                                      <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded border text-[11px] font-semibold ${roleBadge}`}>
+                                        {isSuperAdmin && <Crown className="w-3 h-3" />}
+                                        {roleLabel}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right align-middle">
+                                      <div className="flex justify-end gap-1.5">
+                                        {canToggleStatus && u.email !== callerEmail && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={`h-7 px-2 text-xs rounded border ${u.isActive ? "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
+                                            disabled={userMgmtLoading}
+                                            onClick={async () => {
+                                              if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
+                                              setUserMgmtLoading(true)
+                                              setUserMgmtMessage(null)
+                                              const res = await apiClient.setUserStatus(u.id, !u.isActive)
+                                              if (res.error) {
+                                                setUserMgmtMessage({ type: "error", text: res.error })
+                                              } else {
+                                                setUserMgmtMessage({ type: "success", text: `Updated status for ${u.email}` })
+                                                const usersRes = await apiClient.getAdminUsers()
+                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                              }
+                                              setUserMgmtLoading(false)
+                                            }}
+                                            title={u.isActive ? t("users.btn.block") : t("users.btn.unblock")}
+                                          >
+                                            {u.isActive ? <Ban className="w-3 h-3 mr-1" /> : <Unlock className="w-3 h-3 mr-1" />}
+                                            {u.isActive ? t("users.btn.block") : t("users.btn.unblock")}
+                                          </Button>
+                                        )}
+                                        
+                                        {canDemote && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            disabled={userMgmtLoading}
+                                            onClick={async () => {
+                                              if (!confirm(`Demote ${u.email} to student?`)) return
+                                              setUserMgmtLoading(true)
+                                              setUserMgmtMessage(null)
+                                              const res = await apiClient.removeUserRole(u.id)
+                                              if (res.error) {
+                                                setUserMgmtMessage({ type: "error", text: res.error })
+                                              } else {
+                                                setUserMgmtMessage({ type: "success", text: `Demoted ${u.email} to student` })
+                                                const usersRes = await apiClient.getAdminUsers()
+                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                              }
+                                              setUserMgmtLoading(false)
+                                            }}
+                                            title={t("users.btn.demote")}
+                                          >
+                                            <UserMinus className="w-3 h-3 mr-1" />
+                                            {t("users.btn.demote")}
+                                          </Button>
+                                        )}
+    
+                                        {canPermanentlyRemove && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs rounded border-red-200 text-red-600 hover:bg-red-50"
+                                            disabled={userMgmtLoading}
+                                            onClick={async () => {
+                                              const confirmation = prompt(
+                                                `Type REMOVE to permanently delete user ${u.email}:`
+                                              )
+                                              if (confirmation !== "REMOVE") return
+    
+                                              setUserMgmtLoading(true)
+                                              setUserMgmtMessage(null)
+                                              const res = await apiClient.removeAdmin(u.id)
+                                              if (res.error) {
+                                                setUserMgmtMessage({ type: "error", text: res.error })
+                                              } else {
+                                                setUserMgmtMessage({ type: "success", text: `Deleted user ${u.email}` })
+                                                const usersRes = await apiClient.getAdminUsers()
+                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
+                                              }
+                                              setUserMgmtLoading(false)
+                                            }}
+                                            title={t("users.btn.delete")}
+                                          >
+                                            <Trash2 className="w-3 h-3 mr-1" />
+                                            {t("users.btn.delete")}
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
                       </div>
-                      <Button variant="destructive" onClick={handleCleanUpOldSelfies}>
-                        Wipe & Reset Selfies
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-                <SystemHealth />
-              </div>
-            </TabsContent>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* TAB: SYSTEM HEALTH */}
+              <TabsContent value="health" className="mt-0">
+                <div className="space-y-4">
+                  <Card className="border border-slate-200 border-t-4 border-t-red-600 bg-white rounded shadow-2xs">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold text-red-700 flex items-center gap-2">
+                        <Trash2 className="w-4 h-4 text-red-600" /> {t("health.danger.title")}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        {t("health.danger.desc")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border border-red-200 bg-red-50/50 rounded gap-3">
+                        <div>
+                          <p className="font-bold text-xs text-slate-800">{t("health.danger.wipe_title")}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{t("health.danger.wipe_desc")}</p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleCleanUpOldSelfies}
+                          className="h-8 text-xs rounded shrink-0 bg-red-600 hover:bg-red-700"
+                        >
+                          {t("health.danger.wipe_btn")}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs p-4">
+                    <SystemHealth />
+                  </Card>
+                </div>
+              </TabsContent>
             </div>
           </Tabs>
         </div>

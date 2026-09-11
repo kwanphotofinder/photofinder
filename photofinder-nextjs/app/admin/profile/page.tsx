@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, BadgeCheck, Bell, Crown, Mail, Settings, Shield, User, Users } from "lucide-react"
+import { useLanguage } from "@/lib/language-context"
 
 type AdminProfile = {
   name: string
@@ -17,6 +18,7 @@ type AdminProfile = {
 
 export default function AdminProfilePage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [profile, setProfile] = useState<AdminProfile>({
     name: "",
     email: "",
@@ -73,105 +75,95 @@ export default function AdminProfilePage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
-        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-          <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/85 shadow-[0_18px_48px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="border-b border-border/60 bg-gradient-to-r from-card/90 to-muted/40 p-6 sm:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                    <Shield className="h-3.5 w-3.5" />
-                    Admin account
-                  </div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account & Settings</h1>
-                  <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                    View the account details currently used for your admin access.
-                  </p>
-                </div>
-                <Button variant="outline" onClick={() => router.push("/admin/dashboard")} className="rounded-full border-border/70">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to dashboard
-                </Button>
+
+      {/* REG MFU Breadcrumbs */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.home")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.admin")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-[#82181a]">{t("breadcrumb.profile")}</span>
+          </div>
+          <button
+            onClick={() => router.push("/admin/dashboard")}
+            className="flex items-center gap-1 text-slate-500 hover:text-[#82181a] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t("breadcrumb.back")}</span>
+          </button>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-[#f0f2f5] pb-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+          {/* Header Banner */}
+          <div className="bg-white border border-slate-200 rounded p-5 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t("profile.title")}</h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t("profile.subtitle")}
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-6 p-6 sm:p-8">
-              <Card className="border border-border/60 bg-background/80 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    Profile details
-                  </CardTitle>
-                  <CardDescription>This information comes from your current signed-in account.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-muted/30 p-6 sm:flex-row sm:items-center sm:gap-6">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile.avatarUrl} alt={profile.name || "Admin"} referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-xl font-semibold">
-                        {(profile.name?.[0] || profile.email?.[0] || "A").toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+          {/* Profile Card (REG MFU Top Maroon Border) */}
+          <Card className="border border-slate-200 border-t-4 border-t-[#82181a] bg-white rounded shadow-2xs overflow-hidden">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#82181a]" />
+                {t("profile.details_title")}
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">{t("profile.details_desc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-slate-200 rounded bg-slate-50/50">
+                <Avatar className="h-16 w-16 border-2 border-white shadow-xs">
+                  <AvatarImage src={profile.avatarUrl} alt={profile.name || "Admin"} referrerPolicy="no-referrer" />
+                  <AvatarFallback className="text-base font-bold bg-[#82181a] text-white">
+                    {(profile.name?.[0] || profile.email?.[0] || "A").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
 
-                    <div className="w-full space-y-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Name</p>
-                        <p className="mt-1 text-base font-semibold text-foreground">{profile.name || "Admin"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Email</p>
-                        <p className="mt-1 flex items-center gap-2 text-sm text-foreground">
-                          <Mail className="h-4 w-4 text-primary" />
-                          {profile.email || "No email found"}
-                        </p>
-                      </div>
-                    </div>
+                <div className="space-y-1 text-center sm:text-left flex-1">
+                  <div className="text-base font-bold text-slate-900">{profile.name || "Administrator"}</div>
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-slate-500">
+                    <Mail className="h-3.5 w-3.5 text-[#82181a]" />
+                    <span>{profile.email || t("profile.email_not_found")}</span>
                   </div>
+                </div>
 
-                  <div className="rounded-2xl border border-border/60 bg-background p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Access role</p>
-                    <div className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                      {isSuperAdmin ? <Crown className="h-4 w-4 text-amber-600" /> : <BadgeCheck className="h-4 w-4 text-primary" />}
-                      {isSuperAdmin ? "Super Admin" : "Admin"}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {isSuperAdmin
-                        ? "You can manage admins, photographers, events, and moderation workflows."
-                        : "You can manage events, photographers, and moderation workflows."}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="inline-flex items-center gap-1 px-3 py-1 rounded border text-xs font-semibold bg-amber-50 text-amber-800 border-amber-300">
+                  {isSuperAdmin && <Crown className="w-3.5 h-3.5" />}
+                  <span>{isSuperAdmin ? t("role.super_admin") : t("role.admin")}</span>
+                </div>
+              </div>
 
-              <Card className="border border-border/60 bg-background/80 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-primary" />
-                    Admin Settings
-                  </CardTitle>
-                  <CardDescription>Quick access context for admin operations.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Users className="h-4 w-4 text-primary" />
-                        User management
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">Adjust roles and review account access from the admin dashboard.</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Bell className="h-4 w-4 text-primary" />
-                        Moderation workflow
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">Handle removal requests and event review from the admin tools.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
+              {/* Role Scope */}
+              <div className="p-4 border border-slate-200 rounded bg-white">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("profile.scope_title")}</p>
+                <p className="text-xs text-slate-700 mt-1">
+                  {isSuperAdmin
+                    ? t("profile.scope_desc_super")
+                    : t("profile.scope_desc_admin")}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex justify-end">
+                <Button
+                  onClick={() => router.push("/admin/dashboard")}
+                  className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs h-9 px-4 rounded"
+                >
+                  {t("profile.btn_dashboard")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </>

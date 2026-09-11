@@ -40,6 +40,7 @@ export const viewport = {
 };
 
 import { VerificationGuard } from "@/components/verification-guard";
+import { LanguageProvider } from "@/lib/language-context";
 
 export default function RootLayout({
   children,
@@ -53,9 +54,11 @@ export default function RootLayout({
       </head>
       <body className={`${_notoSansThai.variable} ${_outfit.variable} font-sans antialiased`}>
         <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
-        <VerificationGuard>
-          {children}
-        </VerificationGuard>
+        <LanguageProvider>
+          <VerificationGuard>
+            {children}
+          </VerificationGuard>
+        </LanguageProvider>
         <ChatWrapper />
         <Analytics />
       </body>
