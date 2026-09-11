@@ -73,105 +73,118 @@ export default function AdminProfilePage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.08),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
-        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-          <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/85 shadow-[0_18px_48px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="border-b border-border/60 bg-gradient-to-r from-card/90 to-muted/40 p-6 sm:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                    <Shield className="h-3.5 w-3.5" />
-                    Admin account
-                  </div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account & Settings</h1>
-                  <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                    View the account details currently used for your admin access.
-                  </p>
-                </div>
-                <Button variant="outline" onClick={() => router.push("/admin/dashboard")} className="rounded-full border-border/70">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to dashboard
-                </Button>
-              </div>
+      <main className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
+        {/* Sub-header banner */}
+        <div className="bg-white border-b border-slate-200">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5">
+            <button
+              onClick={() => router.push("/admin/dashboard")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#82181A] hover:underline mb-2 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>กลับสู่แดชบอร์ด (Back to Dashboard)</span>
+            </button>
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#82181A] uppercase tracking-wider mb-1">
+              ส่วนทะเบียนและประมวลผล • ข้อมูลบุคลากรผู้ดูแลระบบ
             </div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              ข้อมูลบัญชีผู้ดูแลระบบ (Admin Profile & Permissions)
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              รายละเอียดบัญชีผู้ใช้งานที่ใช้ในการเข้าถึงและกำกับดูแลระบบทะเบียนภาพถ่าย
+            </p>
+          </div>
+        </div>
 
-            <div className="space-y-6 p-6 sm:p-8">
-              <Card className="border border-border/60 bg-background/80 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    Profile details
-                  </CardTitle>
-                  <CardDescription>This information comes from your current signed-in account.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-muted/30 p-6 sm:flex-row sm:items-center sm:gap-6">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile.avatarUrl} alt={profile.name || "Admin"} referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-xl font-semibold">
-                        {(profile.name?.[0] || profile.email?.[0] || "A").toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+          {/* Profile Card */}
+          <Card className="border border-slate-200 border-t-4 border-t-[#82181A] bg-white rounded-lg shadow-xs overflow-hidden">
+            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
+              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#82181A]" />
+                ข้อมูลประจำตัวเจ้าหน้าที่ (Personnel Details)
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">ข้อมูลที่ผูกกับเซสชันการเข้าสู่ระบบปัจจุบัน</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-md border border-slate-200 bg-slate-50/50">
+                <Avatar className="h-16 w-16 ring-1 ring-slate-300">
+                  <AvatarImage src={profile.avatarUrl} alt={profile.name || "Admin"} referrerPolicy="no-referrer" />
+                  <AvatarFallback className="bg-[#82181A] text-white text-xl font-bold">
+                    {(profile.name?.[0] || profile.email?.[0] || "A").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
 
-                    <div className="w-full space-y-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Name</p>
-                        <p className="mt-1 text-base font-semibold text-foreground">{profile.name || "Admin"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Email</p>
-                        <p className="mt-1 flex items-center gap-2 text-sm text-foreground">
-                          <Mail className="h-4 w-4 text-primary" />
-                          {profile.email || "No email found"}
-                        </p>
-                      </div>
-                    </div>
+                <div className="w-full space-y-2 text-center sm:text-left">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ชื่อ-นามสกุล / ชื่อแสดงผล (Name)</span>
+                    <p className="text-base font-bold text-slate-900">{profile.name || "ไม่ระบุชื่อ"}</p>
                   </div>
-
-                  <div className="rounded-2xl border border-border/60 bg-background p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Access role</p>
-                    <div className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                      {isSuperAdmin ? <Crown className="h-4 w-4 text-amber-600" /> : <BadgeCheck className="h-4 w-4 text-primary" />}
-                      {isSuperAdmin ? "Super Admin" : "Admin"}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {isSuperAdmin
-                        ? "You can manage admins, photographers, events, and moderation workflows."
-                        : "You can manage events, photographers, and moderation workflows."}
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">อีเมลทางการ (Email)</span>
+                    <p className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-slate-700 font-medium mt-0.5">
+                      <Mail className="h-3.5 w-3.5 text-[#82181A]" />
+                      {profile.email || "ไม่มีข้อมูลอีเมล"}
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card className="border border-border/60 bg-background/80 shadow-sm backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-primary" />
-                    Admin Settings
-                  </CardTitle>
-                  <CardDescription>Quick access context for admin operations.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Users className="h-4 w-4 text-primary" />
-                        User management
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">Adjust roles and review account access from the admin dashboard.</p>
-                    </div>
-                    <div className="rounded-2xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Bell className="h-4 w-4 text-primary" />
-                        Moderation workflow
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">Handle removal requests and event review from the admin tools.</p>
-                    </div>
+              <div className="rounded-md border border-slate-200 bg-white p-4 space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ระดับสิทธิ์การเข้าถึง (Authorization Level)</span>
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                  {isSuperAdmin ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 text-amber-800 border border-amber-300 text-xs font-semibold">
+                      <Crown className="h-3.5 w-3.5 text-amber-600" />
+                      ผู้ดูแลระบบสูงสุด (Super Administrator)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#82181A]/10 text-[#82181A] border border-[#82181A]/20 text-xs font-semibold">
+                      <BadgeCheck className="h-3.5 w-3.5 text-[#82181A]" />
+                      เจ้าหน้าที่ส่วนทะเบียน (Registrar Administrator)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 pt-1">
+                  {isSuperAdmin
+                    ? "คุณมีสิทธิ์สูงสุดในการจัดการแต่งตั้งแอดมิน, ช่างภาพ, กิจกรรม, อนุมัติคำขอลบภาพ และจัดการฐานข้อมูลความปลอดภัย"
+                    : "คุณมีสิทธิ์ในการบริหารจัดการกิจกรรม, ตรวจสอบภาพถ่าย, คัดกรองคิว AI และอนุมัติคำขอลบภาพตามมาตรฐาน PDPA"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Context Card */}
+          <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
+            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
+              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Settings className="h-4 w-4 text-slate-700" />
+                ภารกิจงานที่รับผิดชอบ (Administrative Scope)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-md border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                    <Users className="h-4 w-4 text-[#82181A]" />
+                    งานบริหารสิทธิ์และผู้ใช้งาน
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    แต่งตั้งช่างภาพ มอบหมายสิทธิ์แอดมิน และตรวจสอบสถานะการเข้าใช้งานของนักศึกษา
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                    <Bell className="h-4 w-4 text-[#82181A]" />
+                    งานกำกับดูแลความเป็นส่วนตัว (PDPA)
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    พิจารณาคำร้องขอลบหรือเบลอใบหน้าจากนักศึกษา และตรวจสอบคิวภาพที่มีความมั่นใจต่ำ
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </>

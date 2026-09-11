@@ -128,109 +128,114 @@ export default function CreateEventPage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="mb-8">
+      <main className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
+        {/* Sub-header banner */}
+        <div className="bg-white border-b border-slate-200">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors mb-4"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#82181A] hover:underline mb-2 cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>กลับสู่แดชบอร์ด (Back to Dashboard)</span>
             </button>
-            <h1 className="text-3xl font-bold text-foreground">Create New Event</h1>
-            <p className="text-muted-foreground mt-2">Set up a new campus event for photo uploads and face search</p>
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#82181A] uppercase tracking-wider mb-1">
+              ส่วนทะเบียนและประมวลผล • งานทะเบียนกิจกรรม
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              ลงทะเบียนกิจกรรมใหม่ (Create New Campus Event)
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              สร้างรายการกิจกรรมสำหรับเปิดรับภาพถ่ายจากช่างภาพและเปิดให้นักศึกษาค้นหาภาพใบหน้า
+            </p>
           </div>
+        </div>
 
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
           {/* Error Alert */}
           {error && (
-            <Card className="border border-destructive/30 bg-destructive/5 mb-6">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-foreground">Error</p>
-                    <p className="text-sm text-muted-foreground">{error}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-rose-200 bg-rose-50 text-rose-800 text-xs">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-900">เกิดข้อผิดพลาดในการบันทึกข้อมูล</p>
+                <p className="mt-0.5">{error}</p>
+              </div>
+            </div>
           )}
 
           {/* Form Card */}
-          <Card className="border border-border backdrop-blur-sm bg-card/80">
-            <CardHeader>
-              <CardTitle>Event Details</CardTitle>
-              <CardDescription>Configure the basic information for this event</CardDescription>
+          <Card className="border border-slate-200 border-t-4 border-t-[#82181A] bg-white rounded-lg shadow-xs overflow-hidden">
+            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
+              <CardTitle className="text-base font-bold text-slate-900">ข้อมูลรายละเอียดกิจกรรม (Event Information)</CardTitle>
+              <CardDescription className="text-xs text-slate-500">กรอกข้อมูลพื้นฐานและเงื่อนไขการจัดเก็บภาพถ่าย</CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Event Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-foreground font-medium">
-                    Event Name *
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-bold text-slate-800">
+                    ชื่อกิจกรรม (Event Name) <span className="text-rose-600">*</span>
                   </Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="e.g., Spring Orientation 2024"
+                    placeholder="เช่น พิธีพระราชทานปริญญาบัตร ประจำปีการศึกษา 2568"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="border-border"
+                    className="h-9 border-slate-300 text-xs focus:border-[#82181A]"
                     disabled={isSubmitting}
                   />
-                  <p className="text-xs text-muted-foreground">Give your event a descriptive name</p>
+                  <p className="text-[11px] text-slate-400">ระบุชื่อกิจกรรมอย่างเป็นทางการให้ชัดเจน</p>
                 </div>
 
                 {/* Event Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-foreground font-medium">
-                    Event Date *
+                <div className="space-y-1.5">
+                  <Label htmlFor="date" className="text-xs font-bold text-slate-800">
+                    วันที่จัดกิจกรรม (Event Date) <span className="text-rose-600">*</span>
                   </Label>
                   <Input
                     id="date"
                     type="date"
                     value={formData.date}
                     onChange={(e) => handleInputChange("date", e.target.value)}
-                    className="border-border"
+                    className="h-9 border-slate-300 text-xs focus:border-[#82181A]"
                     disabled={isSubmitting}
                   />
-                  <p className="text-xs text-muted-foreground">The date when this event occurs</p>
+                  <p className="text-[11px] text-slate-400">วันที่เริ่มต้นการจัดกิจกรรมตามปฏิทินมหาวิทยาลัย</p>
                 </div>
 
                 {/* Status */}
-                <div className="space-y-2">
-                  <Label htmlFor="status" className="text-foreground font-medium">
-                    Event Status
+                <div className="space-y-1.5">
+                  <Label htmlFor="status" className="text-xs font-bold text-slate-800">
+                    สถานะการเผยแพร่ (Publishing Status)
                   </Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => handleInputChange("status", value)}
                     disabled={isSubmitting}
                   >
-                    <SelectTrigger className="border-border">
+                    <SelectTrigger className="h-9 border-slate-300 text-xs focus:border-[#82181A]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DRAFT">Draft</SelectItem>
-                      <SelectItem value="PUBLISHED">Published</SelectItem>
+                    <SelectContent className="border-slate-200">
+                      <SelectItem value="DRAFT" className="text-xs">ฉบับร่าง (Draft) — ยังไม่เปิดให้นักศึกษาค้นหาภาพ</SelectItem>
+                      <SelectItem value="PUBLISHED" className="text-xs">เผยแพร่ทันที (Published) — เปิดให้นักศึกษาค้นหาภาพได้</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Draft: Not visible | Published: Visible to users
+                  <p className="text-[11px] text-slate-400">
+                    สามารถตั้งเป็นฉบับร่างไว้ก่อน และเปิดเผยแพร่หลังจากอัปโหลดภาพเสร็จสิ้น
                   </p>
                 </div>
 
                 {/* Expiry Settings */}
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                <div className="space-y-3 p-4 border border-slate-200 rounded-md bg-slate-50/70">
                   <div className="space-y-1">
-                    <Label className="text-foreground font-medium flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-primary" />
-                      Auto-Deletion Timer
+                    <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-[#82181A]" />
+                      ระยะเวลาจัดเก็บภาพถ่ายอัตโนมัติ (Data Retention Period)
                     </Label>
-                    <p className="text-xs text-muted-foreground">
-                      For privacy compliance, events and their photos will be automatically deleted after this many days.
+                    <p className="text-[11px] text-slate-500">
+                      ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA) ภาพถ่ายกิจกรรมจะถูกลบออกจากระบบจัดเก็บข้อมูลเมื่อครบกำหนด
                     </p>
                   </div>
                   
@@ -240,16 +245,20 @@ export default function CreateEventPage() {
                         key={days}
                         type="button"
                         variant={formData.expiryDays === days ? "default" : "outline"}
-                        className="flex-1"
+                        className={`flex-1 h-8 text-xs font-medium rounded ${
+                          formData.expiryDays === days 
+                            ? "bg-[#82181A] hover:bg-[#6e1416] text-white shadow-none" 
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
                         onClick={() => handleInputChange("expiryDays", days)}
                       >
-                        {days} Days
+                        {days} วัน ({days} Days)
                       </Button>
                     ))}
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <Label htmlFor="customDays" className="text-sm whitespace-nowrap">Custom Days:</Label>
+                  <div className="flex items-center gap-3 pt-1">
+                    <Label htmlFor="customDays" className="text-xs font-medium text-slate-700 whitespace-nowrap">ระบุจำนวนวันเอง:</Label>
                     <Input
                       id="customDays"
                       type="number"
@@ -262,52 +271,39 @@ export default function CreateEventPage() {
                         if (val < 0) val = 0;
                         handleInputChange("expiryDays", val);
                       }}
-                      className="w-24 border-border"
+                      className="w-20 h-8 text-xs border-slate-300"
                       disabled={isSubmitting}
                     />
-                    <span className="text-xs text-muted-foreground">(Max 30 days)</span>
+                    <span className="text-[11px] text-slate-400">(สูงสุดไม่เกิน 30 วัน ตามนโยบายมหาวิทยาลัย)</span>
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-6 border-t border-border">
+                <div className="flex gap-3 pt-4 border-t border-slate-200">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => router.back()}
                     disabled={isSubmitting}
-                    className="flex-1 border-border"
+                    className="flex-1 h-9 text-xs border-slate-300 text-slate-700 hover:bg-slate-100 rounded-md font-medium"
                   >
-                    Cancel
+                    ยกเลิก (Cancel)
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                    className="flex-1 h-9 text-xs bg-[#82181A] hover:bg-[#6e1416] text-white rounded-md shadow-xs font-medium"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
+                        <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        กำลังบันทึกข้อมูล...
                       </>
                     ) : (
-                      "Create Event"
+                      "บันทึกและสร้างกิจกรรม (Create Event)"
                     )}
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-
-          {/* Info Card */}
-          <Card className="border border-border bg-primary/5 border-primary/20 mt-6 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-base">What happens next?</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Event will appear in your event console</p>
-              <p>✓ Photographers can start uploading photos</p>
-              <p>✓ Students can opt-in and search for themselves</p>
-              <p>✓ Analytics will track engagement and metrics</p>
             </CardContent>
           </Card>
         </div>

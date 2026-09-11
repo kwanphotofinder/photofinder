@@ -133,124 +133,128 @@ export default function EditEventPage() {
     return (
         <>
             <Header userRole="admin" />
-            <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(130,24,26,0.08),transparent_36%),linear-gradient(to_bottom,rgba(255,255,255,0.98),rgba(248,250,252,1))]">
-                <div className="pointer-events-none absolute -left-12 top-10 h-64 w-64 rounded-full bg-[#82181a]/12 blur-3xl" />
-                <div className="pointer-events-none absolute right-0 top-40 h-72 w-72 rounded-full bg-[#a8252d]/10 blur-3xl" />
-
-                <div className="relative max-w-2xl mx-auto px-4 py-8">
-                    {/* Header */}
-                    <div className="mb-8 rounded-2xl border border-border/70 bg-card/80 px-5 py-5 shadow-sm backdrop-blur-md sm:px-6">
+            <main className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
+                {/* Sub-header banner */}
+                <div className="bg-white border-b border-slate-200">
+                    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5">
                         <button
                             onClick={() => router.back()}
-                            className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors mb-4"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#82181A] hover:underline mb-2 cursor-pointer"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span className="text-sm font-medium">Back</span>
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            <span>กลับสู่แดชบอร์ด (Back to Dashboard)</span>
                         </button>
-                        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                            <Pencil className="h-3.5 w-3.5" />
-                            Event Update
+                        <div className="flex items-center gap-2 text-xs font-semibold text-[#82181A] uppercase tracking-wider mb-1">
+                            ส่วนทะเบียนและประมวลผล • งานทะเบียนกิจกรรม
                         </div>
-                        <h1 className="text-3xl font-bold text-foreground">Edit Event</h1>
-                        <p className="text-muted-foreground mt-2">Update event details</p>
+                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                            แก้ไขข้อมูลกิจกรรม (Edit Event Details)
+                        </h1>
+                        <p className="text-xs text-slate-500 mt-1">
+                            ปรับปรุงชื่อ วันที่จัด หรือสถานะการเผยแพร่ของกิจกรรมในระบบ
+                        </p>
                     </div>
+                </div>
 
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
                     {/* Error Alert */}
                     {error && (
-                        <Card className="border border-destructive/30 bg-destructive/5 mb-6">
-                            <CardContent className="pt-6">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="font-semibold text-foreground">Error</p>
-                                        <p className="text-sm text-muted-foreground">{error}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-rose-200 bg-rose-50 text-rose-800 text-xs">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold text-rose-900">เกิดข้อผิดพลาดในการบันทึกข้อมูล</p>
+                                <p className="mt-0.5">{error}</p>
+                            </div>
+                        </div>
                     )}
 
                     {/* Form Card */}
-                    <Card className="border border-border/70 bg-card/85 shadow-sm backdrop-blur-md">
-                        <CardHeader>
-                            <CardTitle>Event Details</CardTitle>
-                            <CardDescription>Update the information for this event</CardDescription>
+                    <Card className="border border-slate-200 border-t-4 border-t-[#82181A] bg-white rounded-lg shadow-xs overflow-hidden">
+                        <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
+                            <CardTitle className="text-base font-bold text-slate-900">ข้อมูลกิจกรรม (Event Information)</CardTitle>
+                            <CardDescription className="text-xs text-slate-500">ปรับปรุงข้อมูลที่ต้องการแก้ไขแล้วกดบันทึก</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                        <CardContent className="p-6">
+                            <form onSubmit={handleSubmit} className="space-y-5">
                                 {/* Event Name */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="name" className="text-foreground font-medium">
-                                        Event Name *
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="name" className="text-xs font-bold text-slate-800">
+                                        ชื่อกิจกรรม (Event Name) <span className="text-rose-600">*</span>
                                     </Label>
                                     <Input
                                         id="name"
                                         type="text"
-                                        placeholder="e.g., Spring Orientation 2024"
+                                        placeholder="เช่น พิธีพระราชทานปริญญาบัตร ประจำปีการศึกษา 2568"
                                         value={formData.name}
                                         onChange={(e) => handleInputChange("name", e.target.value)}
-                                        className="border-border"
+                                        className="h-9 border-slate-300 text-xs focus:border-[#82181A]"
                                         disabled={isSubmitting}
                                     />
+                                    <p className="text-[11px] text-slate-400">ระบุชื่อกิจกรรมอย่างเป็นทางการให้ชัดเจน</p>
                                 </div>
 
                                 {/* Event Date */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="date" className="text-foreground font-medium">
-                                        Event Date *
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="date" className="text-xs font-bold text-slate-800">
+                                        วันที่จัดกิจกรรม (Event Date) <span className="text-rose-600">*</span>
                                     </Label>
                                     <Input
                                         id="date"
                                         type="date"
                                         value={formData.date}
                                         onChange={(e) => handleInputChange("date", e.target.value)}
-                                        className="border-border"
+                                        className="h-9 border-slate-300 text-xs focus:border-[#82181A]"
                                         disabled={isSubmitting}
                                     />
+                                    <p className="text-[11px] text-slate-400">วันที่จัดกิจกรรมตามปฏิทินมหาวิทยาลัย</p>
                                 </div>
 
                                 {/* Status */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="status" className="text-foreground font-medium">
-                                        Event Status
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="status" className="text-xs font-bold text-slate-800">
+                                        สถานะการเผยแพร่ (Publishing Status)
                                     </Label>
                                     <Select
                                         value={formData.status}
                                         onValueChange={(value) => handleInputChange("status", value)}
                                         disabled={isSubmitting}
                                     >
-                                        <SelectTrigger className="border-border">
+                                        <SelectTrigger className="h-9 border-slate-300 text-xs focus:border-[#82181A]">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="DRAFT">Draft</SelectItem>
-                                            <SelectItem value="PUBLISHED">Published</SelectItem>
+                                        <SelectContent className="border-slate-200">
+                                            <SelectItem value="DRAFT" className="text-xs">ฉบับร่าง (Draft) — ยังไม่เปิดให้นักศึกษาค้นหาภาพ</SelectItem>
+                                            <SelectItem value="PUBLISHED" className="text-xs">เผยแพร่ (Published) — เปิดให้นักศึกษาค้นหาภาพได้</SelectItem>
+                                            <SelectItem value="ARCHIVED" className="text-xs">จัดเก็บถาวร (Archived) — ปิดการค้นหาและจัดเก็บเข้าคลัง</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <p className="text-[11px] text-slate-400">
+                                        เมื่อเลือก &quot;เผยแพร่&quot; นักศึกษาจะสามารถค้นหาภาพตนเองในกิจกรรมนี้ได้ทันที
+                                    </p>
                                 </div>
 
-                                <div className="flex gap-3 pt-6 border-t border-border">
+                                <div className="flex gap-3 pt-4 border-t border-slate-200">
                                     <Button
                                         type="button"
                                         variant="outline"
                                         onClick={() => router.back()}
                                         disabled={isSubmitting}
-                                        className="flex-1 border-border"
+                                        className="flex-1 h-9 text-xs border-slate-300 text-slate-700 hover:bg-slate-100 rounded-md font-medium"
                                     >
-                                        Cancel
+                                        ยกเลิก (Cancel)
                                     </Button>
                                     <Button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className="flex-1 bg-gradient-to-r from-[#82181a] to-[#a8252d] text-primary-foreground shadow-sm shadow-[#82181a]/30 hover:from-[#82181a]/90 hover:to-[#a8252d]/90"
+                                        className="flex-1 h-9 text-xs bg-[#82181A] hover:bg-[#6e1416] text-white rounded-md shadow-xs font-medium"
                                     >
                                         {isSubmitting ? (
                                             <>
-                                                <Loader className="w-4 h-4 mr-2 animate-spin" />
-                                                Saving...
+                                                <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                                กำลังบันทึก...
                                             </>
                                         ) : (
-                                            "Save Changes"
+                                            "บันทึกการแก้ไข (Save Changes)"
                                         )}
                                     </Button>
                                 </div>
