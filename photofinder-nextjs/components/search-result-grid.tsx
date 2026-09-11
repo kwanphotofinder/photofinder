@@ -4,14 +4,17 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Download, CheckCircle, Heart } from "lucide-react"
+import { Eye, Download, CheckCircle, Heart, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "@/components/photo-detail-modal"
+import { downloadPhoto } from "@/lib/download"
+import { trackPhotoEngagement } from "@/lib/engagement-client"
 
 interface Photo {
   id: string
   url: string
   eventName: string
   eventDate: string
+  uploadDate?: string
   confidence: number
 }
 
@@ -22,13 +25,14 @@ interface SearchResultGridProps {
 export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [openShareSheet, setOpenShareSheet] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
 
   useEffect(() => {
     // Load saved photos from API
     const loadSavedPhotos = async () => {
       try {
-        const userId = localStorage.getItem("university_id") || 'guest'
+        const userId = localStorage.getItem("user_id") || 'guest'
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
         const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
         if (response.ok) {
@@ -46,7 +50,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleSavePhoto = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    const userId = localStorage.getItem("university_id") || 'guest'
+    const userId = localStorage.getItem("user_id") || 'guest'
     const isSaved = savedPhotoIds.includes(photoId)
 
     try {
@@ -85,25 +89,16 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
 
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
-    try {
-      const response = await fetch(photo.url)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const date = new Date(photo.eventDate).toISOString().split('T')[0]
-      const timestamp = Date.now()
-      a.download = `${photo.eventName.replace(/\s+/g, '_')}_${date}_${timestamp}.jpg`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Failed to download photo:', err)
-      alert('Unable to download automatically. Opening photo in new tab...')
-      // Fallback to opening in new tab
-      window.open(photo.url, '_blank')
-    }
+    trackPhotoEngagement(photo.id, "DOWNLOAD")
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
+  }
+
+  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
+    e.stopPropagation()
+    trackPhotoEngagement(photo.id, "SHARE")
+    setSelectedPhoto(photo)
+    setOpenShareSheet(true)
+    setShowDetail(true)
   }
 
   const getConfidenceBadgeColor = (confidence: number) => {
@@ -189,6 +184,14 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                 >
                   <Download className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
 
               {/* Confidence Badge */}
@@ -254,6 +257,13 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                 >
                   <Download className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => handleShare(photo, e)}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -261,7 +271,15 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
       </div>
 
       {selectedPhoto && (
-        <PhotoDetailModal photo={selectedPhoto} isOpen={showDetail} onClose={() => setShowDetail(false)} />
+        <PhotoDetailModal
+          photo={selectedPhoto}
+          isOpen={showDetail}
+          onClose={() => {
+            setShowDetail(false)
+            setOpenShareSheet(false)
+          }}
+          initialShareOpen={openShareSheet}
+        />
       )}
     </>
   )

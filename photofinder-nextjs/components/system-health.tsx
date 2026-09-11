@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Users, Calendar, Image, Scan, CalendarCheck, ExternalLink } from "lucide-react"
+import { Users, Calendar, Image, Scan, CalendarCheck } from "lucide-react"
 import ReactECharts from 'echarts-for-react'
 import * as echarts from 'echarts'
 
@@ -46,15 +45,21 @@ export function SystemHealth() {
         const fetchData = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+                const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
                 // Fetch Prometheus metrics for AI confidence
-                const metricsResponse = await fetch(`${apiUrl}/metrics/json`)
+                const metricsResponse = await fetch(`${apiUrl}/metrics/json`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {}
+                })
                 if (metricsResponse.ok) {
                     const metricsData = await metricsResponse.json()
                     setMetrics(metricsData)
                 }
 
                 // Fetch database stats
-                const statsResponse = await fetch(`${apiUrl}/admin/stats`)
+                const statsResponse = await fetch(`${apiUrl}/admin/stats`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {}
+                })
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json()
                     setStats(statsData)
@@ -255,21 +260,10 @@ export function SystemHealth() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
-                <div>
+        <div className="mb-4">
                     <h2 className="text-2xl font-bold text-slate-800">System Health</h2>
                     <p className="text-sm text-slate-500">Real-time metrics and performance monitoring</p>
                 </div>
-                <Button
-                    variant="outline"
-                    className="gap-2 opacity-50 cursor-not-allowed"
-                    title="Grafana is disabled in Production to save resources (Free Tier limit krub)"
-                    onClick={(e) => e.preventDefault()}
-                >
-                    <ExternalLink className="w-4 h-4" />
-                    Open Grafana (Disabled in Prod)
-                </Button>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <StatCard

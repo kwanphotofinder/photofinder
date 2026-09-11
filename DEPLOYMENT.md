@@ -1,33 +1,38 @@
-# Deployment Guide - PhotoFinder Testing Environment
+# Deployment Guide - Photo Finder
 
 ## Overview
-Deploy the backend architecture across multiple free-tier services (Render, Neon, Hugging Face, Cloudinary) and the frontend on Vercel.
+This guide explains how to deploy the unified Next.js full-stack application. The current setup runs on **Vercel** and uses external free-tier services for the database (Neon), image storage (Cloudinary), face embedding AI (Hugging Face), and a user navigation assistant chatbot (Groq AI).
 
 ## Prerequisites
 - GitHub account
-- Accounts on: Render, Neon, Cloudinary, Hugging Face, Vercel
-- Your code pushed to GitHub
+- Accounts on: Neon, Cloudinary, Hugging Face, Groq, Vercel
+- Your code pushed to a GitHub repository
 
 ---
 
-## Part 1: Deploy Storage & AI Services
+## Part 1: Prepare External Services
 
-### 1. PostgreSQL Database (Neon)
+### 1. PostgreSQL Database with pgvector (Neon)
 1. Go to [neon.tech](https://neon.tech/) → "Sign Up" → "Create Project"
 2. Settings:
    - Name: `photofinder`
-   - Region: Choose closest to you
+   - Region: Choose the region closest to your users.
 3. On the Dashboard, go to **Connection Details**.
 4. Set the dropdown to **Node.js** (or keep standard string). Ensure **Connection pooling** is turned ON.
-5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech...`)
+5. **Save the Connection String** (looks like `postgresql://user:pass@ep-name-pooler.region.aws.neon.tech/neondb?sslmode=require`)
+6. **Important:** When setting up a new Neon database or pushing to production for the first time, apply your Prisma migrations first and then verify that the pgvector pieces exist. If the database is brand new, run these SQL commands in the Neon console's "SQL Editor":
+```sql
+-- 1. Enable the pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 2. Create the High-Dimensional Search Index (speeds up face searches from seconds to milliseconds)
+CREATE INDEX IF NOT EXISTS faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
+```
 
 ### 2. Photo Storage (Cloudinary)
 1. Go to [cloudinary.com](https://cloudinary.com/) → Sign up
-2. Go to your Dashboard → "Product Environment Credentials"
-3. **Save your credentials:**
-   - Cloud Name
-   - API Key
-   - API Secret
+2. Go to your Dashboard and locate your API Environment Variable.
+3. **Save your CLOUDINARY_URL** (It looks like: `cloudinary://1234567890:AbCdEfGhIjKlMnOpQrStUvWxYz@cloudname`)
 
 ### 3. AI Service (Hugging Face Spaces)
 1. Go to [huggingface.co/spaces](https://huggingface.co/spaces) → "Create new Space"
@@ -36,92 +41,88 @@ Deploy the backend architecture across multiple free-tier services (Render, Neon
    - License: MIT (or your choice)
    - Space SDK: **Docker**
    - Hardware: **Free** (CPU basic)
-3. Connect your GitHub repository (or upload the contents of your `ai-service` folder).
-4. Hugging Face will automatically build the Dockerfile.
+3. Upload the contents of your Python AI microservice folder.
+4. Hugging Face will automatically build the Dockerfile and start the FastAPI server.
 5. **Save the Space URL** (e.g., `https://yourusername-photofinder-ai.hf.space`)
+   - The app pings the Space root URL (`GET /`) for wake-up checks and sends embeddings to `POST /extract`.
+
+### 4. Chatbot AI (Groq)
+Groq provides a fast, free LLM API for the in-app chatbot that helps students and staff navigate the PhotoFinder platform.
+
+1. Go to [console.groq.com](https://console.groq.com) → Sign up (free account)
+2. Navigate to **API Keys** in the sidebar
+3. Click **Create API Key**
+4. Name it `photofinder` (optional)
+5. **Copy your API Key** (looks like: `gsk_xxxxxxxxxxxxxxxxxxxx`)
+6. **Save the GROQ_API_KEY**
+
+**Note:** The chatbot is available on all pages of the app and provides MFU-specific guidance about:
+- Finding and downloading photos
+- PDPA consent and privacy rights
+- LINE and email notifications setup
+- Reference selfie upload and matching
+- Photo removal and data deletion
+- Technical troubleshooting
 
 ---
 
-## Part 2: Deploy Infrastructure on Render
+## Part 2: Deploy to Vercel
 
-### 1. Weaviate (Vector Database)
-1. Go to [Render Dashboard](https://dashboard.render.com/) → "New +" → "Web Service"
-2. Select "Deploy an existing image from a registry"
-3. Settings:
-   - Image URL: `semitechnologies/weaviate:1.24.1`
-   - Name: `photofinder-weaviate`
-   - Plan: **Free**
-4. Environment Variables:
-   ```
-   QUERY_DEFAULTS_LIMIT=25
-   AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
-   PERSISTENCE_DATA_PATH=/var/lib/weaviate
-   DEFAULT_VECTORIZER_MODULE=none
-   ENABLE_MODULES=
-   CLUSTER_HOSTNAME=node1
-   ```
-5. Click "Create Web Service"
-6. **Save the service URL** (e.g., `photofinder-weaviate.onrender.com` - *No https://*)
+Since the backend API routes are now built directly into Next.js, you only need to deploy one Vercel project!
 
-### 2. API Service (NestJS)
-1. Dashboard → "New +" → "Web Service"
-2. Connect your GitHub repository
-3. Settings:
-   - Name: `photofinder-api`
-   - Root Directory: `api`
-   - Plan: **Free**
-4. Environment Variables:
-   ```
-   PORT=3000
-   DATABASE_URL=<Your Neon Connection String from Part 1>
-   WEAVIATE_HOST=<Your Weaviate URL from Step 1, without https://>
-   WEAVIATE_SCHEME=https
-   AI_SERVICE_URL=<Your Hugging Face Space URL from Part 1>
-   STORAGE_PROVIDER=cloudinary
-   CLOUDINARY_CLOUD_NAME=<From Cloudinary>
-   CLOUDINARY_API_KEY=<From Cloudinary>
-   CLOUDINARY_API_SECRET=<From Cloudinary>
-   CLOUDINARY_FOLDER=photos
-   JWT_SECRET=<Create a random secure string>
-   GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
-   GOOGLE_CLIENT_SECRET=<Your Google Auth Secret>
-   ```
-5. Click "Create Web Service"
-6. Wait for build to complete. The database tables will be created automatically via Prisma on startup.
-7. **Save the API service URL** (e.g., `https://photofinder-api.onrender.com`)
+### 1. Connect Repository
+1. Go to [vercel.com](https://vercel.com) → "Add New..." → "Project"
+2. Import your GitHub repository.
+3. If your code is in a subfolder (like `photofinder-nextjs`), set the **Root Directory** to that folder.
+4. Framework Preset should automatically detect **Next.js**.
+
+### 2. Configure Environment Variables
+Expand the "Environment Variables" section and add the following keys. Make sure to use the values you saved from Part 1.
+
+| Name | Value |
+| :--- | :--- |
+| **Auth & Security** | |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
+| `GOOGLE_CLIENT_ID` | `Your Google OAuth Client ID` |
+| `GOOGLE_CLIENT_SECRET` | `Your Google OAuth Secret` |
+| `SUPER_ADMIN_EMAIL` | `The email address of the Super Admin (e.g., your@email.com)` |
+| `JWT_SECRET` | `A long, random, secure string` |
+| `CRON_SECRET` | `Shared secret for background cleanup jobs` |
+| **Database (Neon)** | |
+| `DATABASE_URL` | `Your Neon Connection String (Pooler URL)` |
+| `DIRECT_URL` | `Your Neon Connection String (Direct/Non-Pooler URL)` |
+| **Integrations (LINE & Gmail)** | |
+| `LINE_CHANNEL_ID` | `Your LINE Messaging API Channel ID` |
+| `LINE_CHANNEL_SECRET` | `Your LINE Messaging API Channel Secret` |
+| `LINE_CHANNEL_ACCESS_TOKEN` | `Your LINE Channel Access Token (Long-lived)` |
+| `GMAIL_USER` | `The Gmail address used to send notifications` |
+| `GMAIL_APP_PASSWORD` | `Your Google App Password (not your normal password!)` |
+| **Storage & AI** | |
+| `CLOUDINARY_URL` | `Your Cloudinary URL (cloudinary://...)` |
+| `AI_SERVICE_URL` | `Your Hugging Face Space URL` |
+| `GROQ_API_KEY` | `Your Groq API Key for the chatbot` |
+| `NEXT_PUBLIC_API_URL` | `/api` (Keep as is) |
+
+### 3. Deploy
+1. Click **Deploy**.
+2. Vercel will build the Next.js application.
+3. During the build step, Vercel runs `prisma generate` and `prisma migrate deploy` before `next build`.
+4. If this is your first deployment and your Neon database is empty, make sure the migration history is committed and that the `vector` extension plus face index exist after migration.
 
 ---
 
-## Part 3: Deploy Frontend to Vercel
+## Part 3: Known Limits & Free Tier Behavior
 
-### 1. Deploy Next.js App
-1. Go to vercel.com → "New Project"
-2. Import your GitHub repository
-3. Settings:
-   - Framework Preset: **Next.js**
-   - Root Directory: `web` (or `photofinder-nextjs`, select where your frontend code lives)
-   - Build Command: `npm run build`
-4. Environment Variables:
-   ```
-   NEXT_PUBLIC_API_URL=<Your Render API URL from Part 2, Step 2>
-   NEXT_PUBLIC_GOOGLE_CLIENT_ID=<Your Google Auth Client ID>
-   ```
-5. Click "Deploy"
-6. Wait 2-3 minutes
-7. Your app is live!
+### Cold Starts
+- **Hugging Face Spaces:** The free tier sleeps after 48 hours of inactivity. If a photographer uploads a photo after the Space has slept, the first request may take 2-3 minutes while the container wakes up. Subsequent requests are faster.
+- **Vercel Serverless Functions:** Next.js API routes run on serverless functions. The first request after inactivity may take an extra 1-2 seconds because of a cold start. The app allows longer durations for photo upload and reference-face routes, but the AI client still has its own shorter timeout.
 
----
+### Storage
+- **Neon:** Free tier includes 500MB of storage. Vector embeddings (`pgvector`) can take up space, but 500MB is enough for hundreds of thousands of faces.
+- **Cloudinary:** Free tier includes generous bandwidth and storage credits, more than enough for a university pilot program.
 
-## Part 4: Testing & Known Limits
+### Chatbot API Rate Limits
+- **Groq AI:** Free tier allows 30 requests per minute. The chatbot is rate-limited by user to prevent abuse.
+- **Response Time:** Groq responses are typically 1-2 seconds, making for a responsive user experience.
+- **Model:** Uses Mixtral 8x7b or faster variants, optimized for low-latency responses.
 
-### First Load Delay
-- **Render API & Weaviate** go to sleep after 15 minutes of inactivity. First request takes 30-60 seconds.
-- **Hugging Face Spaces** also pause when idle. 
-- *Crucial note:* Weaviate's data on Render Free Tier clears upon sleep. Face search will require re-uploading photos per session.
-
-### Costs
-- **Render**: $0/month
-- **Neon**: $0/month (Permanent)
-- **Cloudinary**: $0/month (Permanent, up to 25 credits)
-- **Hugging Face**: $0/month
-- **Vercel**: $0/month

@@ -6,6 +6,8 @@ export interface ApiResponse<T> {
   status: number;
 }
 
+type PhotoEngagementAction = "VIEW" | "DOWNLOAD" | "SHARE";
+
 function handleUnauthorized(status: number) {
   if (status === 401 && typeof window !== "undefined") {
     localStorage.removeItem("auth_token");
@@ -93,43 +95,6 @@ export const apiClient = {
     return response.json();
   },
 
-  // Search
-  searchByFace: async (imageData: string, eventId?: string) => {
-    try {
-      // Convert base64 to blob
-      const response = await fetch(imageData);
-      const blob = await response.blob();
-
-      // Create FormData
-      const formData = new FormData();
-      formData.append("file", blob, "search-image.jpg");
-      if (eventId) {
-        formData.append("eventId", eventId);
-      }
-
-      // Send as multipart/form-data
-      const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-      const res = await fetch(`${API_BASE}/search/face`, {
-        method: "POST",
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-
-      handleUnauthorized(res.status);
-
-      const data = await res.json();
-      console.log("Backend response:", data);
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("searchByFace error:", error);
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  },
-
   // Photos
   getAllPhotos: () => apiCall("/photos"),
   getMyPhotos: () => apiCall("/me/my-photos"),
@@ -140,18 +105,16 @@ export const apiClient = {
   requestPhotoRemoval: (
     photoId: string,
     requestType: string,
-    userName: string,
-    userEmail: string,
     reason?: string,
+    faceCoordinates?: string,
   ) =>
     apiCall("/removal-requests", {
       method: "POST",
       body: JSON.stringify({
         photoId,
         requestType,
-        userName,
-        userEmail,
         reason,
+        faceCoordinates,
       }),
     }),
   getRemovalRequests: () => apiCall("/removal-requests"),
@@ -173,9 +136,48 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ optOutType, reason }),
     }),
+  getMyConsent: () =>
+    apiCall<{ status: string; pdpaConsent: boolean }>("/me/consent", {
+      method: "GET",
+    }),
+  updateMyConsent: (accepted: boolean) =>
+    apiCall<{ status: string; pdpaConsent: boolean }>("/me/consent", {
+      method: "POST",
+      body: JSON.stringify({ accepted }),
+    }),
+  exportMyPrivacyData: () =>
+    apiCall<{ status: string; data: any }>("/me/privacy/export", {
+      method: "GET",
+    }),
+  fullDeleteMyPrivacyData: () =>
+    apiCall<{ status: string; message?: string; deletedAt?: string; details?: any }>("/me/privacy/full-delete", {
+      method: "POST",
+    }),
 
   // Analytics
   getAnalytics: () => apiCall("/analytics"),
+  getPhotographerAnalytics: () =>
+    apiCall<{
+      totals: { events: number; photos: number; views: number; downloads: number };
+      dailyStats: Array<{
+        day: string;
+        views: number;
+        downloads: number;
+      }>;
+      eventStats: Array<{
+        eventId: string;
+        eventName: string;
+        eventDate: string;
+        photoCount: number;
+        views: number;
+        downloads: number;
+      }>;
+    }>("/photographer/analytics"),
+  trackPhotoEngagement: (photoId: string, action: PhotoEngagementAction) =>
+    apiCall(`/photos/${photoId}/engagement`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
 
   // Admin User Management
   getAdminUsers: () => apiCall<any>("/admin/users"),
@@ -184,8 +186,24 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ email, role }),
     }),
+  setUserStatus: (userId: string, isActive: boolean) =>
+    apiCall<any>("/admin/users/set-status", {
+      method: "POST",
+      body: JSON.stringify({ userId, isActive }),
+    }),
   removeUserRole: (userId: string) =>
     apiCall<any>(`/admin/users/${userId}/role`, {
       method: "DELETE",
+    }),
+  removeAdmin: (userId: string) =>
+    apiCall<any>(`/admin/admins/${userId}`, {
+      method: "DELETE",
+    }),
+  getLowConfidencePhotos: (threshold = 0.65) =>
+    apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`),
+  dismissLowConfidencePhoto: (photoId: string) =>
+    apiCall<any>("/admin/low-confidence", {
+      method: "PATCH",
+      body: JSON.stringify({ photoId }),
     }),
 };

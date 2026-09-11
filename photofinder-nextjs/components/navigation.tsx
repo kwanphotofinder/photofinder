@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Upload, Users, BarChart3, ImageIcon } from "lucide-react"
+import { Upload, Users, BarChart3, Heart } from "lucide-react"
 
 interface NavigationProps {
   userRole?: "student" | "photographer" | "admin"
@@ -13,12 +13,12 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
 
   const getNavItems = () => {
     const baseItems = [
-      { href: "/browse", label: "Browse Photos", icon: ImageIcon },
       { href: "/dashboard", label: "My Photos", icon: Users },
+      { href: "/favorites", label: "Favorites", icon: Heart },
     ]
 
     if (userRole === "photographer") {
-      return [{ href: "/photographer", label: "Upload Photos", icon: Upload }, ...baseItems]
+      return []
     }
 
     if (userRole === "admin") {
