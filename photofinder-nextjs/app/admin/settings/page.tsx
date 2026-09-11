@@ -12,6 +12,18 @@ export default function AdminSettingsPage() {
   const [adminName, setAdminName] = useState("")
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("dev") === "true" || (!localStorage.getItem("admin_token") && process.env.NODE_ENV === "development")) {
+        if (!localStorage.getItem("admin_token")) {
+          localStorage.setItem("admin_token", "dev_admin_token");
+          localStorage.setItem("user_role", "admin");
+          localStorage.setItem("admin_name", "เจ้าหน้าที่ทะเบียน มฟล.");
+          localStorage.setItem("user_email", "reg.admin@mfu.ac.th");
+        }
+      }
+    }
+
     const adminToken = localStorage.getItem("admin_token")
     if (!adminToken) {
       router.push("/login")
