@@ -119,7 +119,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {photos.map((photo, index) => (
           <Card
             key={photo.id}
@@ -136,7 +136,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
             )}
 
             <div 
-              className="relative aspect-square bg-muted overflow-hidden cursor-pointer"
+              className="relative aspect-4/5 bg-muted overflow-hidden cursor-pointer"
               onClick={() => {
                 setSelectedPhoto(photo)
                 setShowDetail(true)

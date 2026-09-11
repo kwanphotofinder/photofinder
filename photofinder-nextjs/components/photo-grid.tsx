@@ -114,14 +114,14 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
 
   return (
     <>
-      <div className={`grid gap-4 ${compact ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
+      <div className={`grid gap-3 ${compact ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
         {photos.map((photo) => (
           <Card
             key={photo.id}
             className="overflow-hidden border border-border hover:border-primary/50 transition-colors group"
           >
             <div 
-              className={`relative bg-muted overflow-hidden cursor-pointer ${compact ? "aspect-[4/5]" : "aspect-square"}`}
+              className={`relative bg-muted overflow-hidden cursor-pointer ${compact ? "aspect-4/5" : "aspect-square"}`}
               onClick={() => {
                 setSelectedPhoto(photo)
                 setShowDetail(true)
