@@ -2,7 +2,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Upload, Users, BarChart3, Heart } from "lucide-react"
+import { Upload, Users, BarChart3, Heart, Camera } from "lucide-react"
+import { useLanguage } from "@/lib/language-context"
 
 interface NavigationProps {
   userRole?: "student" | "photographer" | "admin"
@@ -10,6 +11,7 @@ interface NavigationProps {
 
 export function Navigation({ userRole = "student" }: NavigationProps) {
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   const getNavItems = () => {
     const baseItems = [
@@ -18,13 +20,16 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
     ]
 
     if (userRole === "photographer") {
-      return []
+      return [
+        { href: "/photographer", label: t("nav.workspace"), icon: Camera },
+        { href: "/photographer/profile", label: t("nav.photographer_profile"), icon: Users },
+      ]
     }
 
     if (userRole === "admin") {
       return [
-        { href: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
-        { href: "/admin/events/create", label: "Create Event", icon: Upload },
+        { href: "/admin/dashboard", label: t("nav.dashboard"), icon: BarChart3 },
+        { href: "/admin/events/create", label: t("breadcrumb.create_event"), icon: Upload },
       ]
     }
 

@@ -84,6 +84,14 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                 <span className="text-xs text-slate-500 font-medium">{t("portal.subtitle")}</span>
               </div>
             )}
+            {userRole === "photographer" && (
+              <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200">
+                <span className="text-[11px] font-bold tracking-wider uppercase text-[#82181a] bg-[#82181a]/10 px-2 py-0.5 rounded">
+                  {t("portal.photographer_title")}
+                </span>
+                <span className="text-xs text-slate-500 font-medium">{t("portal.photographer_subtitle")}</span>
+              </div>
+            )}
           </div>
           <Navigation userRole={userRole} />
         </div>
