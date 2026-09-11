@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input"
 import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2 } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
+import { useLanguage } from "@/lib/language-context"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [adminName, setAdminName] = useState("")
   const [events, setEvents] = useState<any[]>([])
   const [photos, setPhotos] = useState<any[]>([])
@@ -79,18 +81,6 @@ export default function AdminDashboardPage() {
   }, [lowConfidencePhotos])
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("dev") === "true" || (!localStorage.getItem("admin_token") && process.env.NODE_ENV === "development")) {
-        if (!localStorage.getItem("admin_token")) {
-          localStorage.setItem("admin_token", "dev_admin_token");
-          localStorage.setItem("user_role", "admin");
-          localStorage.setItem("admin_name", "เจ้าหน้าที่ทะเบียน มฟล.");
-          localStorage.setItem("user_email", "reg.admin@mfu.ac.th");
-        }
-      }
-    }
-
     const adminToken = localStorage.getItem("admin_token")
     const userRole = localStorage.getItem("user_role")
     
@@ -345,29 +335,12 @@ export default function AdminDashboardPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PUBLISHED":
-        return "bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium"
-      case "DRAFT":
-        return "bg-slate-100 text-slate-700 border border-slate-200 font-medium"
-      case "ARCHIVED":
-        return "bg-zinc-100 text-zinc-600 border border-zinc-200 font-medium"
-      default:
-        return "bg-slate-100 text-slate-700 border border-slate-200"
+    const styles = {
+      DRAFT: "bg-[#fffbe6] border border-[#ffe58f] text-[#d48806]",
+      PUBLISHED: "bg-[#f6ffed] border border-[#b7eb8f] text-[#389e0d]",
+      ARCHIVED: "bg-slate-100 border border-slate-200 text-slate-600",
     }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "PUBLISHED":
-        return "เผยแพร่แล้ว (Published)"
-      case "DRAFT":
-        return "ฉบับร่าง (Draft)"
-      case "ARCHIVED":
-        return "จัดเก็บถาวร (Archived)"
-      default:
-        return status
-    }
+    return styles[status as keyof typeof styles] || styles.DRAFT
   }
 
   const formatDayMonthYear = (dateValue: string | Date) => {
@@ -396,321 +369,291 @@ export default function AdminDashboardPage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
-        {/* Official REG MFU Administrative Sub-bar */}
-        <div className="bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+
+      {/* REG MFU Breadcrumbs & System Status Bar */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.home")}</span>
+            <span className="text-slate-400">/</span>
+            <span>{t("breadcrumb.admin")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-[#82181a]">{t("breadcrumb.dashboard")}</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="text-slate-500 font-medium">{t("portal.system_online")}</span>
+          </div>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-[#f0f2f5] pb-12">
+        {/* Academic Portal Header Banner */}
+        <div className="bg-white border-b border-slate-200 shadow-2xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-[#82181A] uppercase tracking-wider mb-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  ส่วนทะเบียนและประมวลผล • มหาวิทยาลัยแม่ฟ้าหลวง (Division of Registrar, MFU)
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    {t("dash.welcome")} <span className="font-semibold text-slate-800">{adminName || "Administrator"}</span>
+                  </p>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                  ระบบบริหารจัดการภาพถ่ายและกิจกรรม (PhotoFinder Admin)
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  ผู้ดูแลระบบ: <span className="font-semibold text-slate-800">{adminName || "Officer"}</span> ({callerEmail || "admin@mfu.ac.th"})
-                  <span className="mx-2">•</span>
-                  สิทธิ์: <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#82181A]/10 text-[#82181A] border border-[#82181A]/20">{callerRole === "SUPER_ADMIN" ? "ผู้ดูแลระบบสูงสุด (Super Admin)" : "เจ้าหน้าที่ส่วนทะเบียน (Admin)"}</span>
-                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => router.push("/admin/events/create")}
-                  className="bg-[#82181A] hover:bg-[#6e1416] text-white rounded-md shadow-xs text-sm font-medium px-4 h-9"
+                  className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs sm:text-sm font-medium rounded shadow-2xs h-9 px-3.5"
                 >
                   <Plus className="mr-1.5 h-4 w-4" />
-                  สร้างกิจกรรมใหม่
+                  {t("dash.btn.create_event")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/admin/settings")}
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white"
+                >
+                  {t("dash.btn.settings")}
                 </Button>
               </div>
             </div>
 
-            {/* KPI Summary Cards */}
+            {/* Summary Metric Cards (REG MFU Style with Top Border Stripe) */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-6">
-              {/* Active Events */}
-              <div className="bg-white rounded-lg border border-slate-200 border-t-4 border-t-[#82181A] p-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">กิจกรรมที่เปิดค้นหา</span>
-                  <Calendar className="h-4 w-4 text-[#82181A]" />
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#82181a] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.active_events")}</span>
+                  <div className="w-8 h-8 rounded bg-[#82181a]/10 flex items-center justify-center text-[#82181a]">
+                    <Calendar className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-slate-900">{activeEvents}</span>
-                  <span className="text-xs text-slate-500">กิจกรรม</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">สถานะเผยแพร่ให้นักศึกษาค้นหา (Active)</p>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{activeEvents}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.out_of")} {events.length} {t("dash.metric.events_unit")}</p>
               </div>
 
-              {/* Total Events */}
-              <div className="bg-white rounded-lg border border-slate-200 border-t-4 border-t-slate-600 p-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">กิจกรรมทั้งหมด</span>
-                  <BarChart3 className="h-4 w-4 text-slate-600" />
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#c59b27] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.total_events")}</span>
+                  <div className="w-8 h-8 rounded bg-[#c59b27]/15 flex items-center justify-center text-[#9a781c]">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-slate-900">{events.length}</span>
-                  <span className="text-xs text-slate-500">รายการ</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">รวมฉบับร่างและจัดเก็บถาวร (All Time)</p>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{events.length}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.in_db")}</p>
               </div>
 
-              {/* Pending Requests */}
-              <div className={`bg-white rounded-lg border border-slate-200 border-t-4 ${pendingRequests > 0 ? "border-t-rose-600" : "border-t-amber-500"} p-4 shadow-xs`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">คำขอลบ / เบลอภาพ</span>
-                  <Shield className={`h-4 w-4 ${pendingRequests > 0 ? "text-rose-600" : "text-amber-500"}`} />
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#ef4444] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.pending_requests")}</span>
+                  <div className="w-8 h-8 rounded bg-red-50 flex items-center justify-center text-red-600">
+                    <Bell className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-slate-900">{pendingRequests}</span>
-                  <span className="text-xs text-slate-500">คำขอ</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">รอการพิจารณาตามสิทธิ์ PDPA</p>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{pendingRequests}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.awaiting_review")}</p>
               </div>
 
-              {/* Total Users */}
-              <div className="bg-white rounded-lg border border-slate-200 border-t-4 border-t-[#C59B27] p-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">ผู้ใช้งานในระบบ</span>
-                  <Users className="h-4 w-4 text-[#C59B27]" />
+              <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#2563eb] p-4 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                  <span>{t("dash.metric.total_users")}</span>
+                  <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Users className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-slate-900">{totalUsers}</span>
-                  <span className="text-xs text-slate-500">บัญชี</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">ผู้ดูแล, ช่างภาพ และนักศึกษา</p>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{totalUsers}</div>
+                <p className="text-xs text-slate-500 mt-1">{t("dash.metric.all_roles")}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Work Area */}
+        {/* Main Content Area: Sidebar Menu + Tab Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-6 md:flex-row md:items-start">
-            {/* Sidebar Navigation */}
-            <TabsList className="sticky top-20 w-full shrink-0 flex-col items-stretch gap-1 rounded-lg border border-slate-200 bg-white p-2.5 shadow-xs md:w-64 lg:w-72 !h-auto">
-              <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                งานทะเบียนภาพและกิจกรรม
+            {/* REG MFU / Ant Design Style Left Navigation Menu */}
+            <TabsList className="!inline-flex !h-auto sticky top-20 w-full shrink-0 flex-col items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64">
+              <div className="mb-2 px-3 py-2 border-b border-slate-100">
+                <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  {t("menu.title")}
+                </h3>
               </div>
-              <TabsTrigger
-                value="events"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <Calendar className="h-4 w-4 shrink-0" />
-                <span className="truncate">รายการกิจกรรม (Events)</span>
-                <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 group-data-[state=active]:bg-[#C59B27] group-data-[state=active]:text-white">
-                  {events.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="photos"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <ImageIcon className="h-4 w-4 shrink-0" />
-                <span className="truncate">คลังภาพถ่ายทั้งหมด (Photos)</span>
-                <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 group-data-[state=active]:bg-[#C59B27] group-data-[state=active]:text-white">
-                  {photos.length}
-                </span>
-              </TabsTrigger>
-
-              <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-t border-slate-100 mt-2">
-                งานพิจารณาและกำกับดูแล
-              </div>
-              <TabsTrigger
-                value="low-confidence"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span className="truncate">คิวตรวจสอบ AI (Review)</span>
-                {unresolvedLowConfidenceCount > 0 ? (
-                  <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                    {unresolvedLowConfidenceCount}
-                  </span>
-                ) : (
-                  <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                    0
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger
-                value="requests"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <Shield className="h-4 w-4 shrink-0" />
-                <span className="truncate">คำขอลบภาพ (Requests)</span>
-                {removalRequests.length > 0 ? (
-                  <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
-                    {removalRequests.length}
-                  </span>
-                ) : (
-                  <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                    0
-                  </span>
-                )}
-              </TabsTrigger>
-
-              <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-t border-slate-100 mt-2">
-                งานบริหารระบบและสิทธิ์
-              </div>
-              <TabsTrigger
-                value="users"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <Users className="h-4 w-4 shrink-0" />
-                <span className="truncate">จัดการผู้ใช้งาน (Users)</span>
-                <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                  {allUsers.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="health"
-                className="w-full justify-start gap-2.5 rounded-md px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 data-[state=active]:bg-[#82181A] data-[state=active]:text-white data-[state=active]:font-semibold transition-colors"
-              >
-                <BarChart3 className="h-4 w-4 shrink-0" />
-                <span className="truncate">สถานะระบบ (Health)</span>
-              </TabsTrigger>
+              {[
+                { value: "events", icon: Calendar, label: t("menu.events"), badge: events.length },
+                { value: "photos", icon: ImageIcon, label: t("menu.photos"), badge: photos.length },
+                { value: "low-confidence", icon: AlertCircle, label: t("menu.low_confidence"), badge: unresolvedLowConfidenceCount },
+                { value: "requests", icon: Shield, label: t("menu.requests"), badge: removalRequests.length },
+                { value: "users", icon: Users, label: t("menu.users"), badge: allUsers.length },
+                { value: "health", icon: BarChart3, label: t("menu.health") },
+              ].map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="group flex items-center justify-between w-full rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <tab.icon className="w-4 h-4 shrink-0 text-slate-500 group-data-[state=active]:text-[#82181a]" />
+                    <span className="truncate">{tab.label}</span>
+                  </div>
+                  {tab.badge !== undefined && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${tab.value === "requests" && tab.badge > 0 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
-            {/* Tab Contents */}
             <div className="flex-1 w-full min-w-0">
-              {/* TAB 1: EVENTS */}
+              {/* TAB: EVENTS */}
               <TabsContent value="events" className="mt-0 !outline-none border-0">
-                <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 py-4 px-6 bg-slate-50/50">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <CardTitle className="text-base font-bold text-slate-900">
-                          รายการกิจกรรมทั้งหมด (Campus Events)
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                          จัดการและตรวจสอบกิจกรรมที่เปิดให้นักศึกษาค้นหาภาพ ({filteredEvents.length} รายการ)
-                        </CardDescription>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("events.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("events.desc")}</CardDescription>
                       </div>
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input
-                          placeholder="ค้นหากิจกรรม..."
-                          value={eventSearch}
-                          onChange={(e) => setEventSearch(e.target.value)}
-                          className="h-9 border-slate-300 pl-8 text-xs focus:border-[#82181A] focus:ring-[#82181A]/20"
-                        />
+                      <div className="flex items-center gap-2 w-full sm:w-72">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            placeholder={t("events.search_placeholder")}
+                            value={eventSearch}
+                            onChange={(e) => setEventSearch(e.target.value)}
+                            className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => router.push("/admin/events/create")}
+                          className="h-8 bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs px-2.5 rounded shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> {t("events.create_btn")}
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     {isLoading ? (
-                      <div className="text-center py-12 text-sm text-slate-400">กำลังโหลดข้อมูลกิจกรรม...</div>
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("events.loading")}</div>
                     ) : filteredEvents.length === 0 ? (
-                      <div className="py-16 text-center text-slate-500">
-                        <Inbox className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-                        <p className="text-sm font-semibold text-slate-700">ไม่พบข้อมูลกิจกรรม</p>
-                        <p className="mt-1 text-xs text-slate-400">ลองเปลี่ยนคำค้นหา หรือสร้างกิจกรรมใหม่</p>
-                        <Button onClick={() => router.push("/admin/events/create")} className="mt-4 bg-[#82181A] hover:bg-[#6e1416] text-white text-xs h-8 px-4 rounded-md">
-                          <Plus className="mr-1.5 h-3.5 w-3.5" />
-                          สร้างกิจกรรมใหม่
-                        </Button>
+                      <div className="py-12 text-center text-slate-500">
+                        <Inbox className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("events.not_found")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("events.not_found_desc")}</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100">
-                        {filteredEvents.map((event) => (
-                          <div key={event.id} className="p-4 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2.5 mb-1.5">
-                                <h3 className="text-sm font-bold text-slate-900 truncate">{event.name}</h3>
-                                <span className={`text-[11px] px-2 py-0.5 rounded ${getStatusBadge(event.status)}`}>
-                                  {getStatusLabel(event.status)}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500">
-                                <div>
-                                  <span className="text-slate-400">วันที่จัดกิจกรรม:</span> <span className="font-medium text-slate-700">{formatDayMonthYear(event.date)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-400">บันทึกเมื่อ:</span> <span className="font-medium text-slate-700">{new Date(event.createdAt).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/admin/events/${event.id}/edit`)}
-                                className="h-8 px-3 text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-50 rounded-md"
-                              >
-                                <Pencil className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                                แก้ไข
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDeleteEvent(event.id)}
-                                className="h-8 px-3 text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-none rounded-md"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
-                                ลบ
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.name")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.date")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.created")}</TableHead>
+                              <TableHead className="text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.status")}</TableHead>
+                              <TableHead className="text-right text-xs font-bold text-slate-700 uppercase h-10">{t("events.col.actions")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredEvents.map((event) => (
+                              <TableRow key={event.id} className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors h-14">
+                                <TableCell className="font-semibold text-slate-800 text-xs">
+                                  {event.name}
+                                </TableCell>
+                                <TableCell className="text-slate-600 text-xs">
+                                  {formatDayMonthYear(event.date)}
+                                </TableCell>
+                                <TableCell className="text-slate-500 text-xs">
+                                  {new Date(event.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded capitalize ${getStatusBadge(event.status)}`}>
+                                    {event.status === "PUBLISHED" ? t("events.status.published") : event.status === "DRAFT" ? t("events.status.draft") : t("events.status.archived")}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1.5">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => router.push(`/admin/events/${event.id}/edit`)}
+                                      className="h-7 px-2.5 text-xs border-slate-300 text-slate-700 hover:text-[#82181a] hover:border-[#82181a] bg-white rounded"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5 mr-1" />
+                                      {t("events.btn.edit")}
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteEvent(event.id)}
+                                      className="h-7 px-2.5 text-xs border-red-200 text-red-600 hover:bg-red-50 bg-white rounded"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                      {t("events.btn.delete")}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              {/* TAB 2: PHOTOS */}
+              {/* TAB: PHOTOS */}
               <TabsContent value="photos" className="mt-0">
-                <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 py-4 px-6 bg-slate-50/50">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <CardTitle className="text-base font-bold text-slate-900">
-                          คลังภาพถ่ายทั้งหมด (Photo Repository)
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                          ภาพถ่ายกิจกรรมในระบบทั้งหมด ({filteredPhotos.length} ภาพ)
-                        </CardDescription>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("photos.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("photos.desc")} ({filteredPhotos.length} {t("photos.items_count")})</CardDescription>
                       </div>
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                      <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                         <Input
-                          placeholder="ค้นหาตามชื่อกิจกรรมหรือชื่อไฟล์..."
+                          placeholder={t("photos.search_placeholder")}
                           value={photoSearch}
                           onChange={(e) => setPhotoSearch(e.target.value)}
-                          className="h-9 border-slate-300 pl-8 text-xs focus:border-[#82181A] focus:ring-[#82181A]/20"
+                          className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
                         />
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4">
                     {isLoading ? (
-                      <div className="text-center py-12 text-sm text-slate-400">กำลังโหลดภาพถ่าย...</div>
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("photos.loading")}</div>
                     ) : filteredPhotos.length === 0 ? (
-                      <div className="py-16 text-center text-slate-500">
-                        <ImageIcon className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-                        <p className="text-sm font-semibold text-slate-700">ไม่พบภาพถ่ายในระบบ</p>
-                        <p className="mt-1 text-xs text-slate-400">ภาพที่ช่างภาพอัปโหลดจะปรากฏที่นี่</p>
+                      <div className="py-12 text-center text-slate-500">
+                        <ImageIcon className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("photos.not_found")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("photos.not_found_desc")}</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {filteredPhotos.map((photo) => (
-                          <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-100 hover:shadow-xs transition-shadow">
+                          <div key={photo.id} className="group relative aspect-square overflow-hidden rounded border border-slate-200 bg-slate-100 shadow-2xs">
                             <img
                               src={photo.thumbnailUrl || photo.storageUrl}
                               alt="Event photo"
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                             />
-                            <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                               <Button
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => handleDeletePhoto(photo.id)}
-                                className="h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 font-medium rounded-md shadow-none"
+                                className="h-8 w-8 p-0 rounded shadow-xs"
+                                title="Delete Photo"
                               >
-                                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                                ลบภาพ
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
-                            <div className="absolute bottom-0 left-0 right-0 truncate bg-slate-900/80 px-2 py-1 text-[11px] text-white">
+                            <div className="absolute bottom-0 left-0 right-0 truncate bg-black/70 p-1.5 text-[11px] text-white">
                               {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
                             </div>
                           </div>
@@ -721,63 +664,60 @@ export default function AdminDashboardPage() {
                 </Card>
               </TabsContent>
 
-              {/* TAB 3: LOW CONFIDENCE */}
+              {/* TAB: LOW-CONFIDENCE QUEUE */}
               <TabsContent value="low-confidence" className="mt-0">
-                <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 py-4 px-6 bg-slate-50/50">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <CardTitle className="text-base font-bold text-slate-900">
-                          คิวตรวจสอบภาพค่าความมั่นใจต่ำ (AI Moderation Queue)
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                          ตรวจสอบภาพที่ AI ตรวจจับใบหน้าได้ค่าความมั่นใจต่ำกว่าเกณฑ์มาตรฐาน
-                        </CardDescription>
+                        <CardTitle className="text-base font-bold text-slate-800">{t("lc.title")}</CardTitle>
+                        <CardDescription className="text-xs text-slate-500 mt-0.5">{t("lc.desc")}</CardDescription>
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                         <Input
-                          placeholder="ค้นหากิจกรรมหรือ URL..."
+                          placeholder={t("lc.search_placeholder")}
                           value={lowConfidenceSearch}
                           onChange={(e) => setLowConfidenceSearch(e.target.value)}
-                          className="w-full sm:w-56 h-9 border-slate-300 text-xs focus:border-[#82181A]"
+                          className="h-8 w-full sm:w-56 border-slate-300 bg-white text-xs rounded"
                         />
-                        <div className="relative">
-                          <select
-                            value={String(lowConfidenceThreshold)}
-                            onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
-                            className="h-9 appearance-none rounded-md border border-slate-300 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 focus:border-[#82181A]"
-                          >
-                            <option value="0.65">เกณฑ์ (Threshold): 0.65</option>
-                            <option value="0.55">เกณฑ์ (Threshold): 0.55</option>
-                            <option value="0.45">เกณฑ์ (Threshold): 0.45</option>
-                          </select>
-                          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-slate-400">
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </span>
-                        </div>
-                        <Button variant="outline" onClick={refreshLowConfidenceQueue} disabled={lowConfidenceLoading} className="h-9 px-3 text-xs border-slate-300 text-slate-700 rounded-md">
-                          {lowConfidenceLoading ? "กำลังรีเฟรช..." : "รีเฟรช"}
+                        <select
+                          value={String(lowConfidenceThreshold)}
+                          onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
+                          className="h-8 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700"
+                        >
+                          <option value="0.65">{t("lc.threshold")} 0.65</option>
+                          <option value="0.55">{t("lc.threshold")} 0.55</option>
+                          <option value="0.45">{t("lc.threshold")} 0.45</option>
+                        </select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={refreshLowConfidenceQueue}
+                          disabled={lowConfidenceLoading}
+                          className="h-8 border-slate-300 text-xs rounded bg-white"
+                        >
+                          {lowConfidenceLoading ? t("lc.refreshing") : t("lc.refresh")}
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-0">
+                  <CardContent className="p-4">
                     {isLoading ? (
-                      <div className="text-center py-12 text-sm text-slate-400">กำลังโหลดคิวตรวจสอบ...</div>
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("lc.loading")}</div>
                     ) : filteredLowConfidencePhotos.length === 0 ? (
-                      <div className="py-16 text-center text-slate-500">
-                        <CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-500" />
-                        <p className="text-sm font-semibold text-slate-700">ไม่มีภาพค้างในคิวตรวจสอบ</p>
-                        <p className="mt-1 text-xs text-slate-400">ภาพทั้งหมดผ่านเกณฑ์ความมั่นใจตามระดับที่กำหนด</p>
+                      <div className="py-12 text-center text-slate-500">
+                        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-600" />
+                        <p className="text-sm font-semibold text-slate-700">{t("lc.clear")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("lc.clear_desc")}</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100">
+                      <div className="space-y-3">
                         {filteredLowConfidencePhotos.map((photo) => (
                           <div
                             key={photo.id}
-                            className="p-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50/80 transition-colors"
+                            className="flex flex-col gap-4 rounded border border-slate-200 bg-white p-3.5 transition-colors hover:border-slate-300 md:flex-row"
                           >
-                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
                               <img
                                 src={photo.thumbnailUrl || photo.storageUrl}
                                 alt="Low confidence photo"
@@ -785,30 +725,30 @@ export default function AdminDashboardPage() {
                               />
                             </div>
 
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <p className="font-bold text-sm text-slate-900 truncate">{photo.eventName || "กิจกรรมไม่ระบุชื่อ"}</p>
-                              <p className="text-xs text-slate-500 font-mono truncate">{photo.storageUrl}</p>
+                            <div className="flex-1 space-y-1.5">
+                              <p className="text-sm font-bold text-slate-800">{photo.eventName || "Untitled"}</p>
+                              <p className="text-xs text-slate-500 break-all">{photo.storageUrl}</p>
                               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                                  คะแนนต่ำสุด: {photo.minConfidence !== null ? Number(photo.minConfidence).toFixed(3) : "N/A"}
+                                <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 font-semibold text-amber-800 text-[11px]">
+                                  {t("lc.min_confidence")} {photo.minConfidence !== null ? Number(photo.minConfidence).toFixed(3) : "N/A"}
                                 </span>
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                  ใบหน้าความมั่นใจต่ำ: {photo.lowConfidenceFaces}
+                                <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600 text-[11px]">
+                                  {t("lc.lc_faces")} {photo.lowConfidenceFaces}
                                 </span>
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                  ใบหน้าทั้งหมด: {photo.totalFaces}
+                                <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600 text-[11px]">
+                                  {t("lc.total_faces")} {photo.totalFaces}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex md:flex-col gap-2 shrink-0">
+                            <div className="flex items-center gap-2 md:flex-col md:justify-center">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => openLowConfidenceModal(photo)}
-                                className="h-8 px-3 text-xs border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md font-medium"
+                                className="h-8 px-3 text-xs border-slate-300 rounded bg-white hover:text-[#82181a] hover:border-[#82181a]"
                               >
-                                ตรวจสอบภาพ (Review)
+                                {t("lc.btn.review")}
                               </Button>
                             </div>
                           </div>
@@ -818,49 +758,49 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
 
-                {/* Modal Review */}
+                {/* Low Confidence Review Modal */}
                 <Dialog open={isLowConfidenceModalOpen} onOpenChange={(open) => {
                   setIsLowConfidenceModalOpen(open)
                   if (!open) setSelectedLowConfidencePhoto(null)
                 }}>
-                  <DialogContent className="max-w-2xl border-slate-200 bg-white shadow-xl rounded-lg p-6">
-                    <DialogHeader className="border-b border-slate-200 pb-3">
-                      <DialogTitle className="text-base font-bold text-slate-900">การตรวจสอบภาพถ่ายที่มีค่าความมั่นใจต่ำ</DialogTitle>
+                  <DialogContent className="max-w-3xl rounded-md border border-slate-200 bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-base font-bold text-slate-800">{t("lc.modal.title")}</DialogTitle>
                       <DialogDescription className="text-xs text-slate-500">
-                        กิจกรรม: {selectedLowConfidencePhoto?.eventName || "ไม่ระบุชื่อ"}
+                        {selectedLowConfidencePhoto?.eventName || "Untitled"}
                       </DialogDescription>
                     </DialogHeader>
 
                     {selectedLowConfidencePhoto && (
-                      <div className="space-y-4 py-3">
-                        <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-950/5 flex items-center justify-center">
+                      <div className="space-y-3">
+                        <div className="overflow-hidden rounded border border-slate-200 bg-slate-900">
                           <img
                             src={selectedLowConfidencePhoto.storageUrl}
                             alt="Low confidence preview"
-                            className="max-h-[360px] w-full object-contain"
+                            className="h-[360px] w-full object-contain"
                           />
                         </div>
 
-                        <div className="space-y-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">
-                          <p className="font-mono break-all text-[11px] text-slate-500">{selectedLowConfidencePhoto.storageUrl}</p>
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                              คะแนนต่ำสุด (Min Confidence): {selectedLowConfidencePhoto.minConfidence !== null ? Number(selectedLowConfidencePhoto.minConfidence).toFixed(3) : "N/A"}
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          <p className="break-all text-[11px] text-slate-400">{selectedLowConfidencePhoto.storageUrl}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 font-semibold text-amber-800">
+                              {t("lc.min_confidence")} {selectedLowConfidencePhoto.minConfidence !== null ? Number(selectedLowConfidencePhoto.minConfidence).toFixed(3) : "N/A"}
                             </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-white text-slate-700 border border-slate-200">
-                              ใบหน้าความมั่นใจต่ำ: {selectedLowConfidencePhoto.lowConfidenceFaces}
+                            <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600">
+                              {t("lc.lc_faces")} {selectedLowConfidencePhoto.lowConfidenceFaces}
                             </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-white text-slate-700 border border-slate-200">
-                              ใบหน้าทั้งหมด: {selectedLowConfidencePhoto.totalFaces}
+                            <span className="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-slate-600">
+                              {t("lc.total_faces")} {selectedLowConfidencePhoto.totalFaces}
                             </span>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    <DialogFooter className="border-t border-slate-200 pt-3 gap-2 sm:justify-between">
-                      <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 px-3 text-xs border-slate-200 text-slate-700 rounded-md">
-                        เปิดภาพต้นฉบับ
+                    <DialogFooter className="gap-2 sm:justify-between border-t border-slate-100 pt-3 mt-3">
+                      <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
+                        {t("lc.modal.preview_btn")}
                       </Button>
                       <div className="flex gap-2">
                         <Button
@@ -868,15 +808,15 @@ export default function AdminDashboardPage() {
                           size="sm"
                           onClick={handleDismissFromModal}
                           disabled={lowConfidenceLoading}
-                          className="h-8 px-3 text-xs bg-emerald-700 text-white hover:bg-emerald-800 rounded-md shadow-none font-medium"
+                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
-                          {lowConfidenceLoading ? "กำลังอนุมัติ..." : "อนุมัติผ่านเกณฑ์"}
+                          {lowConfidenceLoading ? t("lc.modal.approving") : t("lc.modal.approve_btn")}
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteFromModal} className="h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 rounded-md shadow-none font-medium">
-                          ลบภาพทิ้ง
+                        <Button variant="destructive" size="sm" onClick={handleDeleteFromModal} className="h-8 text-xs rounded">
+                          {t("lc.modal.delete_btn")}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={handleGoToEventEditFromModal} className="h-8 px-3 text-xs border-slate-200 text-slate-700 rounded-md font-medium">
-                          ไปที่หน้ากิจกรรม
+                        <Button size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#9c1f22] text-white">
+                          {t("lc.modal.goto_event")}
                         </Button>
                       </div>
                     </DialogFooter>
@@ -884,28 +824,28 @@ export default function AdminDashboardPage() {
                 </Dialog>
               </TabsContent>
 
-              {/* TAB 4: REMOVAL REQUESTS */}
+              {/* TAB: REMOVAL REQUESTS */}
               <TabsContent value="requests" className="mt-0">
-                <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 py-4 px-6 bg-slate-50/50">
-                    <CardTitle className="text-base font-bold text-slate-900">คำขอลบหรือเบลอภาพถ่าย (Removal & Privacy Requests)</CardTitle>
-                    <CardDescription className="text-xs text-slate-500">คำร้องขอใช้สิทธิ์ความเป็นส่วนตัวจากนักศึกษาและผู้ใช้งานระบบ ตามมาตรฐาน PDPA</CardDescription>
+                <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                    <CardTitle className="text-base font-bold text-slate-800">{t("req.title")}</CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">{t("req.desc")}</CardDescription>
                   </CardHeader>
-                  <CardContent className="p-0">
+                  <CardContent className="p-4">
                     {isLoading ? (
-                      <div className="text-center py-12 text-sm text-slate-400">กำลังโหลดรายการคำขอ...</div>
+                      <div className="text-center py-12 text-slate-500 text-xs">{t("req.loading")}</div>
                     ) : removalRequests.length === 0 ? (
-                      <div className="py-16 text-center text-slate-500">
-                        <Shield className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-                        <p className="text-sm font-semibold text-slate-700">ไม่มีคำขอลบภาพค้างในระบบ</p>
-                        <p className="mt-1 text-xs text-slate-400">เมื่อมีนักศึกษายื่นคำร้องขอความเป็นส่วนตัว ข้อมูลจะปรากฏที่นี่</p>
+                      <div className="py-12 text-center text-slate-500">
+                        <Shield className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                        <p className="text-sm font-semibold text-slate-700">{t("req.clear")}</p>
+                        <p className="text-xs text-slate-500 mt-1">{t("req.clear_desc")}</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100">
+                      <div className="space-y-3">
                         {removalRequests.map((request) => (
-                          <div key={request.id} className="p-4 flex flex-col md:flex-row gap-4 hover:bg-slate-50/80 transition-colors">
+                          <div key={request.id} className="flex flex-col gap-4 rounded border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300 md:flex-row">
                             {request.photo && (
-                              <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                              <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
                                 <img
                                   src={request.photo.url}
                                   alt="Requested photo"
@@ -913,38 +853,38 @@ export default function AdminDashboardPage() {
                                 />
                               </div>
                             )}
-                            <div className="flex-1 min-w-0 space-y-2">
+                            <div className="flex-1 space-y-2">
                               <div>
-                                <h4 className="text-sm font-bold text-slate-900">
-                                  {request.photo?.eventName || "ไม่ระบุกิจกรรม"}
-                                </h4>
-                                <p className="text-xs text-slate-500">
-                                  ผู้ยื่นคำขอ: <span className="font-semibold text-slate-700">{request.userName}</span> เมื่อ{" "}
-                                  {new Date(request.createdAt).toLocaleDateString()} เวลา{" "}
+                                <p className="text-sm font-bold text-slate-800">
+                                  {request.photo?.eventName || "Untitled"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {t("req.requested_by")} <span className="font-semibold text-slate-700">{request.userName}</span> {t("req.on_date")}{" "}
+                                  {new Date(request.createdAt).toLocaleDateString()} {t("req.at_time")}{" "}
                                   {new Date(request.createdAt).toLocaleTimeString()}
                                 </p>
                               </div>
                               {request.reason && (
-                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md">
-                                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">เหตุผลความจำเป็น (Reason):</p>
-                                  <p className="text-xs text-slate-700">{request.reason}</p>
+                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs">
+                                  <p className="font-bold text-slate-500 uppercase tracking-wide text-[10px] mb-0.5">{t("req.reason_label")}</p>
+                                  <p className="text-slate-800">{request.reason}</p>
                                 </div>
                               )}
                             </div>
-                            <div className="flex md:flex-col gap-2 shrink-0 justify-center">
+                            <div className="flex md:flex-col gap-2 justify-center shrink-0">
                               <Button
                                 size="sm"
                                 onClick={() => handleApproveRequest(request.id, request.photoId)}
                                 disabled={requestProcessingId === request.id}
-                                className="h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-md shadow-none font-medium"
+                                className="h-8 text-xs rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
                               >
                                 {requestProcessingId === request.id ? (
                                   <>
                                     <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                    กำลังประมวลผล...
+                                    {t("req.processing")}
                                   </>
                                 ) : (
-                                  "อนุมัติและลบภาพ"
+                                  t("req.btn.approve_delete")
                                 )}
                               </Button>
                               {request.faceCoordinates && (
@@ -953,15 +893,15 @@ export default function AdminDashboardPage() {
                                   variant="outline"
                                   onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
                                   disabled={requestProcessingId === request.id}
-                                  className="h-8 px-3 text-xs border-[#82181A] text-[#82181A] hover:bg-[#82181A] hover:text-white rounded-md font-medium"
+                                  className="h-8 text-xs rounded border-[#82181a] text-[#82181a] hover:bg-[#82181a] hover:text-white transition-colors disabled:opacity-60"
                                 >
                                   {requestProcessingId === request.id ? (
                                     <>
                                       <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                      กำลังประมวลผล...
+                                      {t("req.processing")}
                                     </>
                                   ) : (
-                                    "อนุมัติและเบลอใบหน้า"
+                                    t("req.btn.approve_blur")
                                   )}
                                 </Button>
                               )}
@@ -970,15 +910,15 @@ export default function AdminDashboardPage() {
                                 variant="outline"
                                 onClick={() => handleRejectRequest(request.id)}
                                 disabled={requestProcessingId === request.id}
-                                className="h-8 px-3 text-xs border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md font-medium"
+                                className="h-8 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                               >
                                 {requestProcessingId === request.id ? (
                                   <>
                                     <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                    กำลังประมวลผล...
+                                    {t("req.processing")}
                                   </>
                                 ) : (
-                                  "ปฏิเสธคำขอ"
+                                  t("req.btn.reject")
                                 )}
                               </Button>
                             </div>
@@ -990,40 +930,39 @@ export default function AdminDashboardPage() {
                 </Card>
               </TabsContent>
 
-              {/* TAB 5: USER MANAGEMENT */}
+              {/* TAB: USER MANAGEMENT */}
               <TabsContent value="users" className="mt-0">
                 <div className="space-y-4">
                   {userMgmtMessage && (
-                    <div className={`flex gap-3 p-3 rounded-md border text-xs ${
-                      userMgmtMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"
+                    <div className={`flex gap-2.5 p-3 rounded border text-xs ${
+                      userMgmtMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800"
                     }`}>
-                      {userMgmtMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+                      {userMgmtMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
                       <p>{userMgmtMessage.text}</p>
                     </div>
                   )}
 
                   {/* Add Photographer */}
-                  <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                    <CardHeader className="py-3 px-5 border-b border-slate-100 bg-slate-50/50">
-                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Camera className="w-4 h-4 text-[#82181A]" />
-                        แต่งตั้งช่างภาพ (Assign Photographer)
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-[#82181a]" /> {t("users.add_photographer.title")}
                       </CardTitle>
                       <CardDescription className="text-xs text-slate-500">
-                        ระบุอีเมล Google หรืออีเมลมหาวิทยาลัย (@mfu.ac.th, @lamduan.mfu.ac.th) เพื่อให้สิทธิ์ในการอัปโหลดภาพกิจกรรม
+                        {t("users.add_photographer.desc")}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4">
+                    <CardContent className="p-4 pt-2">
                       <div className="flex gap-2">
                         <Input
-                          placeholder="photographer@lamduan.mfu.ac.th หรือ gmail"
+                          placeholder={t("users.add_photographer.placeholder")}
                           value={newPhotographerEmail}
                           onChange={(e) => setNewPhotographerEmail(e.target.value)}
-                          className="flex-1 h-9 border-slate-300 text-xs focus:border-[#82181A]"
+                          className="h-8 text-xs border-slate-300 rounded"
                         />
                         <Button
                           disabled={userMgmtLoading || !newPhotographerEmail}
-                          className="bg-[#82181A] hover:bg-[#6e1416] text-white h-9 px-4 text-xs rounded-md shadow-none font-medium"
+                          className="h-8 text-xs bg-[#82181a] hover:bg-[#9c1f22] text-white rounded shrink-0"
                           onClick={async () => {
                             setUserMgmtLoading(true)
                             setUserMgmtMessage(null)
@@ -1031,7 +970,7 @@ export default function AdminDashboardPage() {
                             if (res.error) {
                               setUserMgmtMessage({ type: "error", text: res.error })
                             } else {
-                              setUserMgmtMessage({ type: "success", text: `แต่งตั้ง ${newPhotographerEmail} เป็นช่างภาพเรียบร้อยแล้ว` })
+                              setUserMgmtMessage({ type: "success", text: `Assigned ${newPhotographerEmail} as photographer` })
                               setNewPhotographerEmail("")
                               const usersRes = await apiClient.getAdminUsers()
                               if (usersRes.data) setAllUsers(usersRes.data.users || [])
@@ -1039,8 +978,7 @@ export default function AdminDashboardPage() {
                             setUserMgmtLoading(false)
                           }}
                         >
-                          <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-                          แต่งตั้งสิทธิ์
+                          <UserPlus className="w-3.5 h-3.5 mr-1.5" /> {t("users.add_photographer.btn")}
                         </Button>
                       </div>
                     </CardContent>
@@ -1048,27 +986,26 @@ export default function AdminDashboardPage() {
 
                   {/* Add Admin (Super Admin only) */}
                   {callerRole === "SUPER_ADMIN" && (
-                    <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                      <CardHeader className="py-3 px-5 border-b border-slate-100 bg-slate-50/50">
-                        <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <Crown className="w-4 h-4 text-[#C59B27]" />
-                          แต่งตั้งผู้ดูแลระบบ (Assign Admin)
+                    <Card className="border border-slate-200 bg-white rounded shadow-2xs">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-[#c59b27]" /> {t("users.add_admin.title")}
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-500">
-                          เฉพาะผู้ดูแลระบบสูงสุด (Super Admin) เท่านั้นที่สามารถเพิ่มหรือปรับสิทธิ์ผู้ดูแลระบบได้
+                          {t("users.add_admin.desc")}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="p-4">
+                      <CardContent className="p-4 pt-2">
                         <div className="flex gap-2">
                           <Input
-                            placeholder="admin@mfu.ac.th"
+                            placeholder={t("users.add_admin.placeholder")}
                             value={newAdminEmail}
                             onChange={(e) => setNewAdminEmail(e.target.value)}
-                            className="flex-1 h-9 border-slate-300 text-xs focus:border-[#82181A]"
+                            className="h-8 text-xs border-slate-300 rounded"
                           />
                           <Button
                             disabled={userMgmtLoading || !newAdminEmail}
-                            className="bg-[#C59B27] hover:bg-[#b0881f] text-white h-9 px-4 text-xs rounded-md shadow-none font-medium"
+                            className="h-8 text-xs bg-[#82181a] hover:bg-[#9c1f22] text-white rounded shrink-0"
                             onClick={async () => {
                               setUserMgmtLoading(true)
                               setUserMgmtMessage(null)
@@ -1076,7 +1013,7 @@ export default function AdminDashboardPage() {
                               if (res.error) {
                                 setUserMgmtMessage({ type: "error", text: res.error })
                               } else {
-                                setUserMgmtMessage({ type: "success", text: `แต่งตั้ง ${newAdminEmail} เป็นแอดมินเรียบร้อยแล้ว` })
+                                setUserMgmtMessage({ type: "success", text: `Assigned ${newAdminEmail} as admin` })
                                 setNewAdminEmail("")
                                 const usersRes = await apiClient.getAdminUsers()
                                 if (usersRes.data) setAllUsers(usersRes.data.users || [])
@@ -1084,28 +1021,27 @@ export default function AdminDashboardPage() {
                               setUserMgmtLoading(false)
                             }}
                           >
-                            <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-                            แต่งตั้งแอดมิน
+                            <UserPlus className="w-3.5 h-3.5 mr-1.5" /> {t("users.add_admin.btn")}
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
                   )}
 
-                  {/* User List Table */}
-                  <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                    <CardHeader className="py-4 px-6 border-b border-slate-200 bg-slate-50/50">
+                  {/* User List in REG MFU Table Format */}
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                    <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                          <CardTitle className="text-base font-bold text-slate-900">ทะเบียนรายชื่อผู้ใช้งานทั้งหมด (Registered Accounts)</CardTitle>
-                          <CardDescription className="text-xs text-slate-500">ผู้ใช้งานในระบบจำนวน {allUsers.length} รายการ</CardDescription>
+                          <CardTitle className="text-base font-bold text-slate-800">{t("users.title")}</CardTitle>
+                          <CardDescription className="text-xs text-slate-500 mt-0.5">{allUsers.length} {t("users.desc")}</CardDescription>
                         </div>
-                        <div className="relative w-full max-w-xs">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                        <div className="relative w-full sm:w-72">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                           <Input
                             type="search"
-                            placeholder="ค้นหาชื่อหรืออีเมล..."
-                            className="h-9 pl-8 border-slate-300 text-xs focus:border-[#82181A]"
+                            placeholder={t("users.search_placeholder")}
+                            className="h-8 pl-8 text-xs border-slate-300 rounded bg-white"
                             value={userSearchQuery}
                             onChange={(e) => setUserSearchQuery(e.target.value)}
                           />
@@ -1116,39 +1052,33 @@ export default function AdminDashboardPage() {
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
-                            <TableRow className="bg-slate-100 border-b border-slate-200 hover:bg-slate-100">
-                              <TableHead className="w-[45%] text-[11px] font-bold text-slate-600 uppercase tracking-wider h-10">ข้อมูลผู้ใช้งาน (User Details)</TableHead>
-                              <TableHead className="w-[15%] text-[11px] font-bold text-slate-600 uppercase tracking-wider h-10">สถานะ (Status)</TableHead>
-                              <TableHead className="w-[20%] text-[11px] font-bold text-slate-600 uppercase tracking-wider h-10">บทบาท (Role)</TableHead>
-                              <TableHead className="text-right text-[11px] font-bold text-slate-600 uppercase tracking-wider h-10">จัดการ (Actions)</TableHead>
+                            <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
+                              <TableHead className="w-[40%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.details")}</TableHead>
+                              <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.status")}</TableHead>
+                              <TableHead className="w-[20%] text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.role")}</TableHead>
+                              <TableHead className="text-right text-xs font-bold text-slate-700 uppercase h-10">{t("users.col.actions")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredAndSortedUsers.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={4} className="h-36 text-center text-slate-400">
-                                  <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                  <p className="text-sm font-semibold text-slate-700">ไม่พบรายชื่อผู้ใช้งาน</p>
-                                  <p className="text-xs">ลองค้นหาด้วยคำค้นอื่น</p>
+                                <TableCell colSpan={4} className="h-32 text-center text-slate-500 text-xs">
+                                  <Users className="h-6 w-6 mx-auto mb-2 text-slate-400" />
+                                  <p className="font-medium text-slate-700">{t("users.not_found")}</p>
+                                  <p className="mt-0.5">{t("users.not_found_desc")}</p>
                                 </TableCell>
                               </TableRow>
                             ) : (
                               filteredAndSortedUsers.map((u) => {
                                 const isSuperAdmin = u.role === "SUPER_ADMIN"
-                                const isAdminRole = u.role === "ADMIN"
+                                const isAdmin = u.role === "ADMIN"
                                 const isPhotographer = u.role === "PHOTOGRAPHER"
                                 const isStudentEmail = u.email.endsWith("@lamduan.mfu.ac.th") || u.email.endsWith("@mfu.ac.th")
                                 
                                 const canDemote = (() => {
                                   if (isSuperAdmin) return false
                                   if (!isStudentEmail) return false
-                                  if (isAdminRole) return callerRole === "SUPER_ADMIN"
-                                  if (isPhotographer) return true
-                                  return false
-                                })()
-                                const canRemove = (() => {
-                                  if (isSuperAdmin) return false
-                                  if (isAdminRole) return callerRole === "SUPER_ADMIN"
+                                  if (isAdmin) return callerRole === "SUPER_ADMIN"
                                   if (isPhotographer) return true
                                   return false
                                 })()
@@ -1162,11 +1092,11 @@ export default function AdminDashboardPage() {
                                 })()
         
                                 const roleBadge = ({
-                                  SUPER_ADMIN: "bg-amber-50 text-amber-800 border-amber-300 font-semibold",
-                                  ADMIN: "bg-[#82181A]/10 text-[#82181A] border-[#82181A]/20 font-semibold",
-                                  PHOTOGRAPHER: "bg-emerald-50 text-emerald-700 border-emerald-200 font-medium",
-                                  STUDENT: "bg-slate-100 text-slate-700 border-slate-200 font-medium",
-                                } as Record<string, string>)[u.role] || "bg-slate-100 text-slate-700 border-slate-200"
+                                  SUPER_ADMIN: "bg-amber-50 text-amber-800 border-amber-300",
+                                  ADMIN: "bg-blue-50 text-blue-700 border-blue-200",
+                                  PHOTOGRAPHER: "bg-emerald-50 text-emerald-800 border-emerald-300",
+                                  STUDENT: "bg-slate-100 text-slate-700 border-slate-300",
+                                } as Record<string, string>)[u.role] || "bg-slate-100 text-slate-700 border-slate-300"
         
                                 const roleLabel = {
                                   SUPER_ADMIN: "Super Admin",
@@ -1176,34 +1106,38 @@ export default function AdminDashboardPage() {
                                 }[u.role as string] || u.role
         
                                 return (
-                                  <TableRow key={u.id} className="hover:bg-slate-50 border-b border-slate-100 last:border-0 h-14">
-                                    <TableCell className="font-medium align-middle">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 overflow-hidden ring-1 ring-slate-300">
-                                          {u.avatarUrl ? <img src={u.avatarUrl} alt={u.name || "Avatar"} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase())}
+                                  <TableRow key={u.id} className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors h-14">
+                                    <TableCell className="align-middle">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded border border-slate-200 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 overflow-hidden shrink-0">
+                                          {u.avatarUrl ? (
+                                            <img src={u.avatarUrl} alt={u.name || "Avatar"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                          ) : (
+                                            u.name?.[0]?.toUpperCase() || u.email[0].toUpperCase()
+                                          )}
                                         </div>
-                                        <div className="flex flex-col min-w-0">
-                                          <span className="text-xs font-bold text-slate-900 truncate">{u.name || "ไม่ระบุชื่อ"}</span>
+                                        <div className="flex flex-col max-w-[200px] sm:max-w-xs truncate">
+                                          <span className="text-xs font-bold text-slate-800 truncate">{u.name || "User"}</span>
                                           <span className="text-[11px] text-slate-500 truncate">{u.email}</span>
                                         </div>
                                       </div>
                                     </TableCell>
                                     <TableCell className="align-middle">
                                       {!u.isActive ? (
-                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-semibold">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-                                          ระงับสิทธิ์ (Blocked)
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-medium text-[11px]">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                          {t("users.status.blocked")}
                                         </div>
                                       ) : (
-                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                                          ปกติ (Active)
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[11px]">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                          {t("users.status.active")}
                                         </div>
                                       )}
                                     </TableCell>
                                     <TableCell className="align-middle">
-                                      <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded border text-[11px] ${roleBadge}`}>
-                                        {isSuperAdmin && <Crown className="w-3 h-3 text-amber-600" />}
+                                      <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded border text-[11px] font-semibold ${roleBadge}`}>
+                                        {isSuperAdmin && <Crown className="w-3 h-3" />}
                                         {roleLabel}
                                       </div>
                                     </TableCell>
@@ -1211,65 +1145,67 @@ export default function AdminDashboardPage() {
                                       <div className="flex justify-end gap-1.5">
                                         {canToggleStatus && u.email !== callerEmail && (
                                           <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="sm"
-                                            className={`h-7 px-2.5 text-[11px] font-medium border rounded ${u.isActive ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
+                                            className={`h-7 px-2 text-xs rounded border ${u.isActive ? "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
                                             disabled={userMgmtLoading}
                                             onClick={async () => {
-                                              if (!confirm(`ยืนยันการ ${u.isActive ? 'ระงับการใช้งาน' : 'ปลดการระงับ'} ${u.email}?`)) return
+                                              if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
                                               setUserMgmtLoading(true)
                                               setUserMgmtMessage(null)
                                               const res = await apiClient.setUserStatus(u.id, !u.isActive)
                                               if (res.error) {
                                                 setUserMgmtMessage({ type: "error", text: res.error })
                                               } else {
-                                                setUserMgmtMessage({ type: "success", text: `${u.email} ได้รับการ${u.isActive ? 'ระงับการใช้งาน' : 'ปลดการระงับ'}เรียบร้อยแล้ว` })
+                                                setUserMgmtMessage({ type: "success", text: `Updated status for ${u.email}` })
                                                 const usersRes = await apiClient.getAdminUsers()
                                                 if (usersRes.data) setAllUsers(usersRes.data.users || [])
                                               }
                                               setUserMgmtLoading(false)
                                             }}
+                                            title={u.isActive ? t("users.btn.block") : t("users.btn.unblock")}
                                           >
                                             {u.isActive ? <Ban className="w-3 h-3 mr-1" /> : <Unlock className="w-3 h-3 mr-1" />}
-                                            {u.isActive ? "ระงับสิทธิ์" : "ปลดระงับ"}
+                                            {u.isActive ? t("users.btn.block") : t("users.btn.unblock")}
                                           </Button>
                                         )}
                                         
                                         {canDemote && (
                                           <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="sm"
-                                            className="h-7 px-2.5 text-[11px] font-medium text-slate-700 border border-slate-200 hover:bg-slate-100 rounded"
+                                            className="h-7 px-2 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-100"
                                             disabled={userMgmtLoading}
                                             onClick={async () => {
-                                              if (!confirm(`ลดสิทธิ์ ${u.email} จาก ${roleLabel} กลับเป็น นักศึกษา?`)) return
+                                              if (!confirm(`Demote ${u.email} to student?`)) return
                                               setUserMgmtLoading(true)
                                               setUserMgmtMessage(null)
                                               const res = await apiClient.removeUserRole(u.id)
                                               if (res.error) {
                                                 setUserMgmtMessage({ type: "error", text: res.error })
                                               } else {
-                                                setUserMgmtMessage({ type: "success", text: `ปรับลดสิทธิ์ ${u.email} เป็นนักศึกษาเรียบร้อยแล้ว` })
+                                                setUserMgmtMessage({ type: "success", text: `Demoted ${u.email} to student` })
                                                 const usersRes = await apiClient.getAdminUsers()
                                                 if (usersRes.data) setAllUsers(usersRes.data.users || [])
                                               }
                                               setUserMgmtLoading(false)
                                             }}
+                                            title={t("users.btn.demote")}
                                           >
                                             <UserMinus className="w-3 h-3 mr-1" />
-                                            ลดสิทธิ์
+                                            {t("users.btn.demote")}
                                           </Button>
                                         )}
     
                                         {canPermanentlyRemove && (
                                           <Button
-                                            variant="destructive"
+                                            variant="outline"
                                             size="sm"
-                                            className="h-7 px-2.5 text-[11px] font-medium bg-rose-600 hover:bg-rose-700 rounded"
+                                            className="h-7 px-2 text-xs rounded border-red-200 text-red-600 hover:bg-red-50"
                                             disabled={userMgmtLoading}
                                             onClick={async () => {
                                               const confirmation = prompt(
-                                                `ลบบัญชีถาวร (PERMANENT REMOVAL)\n\nพิมพ์ REMOVE เพื่อยืนยันการลบผู้ใช้ ${u.email} ออกจากระบบอย่างถาวร:\n\nการกระทำนี้ไม่สามารถย้อนกลับได้`
+                                                `Type REMOVE to permanently delete user ${u.email}:`
                                               )
                                               if (confirmation !== "REMOVE") return
     
@@ -1279,15 +1215,16 @@ export default function AdminDashboardPage() {
                                               if (res.error) {
                                                 setUserMgmtMessage({ type: "error", text: res.error })
                                               } else {
-                                                setUserMgmtMessage({ type: "success", text: `ลบบัญชี ${u.email} ออกจากระบบถาวรเรียบร้อยแล้ว` })
+                                                setUserMgmtMessage({ type: "success", text: `Deleted user ${u.email}` })
                                                 const usersRes = await apiClient.getAdminUsers()
                                                 if (usersRes.data) setAllUsers(usersRes.data.users || [])
                                               }
                                               setUserMgmtLoading(false)
                                             }}
+                                            title={t("users.btn.delete")}
                                           >
                                             <Trash2 className="w-3 h-3 mr-1" />
-                                            ลบ
+                                            {t("users.btn.delete")}
                                           </Button>
                                         )}
                                       </div>
@@ -1304,35 +1241,39 @@ export default function AdminDashboardPage() {
                 </div>
               </TabsContent>
 
-              {/* TAB 6: SYSTEM HEALTH */}
+              {/* TAB: SYSTEM HEALTH */}
               <TabsContent value="health" className="mt-0">
                 <div className="space-y-4">
-                  <Card className="border border-rose-200 bg-white rounded-lg shadow-xs overflow-hidden">
-                    <CardHeader className="py-3 px-5 border-b border-rose-100 bg-rose-50/50">
-                      <CardTitle className="text-sm font-bold text-rose-900 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-rose-600" />
-                        พื้นที่ควบคุมความปลอดภัยระดับสูง (Administrative Danger Zone)
+                  <Card className="border border-slate-200 border-t-4 border-t-red-600 bg-white rounded shadow-2xs">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold text-red-700 flex items-center gap-2">
+                        <Trash2 className="w-4 h-4 text-red-600" /> {t("health.danger.title")}
                       </CardTitle>
-                      <CardDescription className="text-xs text-rose-700">
-                        การดำเนินการที่ส่งผลกระทบต่อข้อมูลจำนวนมากในระดับฐานข้อมูล
+                      <CardDescription className="text-xs text-slate-500">
+                        {t("health.danger.desc")}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3.5 border border-rose-200 bg-rose-50/30 rounded-md gap-4">
+                    <CardContent className="p-4 pt-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border border-red-200 bg-red-50/50 rounded gap-3">
                         <div>
-                          <p className="text-xs font-bold text-slate-900">ล้างข้อมูลภาพถ่ายยืนยันตัวตนเก่า (Wipe Old Profile Selfies)</p>
-                          <p className="text-xs text-slate-500 mt-0.5">ลบภาพเซลฟีต้นแบบเก่าทั้งหมด เพื่อบังคับให้นักศึกษาทำการสแกนยืนยันตัวตนใหม่ด้วยระบบ Identity Guard</p>
+                          <p className="font-bold text-xs text-slate-800">{t("health.danger.wipe_title")}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{t("health.danger.wipe_desc")}</p>
                         </div>
-                        <Button variant="destructive" size="sm" onClick={handleCleanUpOldSelfies} className="h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 rounded-md font-medium shrink-0 shadow-none">
-                          ล้างข้อมูลและบังคับสแกนใหม่
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleCleanUpOldSelfies}
+                          className="h-8 text-xs rounded shrink-0 bg-red-600 hover:bg-red-700"
+                        >
+                          {t("health.danger.wipe_btn")}
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                  
-                  <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs">
+
+                  <Card className="border border-slate-200 bg-white rounded shadow-2xs p-4">
                     <SystemHealth />
-                  </div>
+                  </Card>
                 </div>
               </TabsContent>
             </div>

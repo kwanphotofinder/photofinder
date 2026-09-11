@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, BadgeCheck, Bell, Crown, Mail, Settings, Shield, User, Users } from "lucide-react"
+import { useLanguage } from "@/lib/language-context"
 
 type AdminProfile = {
   name: string
@@ -17,6 +18,7 @@ type AdminProfile = {
 
 export default function AdminProfilePage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [profile, setProfile] = useState<AdminProfile>({
     name: "",
     email: "",
@@ -25,18 +27,6 @@ export default function AdminProfilePage() {
   })
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("dev") === "true" || (!localStorage.getItem("admin_token") && process.env.NODE_ENV === "development")) {
-        if (!localStorage.getItem("admin_token")) {
-          localStorage.setItem("admin_token", "dev_admin_token");
-          localStorage.setItem("user_role", "admin");
-          localStorage.setItem("admin_name", "เจ้าหน้าที่ทะเบียน มฟล.");
-          localStorage.setItem("user_email", "reg.admin@mfu.ac.th");
-        }
-      }
-    }
-
     const authToken = localStorage.getItem("auth_token")
     const adminToken = localStorage.getItem("admin_token")
     const userRole = localStorage.getItem("user_role")
@@ -85,115 +75,92 @@ export default function AdminProfilePage() {
   return (
     <>
       <Header userRole="admin" />
-      <main className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
-        {/* Sub-header banner */}
-        <div className="bg-white border-b border-slate-200">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5">
-            <button
-              onClick={() => router.push("/admin/dashboard")}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#82181A] hover:underline mb-2 cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>กลับสู่แดชบอร์ด (Back to Dashboard)</span>
-            </button>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#82181A] uppercase tracking-wider mb-1">
-              ส่วนทะเบียนและประมวลผล • ข้อมูลบุคลากรผู้ดูแลระบบ
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              ข้อมูลบัญชีผู้ดูแลระบบ (Admin Profile & Permissions)
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              รายละเอียดบัญชีผู้ใช้งานที่ใช้ในการเข้าถึงและกำกับดูแลระบบทะเบียนภาพถ่าย
-            </p>
-          </div>
-        </div>
 
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-          {/* Profile Card */}
-          <Card className="border border-slate-200 border-t-4 border-t-[#82181A] bg-white rounded-lg shadow-xs overflow-hidden">
-            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <User className="h-4 w-4 text-[#82181A]" />
-                ข้อมูลประจำตัวเจ้าหน้าที่ (Personnel Details)
+      {/* REG MFU Breadcrumbs */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.home")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="hover:text-[#82181a] cursor-pointer" onClick={() => router.push("/admin/dashboard")}>{t("breadcrumb.admin")}</span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-[#82181a]">{t("breadcrumb.profile")}</span>
+          </div>
+          <button
+            onClick={() => router.push("/admin/dashboard")}
+            className="flex items-center gap-1 text-slate-500 hover:text-[#82181a] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t("breadcrumb.back")}</span>
+          </button>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-[#f0f2f5] pb-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+          {/* Header Banner */}
+          <div className="bg-white border border-slate-200 rounded p-5 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t("profile.title")}</h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t("profile.subtitle")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Card (REG MFU Top Maroon Border) */}
+          <Card className="border border-slate-200 border-t-4 border-t-[#82181a] bg-white rounded shadow-2xs overflow-hidden">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#82181a]" />
+                {t("profile.details_title")}
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">ข้อมูลที่ผูกกับเซสชันการเข้าสู่ระบบปัจจุบัน</CardDescription>
+              <CardDescription className="text-xs text-slate-500">{t("profile.details_desc")}</CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-md border border-slate-200 bg-slate-50/50">
-                <Avatar className="h-16 w-16 ring-1 ring-slate-300">
+            <CardContent className="p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-slate-200 rounded bg-slate-50/50">
+                <Avatar className="h-16 w-16 border-2 border-white shadow-xs">
                   <AvatarImage src={profile.avatarUrl} alt={profile.name || "Admin"} referrerPolicy="no-referrer" />
-                  <AvatarFallback className="bg-[#82181A] text-white text-xl font-bold">
+                  <AvatarFallback className="text-base font-bold bg-[#82181a] text-white">
                     {(profile.name?.[0] || profile.email?.[0] || "A").toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="w-full space-y-2 text-center sm:text-left">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ชื่อ-นามสกุล / ชื่อแสดงผล (Name)</span>
-                    <p className="text-base font-bold text-slate-900">{profile.name || "ไม่ระบุชื่อ"}</p>
+                <div className="space-y-1 text-center sm:text-left flex-1">
+                  <div className="text-base font-bold text-slate-900">{profile.name || "Administrator"}</div>
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-slate-500">
+                    <Mail className="h-3.5 w-3.5 text-[#82181a]" />
+                    <span>{profile.email || t("profile.email_not_found")}</span>
                   </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">อีเมลทางการ (Email)</span>
-                    <p className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-slate-700 font-medium mt-0.5">
-                      <Mail className="h-3.5 w-3.5 text-[#82181A]" />
-                      {profile.email || "ไม่มีข้อมูลอีเมล"}
-                    </p>
-                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-1 px-3 py-1 rounded border text-xs font-semibold bg-amber-50 text-amber-800 border-amber-300">
+                  {isSuperAdmin && <Crown className="w-3.5 h-3.5" />}
+                  <span>{isSuperAdmin ? t("role.super_admin") : t("role.admin")}</span>
                 </div>
               </div>
 
-              <div className="rounded-md border border-slate-200 bg-white p-4 space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ระดับสิทธิ์การเข้าถึง (Authorization Level)</span>
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                  {isSuperAdmin ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 text-amber-800 border border-amber-300 text-xs font-semibold">
-                      <Crown className="h-3.5 w-3.5 text-amber-600" />
-                      ผู้ดูแลระบบสูงสุด (Super Administrator)
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#82181A]/10 text-[#82181A] border border-[#82181A]/20 text-xs font-semibold">
-                      <BadgeCheck className="h-3.5 w-3.5 text-[#82181A]" />
-                      เจ้าหน้าที่ส่วนทะเบียน (Registrar Administrator)
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 pt-1">
+              {/* Role Scope */}
+              <div className="p-4 border border-slate-200 rounded bg-white">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("profile.scope_title")}</p>
+                <p className="text-xs text-slate-700 mt-1">
                   {isSuperAdmin
-                    ? "คุณมีสิทธิ์สูงสุดในการจัดการแต่งตั้งแอดมิน, ช่างภาพ, กิจกรรม, อนุมัติคำขอลบภาพ และจัดการฐานข้อมูลความปลอดภัย"
-                    : "คุณมีสิทธิ์ในการบริหารจัดการกิจกรรม, ตรวจสอบภาพถ่าย, คัดกรองคิว AI และอนุมัติคำขอลบภาพตามมาตรฐาน PDPA"}
+                    ? t("profile.scope_desc_super")
+                    : t("profile.scope_desc_admin")}
                 </p>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Quick Context Card */}
-          <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-slate-50/50">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Settings className="h-4 w-4 text-slate-700" />
-                ภารกิจงานที่รับผิดชอบ (Administrative Scope)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-md border border-slate-200 bg-slate-50/50 p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                    <Users className="h-4 w-4 text-[#82181A]" />
-                    งานบริหารสิทธิ์และผู้ใช้งาน
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    แต่งตั้งช่างภาพ มอบหมายสิทธิ์แอดมิน และตรวจสอบสถานะการเข้าใช้งานของนักศึกษา
-                  </p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50/50 p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                    <Bell className="h-4 w-4 text-[#82181A]" />
-                    งานกำกับดูแลความเป็นส่วนตัว (PDPA)
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    พิจารณาคำร้องขอลบหรือเบลอใบหน้าจากนักศึกษา และตรวจสอบคิวภาพที่มีความมั่นใจต่ำ
-                  </p>
-                </div>
+              {/* Action Buttons */}
+              <div className="pt-2 flex justify-end">
+                <Button
+                  onClick={() => router.push("/admin/dashboard")}
+                  className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs h-9 px-4 rounded"
+                >
+                  {t("profile.btn_dashboard")}
+                </Button>
               </div>
             </CardContent>
           </Card>

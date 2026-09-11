@@ -34,25 +34,22 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
   const navItems = getNavItems()
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-1.5">
       {navItems.map((item) => {
         const Icon = item.icon
+        const isActive = pathname === item.href
         return (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-              userRole === "admin"
-                ? pathname === item.href
-                  ? "bg-white/20 text-white font-semibold shadow-xs"
-                  : "text-white/80 hover:text-white hover:bg-white/10"
-                : pathname === item.href
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "text-muted-foreground hover:text-primary hover:bg-primary/10",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-colors",
+              isActive
+                ? "bg-[#82181a] text-white shadow-2xs"
+                : "text-slate-600 hover:text-[#82181a] hover:bg-slate-100",
             )}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{item.label}</span>
           </Link>
         )
