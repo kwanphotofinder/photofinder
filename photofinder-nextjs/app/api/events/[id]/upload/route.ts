@@ -48,6 +48,12 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 })
     }
 
+    // Fetch existing photos in this event to prevent duplicate uploads
+    const existingPhotos = await prisma.photo.findMany({
+      where: { eventId },
+      select: { id: true, storageUrl: true, width: true, height: true }
+    })
+
     const results = []
 
     for (const file of files) {
@@ -56,10 +62,26 @@ export async function POST(
       // 1. Optimize image for storage (resize to 2048px + WebP quality 85)
       const optimized = await optimizeForStorage(fileBuffer)
 
-      // 2. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
+      // 2. Duplicate Detection: Check if a photo with matching dimensions & base name exists in this event
+      const baseName = file.name.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_')
+      const isDuplicate = existingPhotos.some(
+        p => p.width === optimized.width && p.height === optimized.height && p.storageUrl && p.storageUrl.includes(`/${baseName}_`)
+      )
+
+      if (isDuplicate) {
+        results.push({
+          filename: file.name,
+          facesDetected: 0,
+          status: "skipped",
+          message: `Skipped duplicate photo (${file.name}) already in album`
+        })
+        continue
+      }
+
+      // 3. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
       const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId)
 
-      // 3. Create Photo Record (dimensions from optimized version)
+      // 4. Create Photo Record (dimensions from optimized version)
       const photo = await prisma.photo.create({
         data: {
           eventId,

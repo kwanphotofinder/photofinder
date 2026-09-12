@@ -36,10 +36,30 @@ export async function POST(req: NextRequest) {
     // 1. Optimize image for storage (resize to 2048px + WebP quality 85)
     const optimized = await optimizeForStorage(fileBuffer);
 
-    // 2. Upload the OPTIMIZED version to Cloudinary (saves ~70-80% storage)
+    // 2. Duplicate Detection: Check if a photo with matching dimensions & base name exists in this event
+    const baseName = file.name.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_');
+    const existingPhoto = await prisma.photo.findFirst({
+      where: {
+        eventId,
+        width: optimized.width,
+        height: optimized.height,
+        storageUrl: { contains: `/${baseName}_` }
+      }
+    });
+
+    if (existingPhoto) {
+      return NextResponse.json({
+        photoId: existingPhoto.id,
+        storageUrl: existingPhoto.storageUrl,
+        status: 'skipped',
+        message: `Photo ${file.name} already exists in this event`
+      }, { status: 200 });
+    }
+
+    // 3. Upload the OPTIMIZED version to Cloudinary (saves ~70-80% storage)
     const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId);
 
-    // 3. Create Photo Record in Prisma (dimensions from the optimized version)
+    // 4. Create Photo Record in Prisma (dimensions from the optimized version)
     const photo = await prisma.photo.create({
       data: {
         eventId,
@@ -54,7 +74,8 @@ export async function POST(req: NextRequest) {
 
     try {
       // 4. Send buffer to AI Service to get Face Embeddings and Bounding Boxes
-      const faces = await extractFaces(fileBuffer, file.name);
+      // CRITICAL: We use optimized.buffer so face coordinates match the stored image dimensions!
+      const faces = await extractFaces(optimized.buffer, file.name);
 
       if (!faces || faces.length === 0) {
         // If no face detected, clean up the photo from Cloudinary and DB to save storage

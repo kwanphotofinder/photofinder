@@ -27,9 +27,33 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // 2. Fetch photo from DB
-    const photo = await prisma.photo.findUnique({ where: { id: photoId } })
+    // 2. Fetch photo from DB with its active faces
+    const photo = await prisma.photo.findUnique({
+      where: { id: photoId },
+      include: { faces: true },
+    })
     if (!photo) return NextResponse.json({ error: "Photo not found" }, { status: 404 })
+
+    // If the photo only has 1 face (or 0 faces), blurring is useless — delete photo completely to save storage
+    if (!photo.faces || photo.faces.length <= 1) {
+      console.log(`[BLUR] Photo ${photoId} has ${photo.faces?.length || 0} faces. Deleting photo completely instead of blurring.`)
+      if (photo.storageUrl) {
+        try {
+          const urlParts = photo.storageUrl.split('/upload/')
+          if (urlParts.length === 2) {
+            let endPath = decodeURIComponent(urlParts[1])
+            if (endPath.match(/^v\d+\//)) endPath = endPath.replace(/^v\d+\//, '')
+            const lastDotIndex = endPath.lastIndexOf('.')
+            const publicId = lastDotIndex !== -1 ? endPath.substring(0, lastDotIndex) : endPath
+            await cloudinary.uploader.destroy(publicId)
+          }
+        } catch (cErr) {
+          console.warn("[BLUR] Cloudinary deletion error:", cErr)
+        }
+      }
+      await prisma.photo.delete({ where: { id: photoId } })
+      return NextResponse.json({ success: true, deleted: true, message: "Solo photo was deleted to save storage." })
+    }
 
     console.log(`[BLUR] Photo storageUrl: ${photo.storageUrl}`)
     console.log(`[BLUR] Photo dimensions in DB: ${photo.width}x${photo.height}`)
@@ -60,7 +84,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     console.log(`[BLUR] Received blurred image: ${blurredImageBuffer.byteLength} bytes`)
 
     // 5. Upload blurred image back to Cloudinary (Overwrite)
-    // Correctly extract the full public_id (including folders)
     const urlParts = photo.storageUrl.split('/upload/')
     if (urlParts.length !== 2) throw new Error("Invalid Cloudinary URL")
     
@@ -83,13 +106,30 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       }).end(Buffer.from(blurredImageBuffer))
     }) as any
 
+    // 6. Delete the blurred face embedding from the faces table so it no longer matches in search
+    if (bboxes) {
+      const coords = bboxes.split(",").map((n: string) => parseFloat(n.trim()))
+      if (coords.length === 4 && !coords.some(isNaN)) {
+        const [bx, by, bw, bh] = coords
+        // Delete face matching close coordinates (+- 20px tolerance)
+        const matchingFace = photo.faces.find(f => 
+          f.x !== null && f.y !== null &&
+          Math.abs((f.x ?? 0) - bx) < 30 &&
+          Math.abs((f.y ?? 0) - by) < 30
+        )
+        if (matchingFace) {
+          await prisma.face.delete({ where: { id: matchingFace.id } }).catch(() => {})
+        }
+      }
+    }
+
     // Update DB with the new secure_url (which has a new version string, breaking browser cache)
     await prisma.photo.update({
       where: { id: photoId },
       data: { storageUrl: uploadResult.secure_url }
     })
 
-    return NextResponse.json({ success: true, url: uploadResult.secure_url })
+    return NextResponse.json({ success: true, url: uploadResult.secure_url, remainingFaces: photo.faces.length - 1 })
 
   } catch (error: any) {
     console.error("Blur error:", error)

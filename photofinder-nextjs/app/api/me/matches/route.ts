@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       WHERE (1 - (f.embedding <=> $1::vector)) >= $2
         AND e."status" = 'PUBLISHED'
       ORDER BY f.embedding <=> $1::vector ASC
-      LIMIT 10
+      LIMIT 300
     `, vectorString, MIN_MATCH_CONFIDENCE);
 
     // 3. Filter out duplicates by photo ID

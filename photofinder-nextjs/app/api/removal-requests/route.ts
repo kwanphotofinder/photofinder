@@ -53,7 +53,10 @@ export async function GET(req: NextRequest) {
     const requests = await prisma.removalRequest.findMany({
       include: {
         photo: {
-          include: { event: true },
+          include: { 
+            event: true,
+            faces: true,
+          },
         },
         user: true,
       },
@@ -73,6 +76,7 @@ export async function GET(req: NextRequest) {
         id: req.photo.id,
         url: req.photo.storageUrl,
         eventName: req.photo.event.name,
+        faceCount: req.photo.faces?.length || 0,
       } : null,
     }));
 

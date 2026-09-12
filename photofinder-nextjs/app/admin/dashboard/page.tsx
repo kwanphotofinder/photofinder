@@ -297,13 +297,24 @@ export default function AdminDashboardPage() {
       })
       
       if (!res.ok) throw new Error("Failed to blur photo")
+      const data = await res.json()
 
       // Delete the request
       await apiClient.deleteRemovalRequest(requestId)
       
-      // Update local state
-      setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
-      alert("Photo blurred successfully and request resolved.")
+      // Update local state for removal requests
+      setRemovalRequests(prev => prev.filter(r => r.id !== requestId))
+
+      // Update local photos state immediately without needing a page refresh
+      if (data.deleted) {
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
+        alert("Solo photo had 1 face and was deleted to save storage.")
+      } else if (data.url) {
+        setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, storageUrl: data.url } : p))
+        alert("Photo blurred successfully and request resolved.")
+      } else {
+        alert("Photo blurred successfully and request resolved.")
+      }
     } catch (error) {
       console.error("Failed to blur request", error)
       alert("Failed to blur request")
@@ -839,9 +850,20 @@ export default function AdminDashboardPage() {
                             )}
                             <div className="flex-1 space-y-2">
                               <div>
-                                <p className="text-sm font-bold text-slate-800">
-                                  {request.photo?.eventName || "Untitled"}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-slate-800">
+                                    {request.photo?.eventName || "Untitled"}
+                                  </p>
+                                  {request.photo?.faceCount !== undefined && (
+                                    <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                                      request.photo.faceCount <= 1
+                                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                        : "bg-blue-100 text-blue-800 border border-blue-200"
+                                    }`}>
+                                      {request.photo.faceCount <= 1 ? "Solo Photo (1 Face)" : `Group Photo (${request.photo.faceCount} Faces)`}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-slate-500 mt-0.5">
                                   {t("req.requested_by")} <span className="font-semibold text-slate-700">{request.userName}</span> {t("req.on_date")}{" "}
                                   {new Date(request.createdAt).toLocaleDateString()} {t("req.at_time")}{" "}
@@ -856,28 +878,13 @@ export default function AdminDashboardPage() {
                               )}
                             </div>
                             <div className="flex md:flex-col gap-2 justify-center shrink-0">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveRequest(request.id, request.photoId)}
-                                disabled={requestProcessingId === request.id}
-                                className="h-8 text-xs rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
-                              >
-                                {requestProcessingId === request.id ? (
-                                  <>
-                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                    {t("req.processing")}
-                                  </>
-                                ) : (
-                                  t("req.btn.approve_delete")
-                                )}
-                              </Button>
-                              {request.faceCoordinates && (
+                              {/* If group photo (2+ faces), prioritize Blur Face */}
+                              {request.photo && request.photo.faceCount > 1 && request.faceCoordinates ? (
                                 <Button
                                   size="sm"
-                                  variant="outline"
                                   onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
                                   disabled={requestProcessingId === request.id}
-                                  className="h-8 text-xs rounded border-[#82181a] text-[#82181a] hover:bg-[#82181a] hover:text-white transition-colors disabled:opacity-60"
+                                  className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#6b1416] text-white disabled:opacity-60"
                                 >
                                   {requestProcessingId === request.id ? (
                                     <>
@@ -886,6 +893,23 @@ export default function AdminDashboardPage() {
                                     </>
                                   ) : (
                                     t("req.btn.approve_blur")
+                                  )}
+                                </Button>
+                              ) : (
+                                /* If solo photo (1 face) or no coordinates, approve Delete */
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproveRequest(request.id, request.photoId)}
+                                  disabled={requestProcessingId === request.id}
+                                  className="h-8 text-xs rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                                >
+                                  {requestProcessingId === request.id ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                      {t("req.processing")}
+                                    </>
+                                  ) : (
+                                    t("req.btn.approve_delete")
                                   )}
                                 </Button>
                               )}
