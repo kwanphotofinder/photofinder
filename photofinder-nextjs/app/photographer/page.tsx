@@ -411,7 +411,7 @@ export default function PhotographerPage() {
           })
         }, 200)
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
         
         // Add auth header since the route is now protected
         const headers: HeadersInit = {}
