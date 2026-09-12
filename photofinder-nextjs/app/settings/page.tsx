@@ -1,17 +1,32 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertCircle, CheckCircle2, Download, Loader2, Lock, Mail, Shield, Trash2, User, BadgeCheck, Sparkles, MessageSquare } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowLeft,
+  Camera,
+  Check,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  Loader2,
+  Lock,
+  Mail,
+  MessageSquare,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  User,
+} from "lucide-react"
 import { FaLine } from "react-icons/fa"
 import { SiGmail } from "react-icons/si"
-import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
 import { apiClient } from "@/lib/api-client"
+import { useLanguage } from "@/lib/language-context"
 
 type AccountProfile = {
   name: string
@@ -22,18 +37,20 @@ type AccountProfile = {
 
 export default function SettingsPage() {
   const router = useRouter()
-  const initialRole =
-    typeof window !== "undefined" ? (localStorage.getItem("user_role") || "student").toLowerCase() : "student"
-  const [consent, setConsent] = useState<ConsentData>({
-    globalFaceSearch: false,
-    dataProcessing: false,
-  })
+  const { t } = useLanguage()
+
   const [profile, setProfile] = useState<AccountProfile>({
     name: "",
     email: "",
     avatarUrl: "",
-    role: initialRole,
+    role: "student",
   })
+  const [consent, setConsent] = useState({
+    globalFaceSearch: true,
+    dataProcessing: true,
+  })
+
+  const [hasReferenceFace, setHasReferenceFace] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [isExportingData, setIsExportingData] = useState(false)
@@ -47,10 +64,26 @@ export default function SettingsPage() {
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false)
 
   useEffect(() => {
+    const userRole = (localStorage.getItem("user_role") || "student").toLowerCase()
+    const authToken = localStorage.getItem("auth_token")
+
+    if (!authToken && typeof window !== "undefined") {
+      router.push("/login")
+      return
+    }
+
+    if (userRole === "admin" || userRole === "super_admin") {
+      router.replace("/admin/profile")
+      return
+    }
+    if (userRole === "photographer") {
+      router.replace("/photographer/profile")
+      return
+    }
+
     const userData = localStorage.getItem("user_data")
-    const storedName = localStorage.getItem("user_name") || localStorage.getItem("admin_name") || ""
+    const storedName = localStorage.getItem("user_name") || ""
     const storedEmail = localStorage.getItem("user_email") || ""
-    const storedRole = (localStorage.getItem("user_role") || "student").toLowerCase()
 
     let avatarUrl = ""
     let parsedName = storedName
@@ -68,69 +101,54 @@ export default function SettingsPage() {
     }
 
     setProfile({
-      name: parsedName || "User",
+      name: parsedName || "Student",
       email: parsedEmail || "",
       avatarUrl,
-      role: storedRole,
+      role: "student",
     })
-  }, [])
+  }, [router])
 
-  useEffect(() => {
-    const loadConsent = async () => {
-      try {
-        const authToken = localStorage.getItem("auth_token")
-        if (!authToken) return
-
-        // Fetch current consent status from server
-        const consentRes = await fetch("/api/me/consent", {
-          headers: { Authorization: `Bearer ${authToken}` },
-        })
-        const consentData = await consentRes.json()
-
-        if (consentRes.ok && typeof consentData.pdpaConsent === "boolean") {
-          setConsent({
-            globalFaceSearch: consentData.pdpaConsent,
-            dataProcessing: consentData.pdpaConsent,
-          })
-        } else {
-          // Fallback to localStorage
-          const saved = localStorage.getItem("consent_preferences")
-          if (saved) {
-            const parsed = JSON.parse(saved)
-            setConsent({
-              globalFaceSearch: parsed.globalFaceSearch ?? false,
-              dataProcessing: parsed.dataProcessing ?? false,
-            })
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load consent:", error)
-        // Fallback to localStorage
-        const saved = localStorage.getItem("consent_preferences")
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          setConsent({
-            globalFaceSearch: parsed.globalFaceSearch ?? false,
-            dataProcessing: parsed.dataProcessing ?? false,
-          })
-        }
-      }
-    }
-
-    loadConsent()
-  }, [])
-
-  // Check LINE link status + handle success/error redirect params
+  // Load consent, reference face, and notifications
   useEffect(() => {
     const authToken = localStorage.getItem("auth_token")
     if (!authToken) return
 
+    // 1. Consent
+    fetch("/api/me/consent", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.pdpaConsent === "boolean") {
+          setConsent({
+            globalFaceSearch: data.pdpaConsent,
+            dataProcessing: data.pdpaConsent,
+          })
+        }
+      })
+      .catch((err) => console.error("Failed to load consent:", err))
+
+    // 2. Reference face status
+    fetch("/api/me/reference-face", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.referenceFaceUrl) setHasReferenceFace(true)
+      })
+      .catch(() => {})
+
+    // 3. LINE status
     fetch("/api/me/line", { headers: { Authorization: `Bearer ${authToken}` } })
       .then((res) => res.json())
       .then((data) => setLineLinked(!!data.linked))
       .catch(() => setLineLinked(false))
 
-    // Check if redirected back from LINE with success/error
+    // 4. Email notifications status
+    fetch("/api/me/email-notifications", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((res) => res.json())
+      .then((data) => setEmailEnabled(!!data.enabled))
+      .catch(() => setEmailEnabled(false))
+  }, [])
+
+  // Check URL params for LINE redirect feedback
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get("success") === "LINE_LINKED") {
       setLineLinked(true)
@@ -141,135 +159,125 @@ export default function SettingsPage() {
     }
   }, [])
 
-  // Fetch email notification status
-  useEffect(() => {
-    const authToken = localStorage.getItem("auth_token")
-    if (!authToken) return
-
-    fetch("/api/me/email-notifications", { headers: { Authorization: `Bearer ${authToken}` } })
-      .then((res) => res.json())
-      .then((data) => setEmailEnabled(!!data.enabled))
-      .catch(() => setEmailEnabled(false))
-  }, [])
-
-  const handleUnlinkLine = async () => {
-    const authToken = localStorage.getItem("auth_token")
-    if (!authToken) return
-    setIsUnlinkingLine(true)
-    try {
-      await fetch("/api/me/line", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      setLineLinked(false)
-    } catch {
-      // silently fail
-    } finally {
-      setIsUnlinkingLine(false)
-    }
-  }
-
   const handleToggleEmail = async () => {
     const authToken = localStorage.getItem("auth_token")
     if (!authToken) return
+
     setIsUpdatingEmail(true)
+    const targetState = !emailEnabled
+
     try {
       const res = await fetch("/api/me/email-notifications", {
-        method: "PATCH",
+        method: "PUT",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ enabled: !emailEnabled })
+        body: JSON.stringify({ enabled: targetState }),
       })
-      const data = await res.json()
-      setEmailEnabled(!!data.enabled)
-    } catch {
-      // silently fail
+
+      if (res.ok) {
+        setEmailEnabled(targetState)
+      } else {
+        alert("Failed to update email preferences. Please try again.")
+      }
+    } catch (err) {
+      console.error("Failed to update email notifications:", err)
+      alert("An error occurred. Please try again.")
     } finally {
       setIsUpdatingEmail(false)
     }
   }
 
-  const handleConsentChange = (key: keyof ConsentData) => {
-    setConsent((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
+  const handleUnlinkLine = async () => {
+    if (!confirm("Are you sure you want to unlink your LINE account? You will stop receiving photo notifications via LINE.")) return
+    const authToken = localStorage.getItem("auth_token")
+    if (!authToken) return
+
+    setIsUnlinkingLine(true)
+    try {
+      const res = await fetch("/api/me/line", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      if (res.ok) {
+        setLineLinked(false)
+      } else {
+        alert("Failed to unlink LINE account. Please try again.")
+      }
+    } catch (err) {
+      console.error("Failed to unlink LINE:", err)
+      alert("An error occurred. Please try again.")
+    } finally {
+      setIsUnlinkingLine(false)
+    }
   }
 
   const handleSavePreferences = async () => {
-    console.log("[v0] Starting save preferences")
     setIsSaving(true)
     setShowSuccess(false)
-
     try {
       const authToken = localStorage.getItem("auth_token")
-      if (!authToken) {
-        router.push("/login")
-        return
-      }
-
-      // Call API to save consent status
       const consentAccepted = consent.globalFaceSearch && consent.dataProcessing
-      const result = await apiClient.updateMyConsent(consentAccepted)
 
-      if (result.error) {
-        console.error("Failed to save consent:", result.error)
-        setIsSaving(false)
-        return
+      if (authToken) {
+        const response = await fetch("/api/me/consent", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            pdpaConsent: consentAccepted,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to save consent on server")
+        }
       }
 
       localStorage.setItem(
         "consent_preferences",
         JSON.stringify({
-          ...consent,
+          globalFaceSearch: consent.globalFaceSearch,
+          dataProcessing: consent.dataProcessing,
           accepted: consentAccepted,
           timestamp: new Date().toISOString(),
         }),
       )
 
-      setIsSaving(false)
-      console.log("[v0] Setting showSuccess to true")
       setShowSuccess(true)
-      setTimeout(() => {
-        console.log("[v0] Hiding success banner")
-        setShowSuccess(false)
-      }, 3000)
+      setTimeout(() => setShowSuccess(false), 3500)
     } catch (error) {
-      console.error("Error saving preferences:", error)
+      console.error("Failed to save preferences:", error)
+      alert("Failed to save preferences. Please try again.")
+    } finally {
       setIsSaving(false)
     }
   }
 
-  useEffect(() => {
-    console.log("[v0] showSuccess state changed:", showSuccess)
-  }, [showSuccess])
-
   const handleExportData = async () => {
     setIsExportingData(true)
     setPrivacyActionError("")
-
     try {
       const result = await apiClient.exportMyPrivacyData()
-      if (result.error || !result.data?.data) {
-        setPrivacyActionError(result.error || "Failed to export privacy data")
+      if (result.error || !result.data) {
+        setPrivacyActionError(result.error || "Failed to export data")
         return
       }
 
-      const fileContent = JSON.stringify(result.data.data, null, 2)
-      const blob = new Blob([fileContent], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      const stamp = new Date().toISOString().slice(0, 10)
-      link.href = url
-      link.download = `photofinder-privacy-export-${stamp}.json`
-      document.body.appendChild(link)
-      link.click()
-      if (link.parentNode) {
-        link.parentNode.removeChild(link)
-      }
-      URL.revokeObjectURL(url)
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+        type: "application/json;charset=utf-8",
+      })
+      const downloadUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = downloadUrl
+      anchor.download = `photofinder-privacy-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(downloadUrl)
     } catch (error) {
       console.error("Failed to export privacy data:", error)
       setPrivacyActionError("Failed to export privacy data")
@@ -280,7 +288,7 @@ export default function SettingsPage() {
 
   const handleFullDeleteData = async () => {
     const shouldProceed = confirm(
-      "This will permanently delete your reference face, saved photos list, consent profile data, and related privacy records. Continue?",
+      "คำเตือน: การลบข้อมูลจะลบรูปใบหน้าอ้างอิง เวกเตอร์ใบหน้า และข้อมูลที่บันทึกไว้ทั้งหมดอย่างถาวร ยืนยันที่จะดำเนินการหรือไม่?",
     )
     if (!shouldProceed) return
 
@@ -301,10 +309,12 @@ export default function SettingsPage() {
       const details = result.data.details
       setDeletionStatus("completed")
       setDeletionSummary(
-        `Deleted: ${details?.referenceFacesDeleted ?? 0} reference face, ${details?.savedPhotosDeleted ?? 0} saved photos, ${details?.removalRequestsDeleted ?? 0} removal requests, ${details?.abuseReportsDeleted ?? 0} reports, ${details?.deliveriesDeleted ?? 0} deliveries.`,
+        `ลบข้อมูลสำเร็จ: รูปใบหน้าอ้างอิง ${details?.referenceFacesDeleted ?? 0} รายการ, รูปที่บันทึก ${details?.savedPhotosDeleted ?? 0} รูป`,
       )
 
       setConsent({ globalFaceSearch: false, dataProcessing: false })
+      setHasReferenceFace(false)
+
       localStorage.setItem(
         "consent_preferences",
         JSON.stringify({
@@ -323,400 +333,414 @@ export default function SettingsPage() {
     }
   }
 
-  const prettyRole = profile.role.replace("_", " ")
+  const initials = useMemo(
+    () => (profile.name?.[0] || profile.email?.[0] || "S").toUpperCase(),
+    [profile.name, profile.email],
+  )
   const isConsentWithdrawn = !consent.globalFaceSearch || !consent.dataProcessing
-  const isPhotographer = profile.role === "photographer"
-  const headerRole: "student" | "photographer" | "admin" =
-    profile.role === "photographer" ? "photographer" : profile.role === "admin" ? "admin" : "student"
-  const settingsSummary = isPhotographer
-    ? "View account profile in one place."
-    : "View account profile and manage privacy preferences in one place."
 
   return (
     <>
-      <Header showLogout userRole={headerRole} />
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(130,24,26,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(130,24,26,0.08),_transparent_32%),linear-gradient(to_bottom,_#fff,_#faf7f7_58%,_#f8f4f4)]">
-        <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:py-10">
-          <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-[0_22px_70px_rgba(130,24,26,0.12)] backdrop-blur-xl sm:p-8">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(130,24,26,0.12),_transparent_35%),linear-gradient(135deg,_rgba(255,255,255,0.85),_transparent_46%)]" />
-            <div className="relative space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Account & settings
+      <Header showLogout userRole="student" />
+
+      {/* REG MFU Breadcrumbs */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span
+              className="hover:text-[#82181a] cursor-pointer transition-colors"
+              onClick={() => router.push("/dashboard")}
+            >
+              {t("breadcrumb.home")}
+            </span>
+            <span className="text-slate-400">/</span>
+            <span className="font-semibold text-[#82181a]">{t("breadcrumb.settings")}</span>
+          </div>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-[#82181a] font-medium transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t("breadcrumb.back")}</span>
+          </button>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-[#f0f2f5] pb-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+          {/* Header Banner */}
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xs border-t-4 border-t-[#82181a]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-1.5 bg-[#82181a] rounded-xs"></div>
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                    {t("student.settings_title")}
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {t("student.settings_subtitle")}
+                  </p>
+                </div>
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account & Settings</h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                {settingsSummary}
-              </p>
+              <div className="inline-flex items-center gap-1.5 rounded border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-800 self-start sm:self-auto">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>บัญชีพร้อมใช้งาน (Active)</span>
+              </div>
             </div>
-          </section>
+          </div>
 
-          <Tabs defaultValue={isPhotographer ? "account" : "privacy"} className="mt-8 space-y-6 sm:mt-10">
-            <TabsList className={`grid h-auto w-full rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-lg shadow-slate-100/60 backdrop-blur-xl ${isPhotographer ? "grid-cols-1" : "grid-cols-2"}`}>
-              <TabsTrigger value="account" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
-                Account Profile
-              </TabsTrigger>
-              {!isPhotographer && (
-                <TabsTrigger value="privacy" className="rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-slate-50">
-                  Privacy & Consent
-                </TabsTrigger>
-              )}
-            </TabsList>
+          {/* Section 1: ข้อมูลบัญชีผู้ใช้ (Account Information) */}
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xs">
+            <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-[#82181a]/10 text-[#82181a]">
+                <User className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">{t("student.account_section")}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t("student.account_desc")}</p>
+              </div>
+            </div>
 
-            <TabsContent value="account" className="space-y-4">
-              <Card className="overflow-hidden border border-white/60 bg-gradient-to-br from-white/95 to-white/80 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
-                <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80">
-                  <div className="flex items-start gap-3">
-                    <User className="w-5 h-5 text-primary mt-0.5" />
-                    <div className="flex-1">
-                      <CardTitle>Account Profile</CardTitle>
-                      <CardDescription>View the account details currently used in the system</CardDescription>
-                    </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 rounded border-2 border-slate-200 shadow-2xs">
+                  <AvatarImage src={profile.avatarUrl} alt={profile.name || "Student"} referrerPolicy="no-referrer" />
+                  <AvatarFallback className="bg-[#82181a] text-white text-xl font-bold rounded">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">{profile.name || "Student"}</h3>
+                    <span className="text-[10px] font-bold text-[#82181a] bg-[#82181a]/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      {t("student.role_badge")}
+                    </span>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-6 p-6">
-                  <div className="rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
-                    <div className="flex flex-col items-center gap-4 sm:gap-6">
-                      <Avatar className="h-24 w-24 ring-4 ring-white shadow-lg shadow-slate-200/60">
-                        <AvatarImage src={profile.avatarUrl} alt={profile.name || "User"} referrerPolicy="no-referrer" />
-                        <AvatarFallback className="bg-slate-100 text-2xl font-semibold text-slate-700">
-                          {(profile.name?.[0] || profile.email?.[0] || "U").toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{profile.email || "No email provided"}</span>
+                  </p>
+                </div>
+              </div>
 
-                      <div className="w-full space-y-4 text-center sm:text-left">
-                        <div>
-                          <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Full Name</p>
-                          <p className="mt-1.5 text-lg font-semibold text-foreground">
-                            {profile.name || "User"}
-                          </p>
-                        </div>
+              {/* Reference Face Status Box */}
+              <div className="w-full sm:w-auto border border-slate-200 rounded p-3.5 bg-slate-50/70 flex flex-col gap-2 min-w-[240px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-slate-500">{t("student.ref_face_title")}</span>
+                  {hasReferenceFace ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      {t("student.ref_face_registered")}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                      {t("student.ref_face_unregistered")}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/dashboard")}
+                  className="h-7 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border-slate-300 rounded shadow-2xs cursor-pointer justify-center"
+                >
+                  <Camera className="mr-1.5 h-3 w-3 text-slate-500" />
+                  {hasReferenceFace ? t("student.ref_face_update") : t("student.ref_face_set")}
+                </Button>
+              </div>
+            </div>
+          </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 sm:text-left">
-                          <div className="flex flex-col gap-2 rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
-                            <div className="flex items-center justify-center gap-2 sm:justify-start text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                              <Mail className="h-4 w-4" />
-                              Email Address
-                            </div>
-                            <p className="text-sm font-medium text-foreground break-all">
-                              {profile.email || "Not available"}
-                            </p>
-                          </div>
+          {/* Section 2: ช่องทางการรับการแจ้งเตือน (Notification Channels) */}
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xs">
+            <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-[#82181a]/10 text-[#82181a]">
+                <MessageSquare className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">{t("student.notif_section")}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t("student.notif_desc")}</p>
+              </div>
+            </div>
 
-                          <div className="flex flex-col gap-2 rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm">
-                            <div className="flex items-center justify-center gap-2 sm:justify-start text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                              <BadgeCheck className="h-4 w-4" />
-                              Account Role
-                            </div>
-                            <p className="text-sm font-medium text-foreground capitalize">
-                              {prettyRole}
-                            </p>
-                          </div>
-                        </div>
+            <div className="space-y-5 divide-y divide-slate-100">
+              {/* LINE Official Account Row */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pt-1 first:pt-0">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#00B900]/10 text-[#00B900] mt-0.5">
+                    <FaLine className="h-5 w-5 fill-current" />
+                  </div>
+                  <div className="space-y-1 max-w-lg">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900">{t("student.line_title")}</h3>
+                      {lineLinked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {t("student.line_connected")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                          {t("student.line_not_connected")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">{t("student.line_desc")}</p>
+
+                    {!lineLinked && (
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200">
+                        <span>{t("student.line_add_friend")}</span>
+                        <a
+                          href="https://lin.ee/6oiEili"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-[#00B900] hover:underline"
+                        >
+                          เพิ่มเพื่อน <ExternalLink className="h-3 w-3" />
+                        </a>
                       </div>
-                    </div>
+                    )}
                   </div>
+                </div>
 
-                  <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 p-4 text-sm text-muted-foreground">
-                    <p className="leading-relaxed">
-                      This profile information is synced from your Google account. To update your name or photo, modify your Google account settings and sign out and back in to refresh it here.
+                <div className="shrink-0 self-start sm:self-center">
+                  {lineLinked === null ? (
+                    <div className="h-8 w-24 animate-pulse rounded bg-slate-100" />
+                  ) : lineLinked ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleUnlinkLine}
+                      disabled={isUnlinkingLine}
+                      className="border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold h-8 rounded cursor-pointer"
+                    >
+                      {isUnlinkingLine && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+                      {t("student.line_unlink_btn")}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const token = localStorage.getItem("auth_token") || ""
+                        if (!token) return alert("Please login again first")
+                        window.location.href = `/api/auth/line/login?token=${token}`
+                      }}
+                      className="bg-[#00B900] hover:bg-[#009b00] text-white text-xs font-semibold h-8 px-4 rounded shadow-2xs cursor-pointer"
+                    >
+                      {t("student.line_link_btn")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Email Notifications Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-5">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1 max-w-lg">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900">{t("student.email_title")}</h3>
+                      {emailEnabled ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                          {t("student.email_active")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                          {t("student.email_inactive")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      {profile.email
+                        ? `ส่งอีเมลสรุปรูปถ่ายกิจกรรมไปยัง ${profile.email}`
+                        : t("student.email_desc")}
                     </p>
                   </div>
+                </div>
 
-                  <div className="mt-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00B900]/10 text-[#00B900]">
-                            <FaLine className="h-6 w-6 fill-current" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-slate-900">LINE Notifications</h3>
-                            <p className="text-sm text-slate-500">Receive real-time Flex Messages via LINE OA when we find new photos of you.</p>
-                          </div>
-                        </div>
-                        {/* Status badge */}
-                        {lineLinked === null ? (
-                          <div className="h-6 w-24 animate-pulse rounded-full bg-slate-200" />
-                        ) : lineLinked ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Connected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                            Not linked
-                          </span>
-                        )}
-                      </div>
+                <div className="shrink-0 self-start sm:self-center">
+                  <Switch
+                    checked={!!emailEnabled}
+                    onCheckedChange={handleToggleEmail}
+                    disabled={isUpdatingEmail || emailEnabled === null}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
-                      <div className="rounded-xl border border-[#00B900]/20 bg-[#00B900]/5 p-4 text-sm text-slate-700">
-                        <p className="font-semibold text-slate-900">Before linking, please add our LINE OA as a friend first.</p>
-                        <p className="mt-1 leading-relaxed">
-                          Add via link:
-                          <a
-                            href="https://lin.ee/6oiEili"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-1 font-semibold text-[#00B900] underline underline-offset-2 hover:text-[#009b00]"
-                          >
-                            https://lin.ee/6oiEili
-                          </a>
-                          <span className="mx-1">or search ID:</span>
-                          <span className="font-semibold text-slate-900">@042nimvi</span>
-                        </p>
-                        <p className="mt-2 text-xs text-slate-600">
-                          If you do not add the OA first, LINE account linking and notifications will not work.
-                        </p>
-                      </div>
+          {/* Section 3: ความเป็นส่วนตัวและข้อมูลส่วนบุคคล (Privacy & PDPA) */}
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xs space-y-5">
+            <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-[#82181a]/10 text-[#82181a]">
+                <Shield className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">{t("student.privacy_section")}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t("student.privacy_desc")}</p>
+              </div>
+            </div>
 
-                      {/* Action button */}
-                      {lineLinked === null ? (
-                        <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
-                      ) : lineLinked ? (
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          <span className="text-sm text-slate-600">Your LINE account is linked. You will receive notifications automatically.</span>
-                          <Button
-                            onClick={handleUnlinkLine}
-                            disabled={isUnlinkingLine}
-                            className="ml-auto border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs px-3 py-1 h-auto"
-                          >
-                            {isUnlinkingLine ? <Loader2 className="h-3 w-3 animate-spin" /> : "Unlink"}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            const token = localStorage.getItem("auth_token") || "";
-                            if (!token) return alert('Please login again first');
-                            window.location.href = `/api/auth/line/login?token=${token}`;
-                          }}
-                          className="max-w-[200px] bg-[#00B900] text-white shadow-md hover:bg-[#009b00]"
-                        >
-                          Link LINE Account
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+            <div className="space-y-4 divide-y divide-slate-100">
+              {/* Face Search Consent Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1 first:pt-0">
+                <div className="space-y-1 pr-4">
+                  <h3 className="text-sm font-bold text-slate-900">{t("student.consent_face_title")}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">{t("student.consent_face_desc")}</p>
+                </div>
+                <div className="shrink-0">
+                  <Switch
+                    checked={consent.globalFaceSearch}
+                    onCheckedChange={(checked) =>
+                      setConsent((prev) => ({ ...prev, globalFaceSearch: checked }))
+                    }
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
 
-                  {/* Email Notifications Card */}
-                  <div className="mt-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white/60 p-6 shadow-sm">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
-                            <SiGmail className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-slate-900">Email Notifications</h3>
-                            <p className="text-sm text-slate-500">Receive a summary email when we find photos of you at an event.</p>
-                          </div>
-                        </div>
-                        {/* Status badge */}
-                        {emailEnabled === null ? (
-                          <div className="h-6 w-24 animate-pulse rounded-full bg-slate-200" />
-                        ) : emailEnabled ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                            Enabled
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                            Disabled
-                          </span>
-                        )}
-                      </div>
+              {/* Data Processing Consent Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
+                <div className="space-y-1 pr-4">
+                  <h3 className="text-sm font-bold text-slate-900">{t("student.consent_data_title")}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">{t("student.consent_data_desc")}</p>
+                </div>
+                <div className="shrink-0">
+                  <Switch
+                    checked={consent.dataProcessing}
+                    onCheckedChange={(checked) =>
+                      setConsent((prev) => ({ ...prev, dataProcessing: checked }))
+                    }
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+            </div>
 
-                      <div className="flex items-center gap-3">
-                        <Button
-                          onClick={handleToggleEmail}
-                          disabled={isUpdatingEmail || emailEnabled === null}
-                          className={`w-full sm:w-auto shadow-md ${emailEnabled
-                              ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                            }`}
-                        >
-                          {isUpdatingEmail ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : emailEnabled ? (
-                            "Disable Email Notifications"
-                          ) : (
-                            "Enable Email Notifications"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {!isPhotographer && (
-              <TabsContent value="privacy" className="space-y-4">
-                <Card className="overflow-hidden border border-slate-200/60 bg-white/70 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
-                  <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80 pb-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Shield className="h-5 w-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <CardTitle>Consent Status</CardTitle>
-                          <CardDescription>Control your participation in the photo system</CardDescription>
-                        </div>
-                      </div>
-                      <div
-                        className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-300 w-full sm:w-auto ${consent.globalFaceSearch
-                            ? "bg-emerald-500 text-white shadow-emerald-200"
-                            : "bg-slate-200 text-slate-600 shadow-slate-100"
-                          }`}
-                      >
-                        <div className={`h-2 w-2 rounded-full ${consent.globalFaceSearch ? "bg-white animate-pulse" : "bg-slate-400"}`} />
-                        {consent.globalFaceSearch ? "Opted In" : "Opted Out"}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6 pt-6">
-                    <div className={`rounded-2xl border p-5 transition-all duration-500 ${consent.globalFaceSearch
-                        ? "border-emerald-100 bg-emerald-50/30 text-emerald-900"
-                        : "border-slate-100 bg-slate-50/50 text-slate-600"
-                      }`}>
-                      <div className="flex gap-4">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${consent.globalFaceSearch ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
-                          }`}>
-                          {consent.globalFaceSearch ? <CheckCircle2 className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                        </div>
-                        <p className="text-sm leading-relaxed">
-                          {consent.globalFaceSearch
-                            ? "Active: Your face is being identified in new event photos. You will be notified automatically when a match is found."
-                            : "Passive: Your face is not being searched. No notifications will be sent and you will remain invisible to AI detection."}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="overflow-hidden border border-white/60 bg-white/50 shadow-xl shadow-slate-200/40 backdrop-blur-xl">
-                  <CardHeader className="border-b border-white/50 bg-gradient-to-r from-slate-50/80 to-white/80">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
-                        <Lock className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <CardTitle>Update Preferences</CardTitle>
-                        <CardDescription>Manage your privacy configuration</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 p-6">
-                    <PrivacyConsentForm
-                      consent={consent}
-                      onChange={handleConsentChange}
-                      disabled={isSaving}
-                    />
-
-                    {isConsentWithdrawn && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-amber-900">You are about to withdraw consent</p>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
-                              <li>AI face matching and new match notifications will stop.</li>
-                              <li>Your profile may no longer appear in automatic event discovery.</li>
-                              <li>After re-consenting, auto face matching can resume once you set a reference selfie again.</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-
-                    {/* Privacy Rights Info */}
-                    <div className="space-y-3 rounded-xl border border-border/30 bg-muted/50 p-4">
-                      <div className="flex gap-3">
-                        <Lock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                        <div className="space-y-2 text-muted-foreground">
-                          <p className="text-xs uppercase tracking-widest font-medium text-foreground">Your Privacy Rights</p>
-                          <ul className="space-y-1 list-disc list-inside">
-                            <li>You can opt-out of face search at any time</li>
-                            <li>Request removal or blur of photos featuring you</li>
-                            <li>Download or delete your personal data</li>
-                            <li>Learn more in our privacy policy</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={handleSavePreferences}
-                      disabled={isSaving}
-                      className="w-full rounded-full bg-primary py-6 text-primary-foreground shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-2xl hover:shadow-primary/30"
-                      size="lg"
-                    >
-                      {isSaving ? "Saving..." : "Save Privacy Preferences"}
-                    </Button>
-
-                    <div className="space-y-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-4">
-                      <p className="text-xs font-medium uppercase tracking-widest text-slate-600">Consent Intelligence Actions</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Button
-                          type="button"
-                          onClick={handleExportData}
-                          disabled={isExportingData || isDeletingData}
-                          className="w-full border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                        >
-                          {isExportingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                          One-click Export Data
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={handleFullDeleteData}
-                          disabled={isDeletingData || isExportingData}
-                          className="w-full border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
-                        >
-                          {isDeletingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                          One-click Full Delete
-                        </Button>
-                      </div>
-
-                      {deletionStatus !== "idle" && (
-                        <div className={`rounded-lg border p-3 text-sm ${deletionStatus === "completed"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                            : deletionStatus === "processing"
-                              ? "border-blue-200 bg-blue-50 text-blue-800"
-                              : "border-red-200 bg-red-50 text-red-800"
-                          }`}>
-                          <p className="font-semibold">
-                            Deletion status: {deletionStatus === "processing" ? "Processing" : deletionStatus === "completed" ? "Completed" : "Failed"}
-                          </p>
-                          {deletionSummary && <p className="mt-1">{deletionSummary}</p>}
-                        </div>
-                      )}
-
-                      {privacyActionError && (
-                        <p className="text-sm font-medium text-red-600">{privacyActionError}</p>
-                      )}
-                    </div>
-
-                    {showSuccess && (
-                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-lg shadow-emerald-100/40 animate-in slide-in-from-top duration-300">
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-                        <p className="text-sm font-semibold text-emerald-800 sm:text-base">
-                          Preferences saved successfully!
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+            {/* Warning if disabled */}
+            {isConsentWithdrawn && (
+              <div className="rounded border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <p className="leading-relaxed">{t("student.withdraw_warning")}</p>
+              </div>
             )}
 
-          </Tabs>
+            {/* Save Button & Feedback */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div>
+                {showSuccess && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 animate-in fade-in duration-200">
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    {t("student.save_success")}
+                  </span>
+                )}
+              </div>
+              <Button
+                onClick={handleSavePreferences}
+                disabled={isSaving}
+                className="bg-[#82181a] hover:bg-[#641416] text-white text-xs font-semibold h-9 px-5 rounded shadow-2xs cursor-pointer transition-colors"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {t("student.btn_saving")}
+                  </>
+                ) : (
+                  t("student.btn_save")
+                )}
+              </Button>
+            </div>
+          </div>
 
+          {/* Section 4: สิทธิและการจัดการข้อมูลส่วนบุคคล (Data Subject Rights) */}
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xs space-y-5">
+            <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-100 text-slate-700">
+                <Lock className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">{t("student.rights_section")}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t("student.rights_desc")}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Export Data Tile */}
+              <div className="border border-slate-200 rounded p-4 bg-slate-50/50 flex flex-col justify-between gap-3.5">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800">{t("student.btn_export")}</h3>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{t("student.btn_export_desc")}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportData}
+                  disabled={isExportingData || isDeletingData}
+                  className="w-full bg-white hover:bg-slate-50 text-slate-700 border-slate-300 text-xs font-semibold h-8 rounded cursor-pointer"
+                >
+                  {isExportingData ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 text-slate-500 mr-1.5" />
+                  )}
+                  {t("student.btn_export")}
+                </Button>
+              </div>
+
+              {/* Delete All Data Tile */}
+              <div className="border border-rose-100 rounded p-4 bg-rose-50/20 flex flex-col justify-between gap-3.5">
+                <div>
+                  <h3 className="text-xs font-bold text-rose-800">{t("student.btn_delete")}</h3>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{t("student.btn_delete_desc")}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFullDeleteData}
+                  disabled={isDeletingData || isExportingData}
+                  className="w-full bg-white hover:bg-rose-50 text-rose-700 border-rose-200 text-xs font-semibold h-8 rounded cursor-pointer"
+                >
+                  {isDeletingData ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5 text-rose-600 mr-1.5" />
+                  )}
+                  {t("student.btn_delete")}
+                </Button>
+              </div>
+            </div>
+
+            {deletionStatus !== "idle" && (
+              <div
+                className={`rounded border p-3 text-xs ${
+                  deletionStatus === "completed"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : deletionStatus === "processing"
+                      ? "border-blue-200 bg-blue-50 text-blue-800"
+                      : "border-red-200 bg-red-50 text-red-800"
+                }`}
+              >
+                <p className="font-bold">
+                  {deletionStatus === "processing"
+                    ? "กำลังดำเนินการลบข้อมูล..."
+                    : deletionStatus === "completed"
+                      ? "ลบข้อมูลสำเร็จ"
+                      : "ไม่สามารถลบข้อมูลได้"}
+                </p>
+                {deletionSummary && <p className="mt-1 text-slate-600">{deletionSummary}</p>}
+              </div>
+            )}
+
+            {privacyActionError && (
+              <p className="text-xs font-semibold text-rose-600">{privacyActionError}</p>
+            )}
+          </div>
         </div>
       </main>
     </>

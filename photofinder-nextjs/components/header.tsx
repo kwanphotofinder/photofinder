@@ -121,19 +121,22 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
           {userName && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative flex items-center gap-2.5 h-auto py-1.5 px-2.5 rounded-md hover:bg-slate-100 border border-slate-200 shadow-2xs transition-colors">
+                <button
+                  type="button"
+                  className="group relative flex items-center gap-2.5 h-auto py-1.5 px-2.5 rounded-md bg-white hover:bg-slate-100/90 border border-slate-200 shadow-2xs transition-colors cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-[#82181a]/20 data-[state=open]:bg-slate-100"
+                >
                   <Avatar className="w-8 h-8 rounded border border-slate-200 flex-shrink-0">
                     <AvatarImage src={userAvatar} alt={userName} referrerPolicy="no-referrer" />
                     <AvatarFallback className="bg-[#82181a] text-white font-semibold text-xs rounded">{userName ? userName[0].toUpperCase() : "U"}</AvatarFallback>
                   </Avatar>
                   <div className="hidden sm:flex flex-col text-left">
-                    <span className="text-xs font-semibold text-slate-800 leading-tight truncate max-w-[120px]">{userName}</span>
-                    <span className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                    <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 leading-tight truncate max-w-[120px]">{userName}</span>
+                    <span className="text-[10px] text-slate-500 group-hover:text-slate-600 truncate max-w-[120px]">
                       {userRole === "admin" ? t("role.admin") : userRole === "photographer" ? t("role.photographer") : t("role.student")}
                     </span>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-                </Button>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 rounded-md border border-slate-200 bg-white shadow-lg p-2 animate-in fade-in-0 zoom-in-98 duration-150">
                 {/* Header Card */}
@@ -167,17 +170,27 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                             : "/settings",
                       )
                     }
-                    className="rounded px-2.5 py-2 hover:bg-slate-100 focus:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-700"
+                    className="rounded px-2.5 py-2 hover:bg-slate-100 focus:bg-slate-100 hover:text-slate-900 focus:text-slate-900 cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-700 transition-colors"
                   >
-                    <Settings className="w-4 h-4 text-slate-500" />
-                    <span>{t("nav.settings")}</span>
+                    {userRole === "student" ? (
+                      <Settings className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
+                    ) : (
+                      <User className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
+                    )}
+                    <span>
+                      {userRole === "admin"
+                        ? t("nav.profile")
+                        : userRole === "photographer"
+                          ? t("nav.photographer_profile")
+                          : t("nav.settings")}
+                    </span>
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
                     onClick={() => router.push("/privacy")}
-                    className="rounded px-2.5 py-2 hover:bg-slate-100 focus:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-700"
+                    className="rounded px-2.5 py-2 hover:bg-slate-100 focus:bg-slate-100 hover:text-slate-900 focus:text-slate-900 cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-700 transition-colors"
                   >
-                    <Shield className="w-4 h-4 text-slate-500" />
+                    <Shield className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
                     <span>{t("nav.privacy")}</span>
                   </DropdownMenuItem>
                 </div>
@@ -187,7 +200,7 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                 {/* Sign Out */}
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="rounded px-2.5 py-2 hover:bg-red-50 focus:bg-red-50 cursor-pointer flex items-center gap-2 text-xs font-medium text-red-600"
+                  className="rounded px-2.5 py-2 hover:bg-red-50 focus:bg-red-50 hover:text-red-700 focus:text-red-700 cursor-pointer flex items-center gap-2 text-xs font-medium text-red-600 transition-colors"
                 >
                   <LogOut className="w-4 h-4 text-red-600" />
                   <span>{t("nav.signout")}</span>

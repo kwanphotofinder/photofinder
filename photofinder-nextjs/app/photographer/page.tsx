@@ -664,7 +664,7 @@ export default function PhotographerPage() {
                 <Button
                   variant="outline"
                   onClick={() => router.push("/photographer/profile")}
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white shadow-2xs"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs sm:text-sm rounded h-9 px-3.5 bg-white shadow-2xs transition-colors"
                 >
                   <User className="mr-1.5 h-4 w-4 text-slate-500" />
                   {t("photo.profile.title")}

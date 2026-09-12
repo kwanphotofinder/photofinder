@@ -134,7 +134,7 @@ export default function PhotographerProfilePage() {
               <Button
                 variant="outline"
                 onClick={() => router.push("/photographer")}
-                className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded h-9 px-3.5 bg-white shadow-2xs self-start sm:self-auto"
+                className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold rounded h-9 px-3.5 bg-white shadow-2xs self-start sm:self-auto transition-colors"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
                 {t("photo.profile.back")}
