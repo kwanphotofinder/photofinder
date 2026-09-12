@@ -9,9 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   AlertCircle,
   ArrowLeft,
-  Camera,
   Check,
-  CheckCircle2,
   Download,
   ExternalLink,
   Loader2,
@@ -19,7 +17,6 @@ import {
   Mail,
   MessageSquare,
   Shield,
-  ShieldCheck,
   Trash2,
   User,
 } from "lucide-react"
@@ -50,7 +47,6 @@ export default function SettingsPage() {
     dataProcessing: true,
   })
 
-  const [hasReferenceFace, setHasReferenceFace] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [isExportingData, setIsExportingData] = useState(false)
@@ -108,7 +104,7 @@ export default function SettingsPage() {
     })
   }, [router])
 
-  // Load consent, reference face, and notifications
+  // Load consent and notifications
   useEffect(() => {
     const authToken = localStorage.getItem("auth_token")
     if (!authToken) return
@@ -126,21 +122,13 @@ export default function SettingsPage() {
       })
       .catch((err) => console.error("Failed to load consent:", err))
 
-    // 2. Reference face status
-    fetch("/api/me/reference-face", { headers: { Authorization: `Bearer ${authToken}` } })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.referenceFaceUrl) setHasReferenceFace(true)
-      })
-      .catch(() => {})
-
-    // 3. LINE status
+    // 2. LINE status
     fetch("/api/me/line", { headers: { Authorization: `Bearer ${authToken}` } })
       .then((res) => res.json())
       .then((data) => setLineLinked(!!data.linked))
       .catch(() => setLineLinked(false))
 
-    // 4. Email notifications status
+    // 3. Email notifications status
     fetch("/api/me/email-notifications", { headers: { Authorization: `Bearer ${authToken}` } })
       .then((res) => res.json())
       .then((data) => setEmailEnabled(!!data.enabled))
@@ -313,7 +301,6 @@ export default function SettingsPage() {
       )
 
       setConsent({ globalFaceSearch: false, dataProcessing: false })
-      setHasReferenceFace(false)
 
       localStorage.setItem(
         "consent_preferences",
@@ -401,54 +388,25 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 rounded border-2 border-slate-200 shadow-2xs">
-                  <AvatarImage src={profile.avatarUrl} alt={profile.name || "Student"} referrerPolicy="no-referrer" />
-                  <AvatarFallback className="bg-[#82181a] text-white text-xl font-bold rounded">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 rounded border-2 border-slate-200 shadow-2xs">
+                <AvatarImage src={profile.avatarUrl} alt={profile.name || "Student"} referrerPolicy="no-referrer" />
+                <AvatarFallback className="bg-[#82181a] text-white text-xl font-bold rounded">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
 
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">{profile.name || "Student"}</h3>
-                    <span className="text-[10px] font-bold text-[#82181a] bg-[#82181a]/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      {t("student.role_badge")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{profile.email || "No email provided"}</span>
-                  </p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">{profile.name || "Student"}</h3>
+                  <span className="text-[10px] font-bold text-[#82181a] bg-[#82181a]/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    {t("student.role_badge")}
+                  </span>
                 </div>
-              </div>
-
-              {/* Reference Face Status Box */}
-              <div className="w-full sm:w-auto border border-slate-200 rounded p-3.5 bg-slate-50/70 flex flex-col gap-2 min-w-[240px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-slate-500">{t("student.ref_face_title")}</span>
-                  {hasReferenceFace ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      {t("student.ref_face_registered")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                      {t("student.ref_face_unregistered")}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push("/dashboard")}
-                  className="h-7 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border-slate-300 rounded shadow-2xs cursor-pointer justify-center"
-                >
-                  <Camera className="mr-1.5 h-3 w-3 text-slate-500" />
-                  {hasReferenceFace ? t("student.ref_face_update") : t("student.ref_face_set")}
-                </Button>
+                <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{profile.email || "No email provided"}</span>
+                </p>
               </div>
             </div>
           </div>
