@@ -57,6 +57,10 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const token = response.credential;
+      if (!token) {
+        throw new Error("Google did not return a credential. Try signing in again.");
+      }
+
       const res = await apiClient.loginWithGoogle(token);
 
       if (res.error || !res.data) {
@@ -70,7 +74,7 @@ export default function LoginPage() {
       persistAndRouteUser(access_token, user);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || "Google login failed. Please try again.");
       setIsLoading(false);
     }
   };

@@ -14,6 +14,11 @@ const googleClient = new OAuth2Client(
 
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error('Google login configuration is incomplete');
+      return NextResponse.json({ error: 'Google login is not configured on the server' }, { status: 500 });
+    }
+
     const { token } = await req.json();
 
     if (!token) {
@@ -32,6 +37,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, name, picture, email_verified, hd } = payload;
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedHostedDomain = typeof hd === 'string' ? hd.trim().toLowerCase() : '';
 
     if (!email_verified) {
       return NextResponse.json({ error: 'Your Google email is not verified' }, { status: 401 });
@@ -42,11 +49,11 @@ export async function POST(req: NextRequest) {
     
     // We remove the allowedEmails array as it was redundant. 
     // The super admin will be allowed if their email matches SUPER_ADMIN_EMAIL.
-    const isAllowedDomain = (typeof hd === 'string' && allowedDomains.includes(hd)) || allowedDomains.some((domain) => email.endsWith(`@${domain}`));
-    const isSuperAdminEmail = SUPER_ADMIN_EMAIL && email.toLowerCase() === SUPER_ADMIN_EMAIL;
+    const isAllowedDomain = allowedDomains.includes(normalizedHostedDomain) || allowedDomains.some((domain) => normalizedEmail.endsWith(`@${domain}`));
+    const isSuperAdminEmail = SUPER_ADMIN_EMAIL && normalizedEmail === SUPER_ADMIN_EMAIL;
 
     // Also allow any email that is already pre-registered in the database
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     const isPreRegistered = !!existingUser;
 
     // By default, only MFU emails, super admin, or pre-registered users are allowed.
@@ -65,7 +72,7 @@ export async function POST(req: NextRequest) {
 
       // Keep local development and super admin recoverable if a record was disabled.
       user = await prisma.user.update({
-        where: { email },
+        where: { email: normalizedEmail },
         data: {
           role: isSuperAdminEmail ? Role.SUPER_ADMIN : user.role,
         },
@@ -78,7 +85,7 @@ export async function POST(req: NextRequest) {
 
       user = await prisma.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           name: name || '',
           avatarUrl: picture || null,
           role,
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
 
       if (Object.keys(updates).length > 0) {
         user = await prisma.user.update({
-          where: { email },
+          where: { email: normalizedEmail },
           data: updates,
         });
       }
@@ -131,7 +138,11 @@ export async function POST(req: NextRequest) {
     }, { status: 200 });
     
   } catch (error) {
-    console.error('Google token verification failed', error);
-    return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error';
+    console.error('Google login failed', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: errorMessage,
+    });
+    return NextResponse.json({ error: 'Google authentication failed. Check the web container logs for details.' }, { status: 401 });
   }
 }

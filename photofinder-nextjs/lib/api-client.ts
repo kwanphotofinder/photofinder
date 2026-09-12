@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 export interface ApiResponse<T> {
   data?: T;
@@ -41,7 +41,7 @@ async function apiCall<T>(
 
     handleUnauthorized(response.status);
 
-    let data;
+    let data: { error?: string } = {};
     try {
       data = await response.json();
     } catch (e) {
@@ -50,7 +50,9 @@ async function apiCall<T>(
 
     return {
       data: response.ok ? data : undefined,
-      error: response.ok ? undefined : data.error || "An error occurred",
+      error: response.ok
+        ? undefined
+        : data.error || `Request failed (${response.status}) at ${endpoint}`,
       status: response.status,
     };
   } catch (error) {

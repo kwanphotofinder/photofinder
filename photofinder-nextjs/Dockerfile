@@ -18,6 +18,8 @@ COPY . .
 
 # Generate Prisma client and compile Next.js standalone build
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 RUN npx prisma generate
 RUN npx next build
 
