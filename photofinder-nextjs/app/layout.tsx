@@ -41,6 +41,7 @@ export const viewport = {
 
 import { VerificationGuard } from "@/components/verification-guard";
 import { LanguageProvider } from "@/lib/language-context";
+import { DOMErrorPatch } from "@/components/dom-error-patch";
 
 export default function RootLayout({
   children,
@@ -53,6 +54,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#82181a" />
       </head>
       <body className={`${_notoSansThai.variable} ${_outfit.variable} font-sans antialiased`}>
+        <DOMErrorPatch />
         <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
         <LanguageProvider>
           <VerificationGuard>

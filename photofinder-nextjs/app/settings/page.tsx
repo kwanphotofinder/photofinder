@@ -266,7 +266,9 @@ export default function SettingsPage() {
       link.download = `photofinder-privacy-export-${stamp}.json`
       document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
+      if (link.parentNode) {
+        link.parentNode.removeChild(link)
+      }
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Failed to export privacy data:", error)

@@ -24,7 +24,9 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(blobUrl);
-    document.body.removeChild(a);
+    if (a.parentNode) {
+      a.parentNode.removeChild(a);
+    }
   } catch (err) {
     console.error('Failed to download photo:', err);
     alert('Unable to download automatically. Opening photo in new tab...');
