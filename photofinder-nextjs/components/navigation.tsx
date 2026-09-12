@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Upload, Users, BarChart3, Heart, Camera } from "lucide-react"
+import { Upload, Users, BarChart3, Heart, Camera, Settings } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 
 interface NavigationProps {
@@ -22,7 +22,7 @@ export function Navigation({ userRole = "student" }: NavigationProps) {
     if (userRole === "photographer") {
       return [
         { href: "/photographer", label: t("nav.workspace"), icon: Camera },
-        { href: "/photographer/profile", label: t("nav.photographer_profile"), icon: Users },
+        { href: "/photographer/profile", label: t("nav.settings"), icon: Settings },
       ]
     }
 

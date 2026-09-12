@@ -172,18 +172,8 @@ export function Header({ showLogout = false, userRole = "student" }: HeaderProps
                     }
                     className="rounded px-2.5 py-2 hover:bg-slate-100 focus:bg-slate-100 hover:text-slate-900 focus:text-slate-900 cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-700 transition-colors"
                   >
-                    {userRole === "student" ? (
-                      <Settings className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
-                    ) : (
-                      <User className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
-                    )}
-                    <span>
-                      {userRole === "admin"
-                        ? t("nav.profile")
-                        : userRole === "photographer"
-                          ? t("nav.photographer_profile")
-                          : t("nav.settings")}
-                    </span>
+                    <Settings className="w-4 h-4 text-slate-500 group-hover:text-slate-700" />
+                    <span>{t("nav.settings")}</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
