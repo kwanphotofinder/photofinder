@@ -126,37 +126,79 @@ LINE_REDIRECT_URI="https://photofinder.your-org.ac.th/api/auth/line/callback"
 
 ---
 
-## 7. Operational & Maintenance Procedures
+## 7. Command Reference & Operational Procedures
 
-### 1. Starting / Restarting Services
+### 📋 Quick Command Cheat Sheet
+
+| Task / Scenario | Command | Purpose / Description |
+| :--- | :--- | :--- |
+| **First-Time Setup** | `docker compose up --build -d` | Compiles images and starts all 3 containers in background. |
+| **First-Time DB Init** | `docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy` | Creates PostgreSQL tables & `pgvector` indexes. |
+| **Daily Start** | `docker compose up -d` | Instantly starts running containers without recompiling (~1s). |
+| **Daily Stop** | `docker compose down` | Safely stops containers. *(Database data is preserved).* |
+| **Check Health/Status**| `docker compose ps` | Displays container names, uptime, and exposed ports. |
+| **View Live Logs** | `docker compose logs -f` | Streams real-time logs across Next.js, AI, and Postgres. |
+| **View Service Logs** | `docker compose logs -f web` | Streams logs for Next.js web application specifically. |
+| **View AI Logs** | `docker compose logs -f ai-service` | Streams logs for Python Face AI engine specifically. |
+| **Code Update Only** | `git pull origin main && docker compose up --build -d` | Pulls latest code and recompiles changed containers. |
+| **Code + DB Update** | `git pull origin main && docker compose up --build -d && docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy` | Pulls code, rebuilds app, and applies new schema migrations. |
+| **Inspect DB & pgvector**| `docker compose exec postgres psql -U postgres -d facesearch -c "\dx"` | Connects to Postgres and verifies vector extension status. |
+
+---
+
+### Step-by-Step Scenario Guides
+
+#### Scenario A: First-Time Deployment on a Fresh Server
 ```bash
-# Start all containers in the background with auto-restart
-docker compose up -d
+# 1. Clone repository
+git clone https://github.com/kwanphotofinder/photofinder.git
+cd photofinder
 
-# Check live running status
-docker compose ps
+# 2. Configure environment file
+cp .env.example .env
+# (Edit .env with production server domain, passwords, and Cloudinary keys)
 
-# View live logs
-docker compose logs -f
+# 3. Build & start containers
+docker compose up --build -d
+
+# 4. Initialize database schema & pgvector index
+docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy
 ```
 
-### 2. Database Migrations & Updates
+#### Scenario B: Regular Code Updates (UI, Bug Fixes, Features)
 ```bash
-# Apply Prisma migrations inside the running web container
-docker compose exec web npx prisma migrate deploy
+# 1. Fetch latest changes from Git
+git pull origin main
+
+# 2. Recompile and restart web & AI containers
+docker compose up --build -d
+```
+> **Data Safety Note:** Rebuilding containers **does NOT** erase database records or photos. All data is persisted in the `postgres_data` Docker volume.
+
+#### Scenario C: Database Schema Updates (New Tables or Fields)
+```bash
+# 1. Fetch latest changes
+git pull origin main
+
+# 2. Rebuild container
+docker compose up --build -d
+
+# 3. Apply the new Prisma migration
+docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy
 ```
 
-### 3. Automated Daily Cleanup Cron
-Add a root cron job (`crontab -e`) to trigger event retention cleanup daily:
+#### Scenario D: Automated Background Tasks (Crontab)
+Add these entries to the server's root crontab (`crontab -e`):
+
 ```bash
+# 1. Automated Daily Event Expiry Cleanup (Runs daily at 17:15 UTC):
 15 17 * * * curl -s http://localhost:3000/api/cron/cleanup -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
+
+# 2. Automated Daily Database Backup (Runs daily at 02:00 AM local time):
+0 2 * * * docker exec photofinder_postgres pg_dump -U postgres facesearch > /backup/photofinder_$(date +\%F).sql
 ```
 
-### 4. Automated Database Backup
-Add a daily database dump cron job (`crontab -e`) at 02:00 AM:
-```bash
-0 2 * * * docker exec photofinder_postgres pg_dump -U photofinder photofinder_db > /backup/photofinder_$(date +\%F).sql
-```
+> ⚠️ **Data Safety Warning:** Never run `docker compose down -v` in production. The `-v` flag deletes named storage volumes (`postgres_data`). Always use standard `docker compose down`.
 
 ---
 
