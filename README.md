@@ -5,18 +5,20 @@
 PhotoFinder helps students find photos of themselves across event albums using face search. It combines a Next.js application, a PostgreSQL database with `pgvector`, Cloudinary image delivery, and a dedicated Python AI service for face processing.
 
 <p align="center">
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#documentation">Documentation</a>
+  <a href="#quick-start">🚀 Quick start</a> ·
+  <a href="#architecture">🏗️ Architecture</a> ·
+  <a href="#documentation">📚 Documentation</a>
 </p>
 
-## What it does
+## 🚀 Features
 
-- **Face search** - Upload a selfie and find matching photos across event albums.
-- **Automatic matching** - Set a reference face to receive matches from current and future events.
-- **Event operations** - Give admins tools for event, user, removal-request, and system-health management.
-- **Photographer workflow** - Upload event photos in bulk and review photo views, downloads, and engagement.
-- **Privacy controls** - Support consent, biometric-data export, reference-face removal, and one-click privacy cleanup.
+- **Instant Face Search:** Upload a selfie to find photos of yourself across event albums.
+- **Auto-Match:** Set a default "reference face." The system finds and notifies you of matches from past and future events.
+- **Privacy-First:** Mandatory PDPA consent flow. Students can delete their biometric data at any time.
+- **Consent Intelligence:** Soft warning when withdrawing consent, one-click privacy data export, and one-click full privacy delete with live deletion status.
+- **Admin Dashboard:** Manage events, users, and photo removal requests. Includes real-time system health metrics.
+- **Photographer Portal:** Bulk upload high-resolution event photos to Cloudinary.
+- **Photographer Analytics Dashboard:** Track event-level photo views, downloads, and engagement rates.
 
 ## Architecture
 
