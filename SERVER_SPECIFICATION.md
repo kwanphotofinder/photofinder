@@ -69,7 +69,7 @@ The host machine only requires standard container runtime software:
 
 | Container Name | Role | Technology | Internal Port |
 | :--- | :--- | :--- | :---: |
-| **`photofinder_web`** | **Frontend UI & Backend API:** Serves student gallery, handles Google login, photographer uploads, and API routing. | Next.js 14 / Node.js 20 | `3000` |
+| **`photofinder_web`** | **Frontend UI & Backend API:** Serves student gallery, handles Google login, photographer uploads, and API routing. | Next.js 16 / Node.js 20 | `3000` |
 | **`photofinder_ai`** | **Face Recognition Engine:** Detects faces, generates 512-d vector embeddings, checks live selfies, and blurs faces. | Python 3.10 / FastAPI / InsightFace | `7860` |
 | **`photofinder_postgres`** | **Vector Database:** Stores user accounts, events, and 512-d face vectors with HNSW indexing for <10ms searches. | PostgreSQL 16 + `pgvector` | `5432` |
 
