@@ -89,7 +89,7 @@ export default function FavoritesPage() {
   // Prevent UI flash while checking auth
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -98,35 +98,35 @@ export default function FavoritesPage() {
   return (
     <>
       <Header showLogout />
-      <main className="min-h-screen bg-[#faf9f7] text-slate-950">
-        <div className="border-b border-[#d8d2ca] bg-[#f5f3ef]">
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="border-b border-slate-200 bg-slate-50">
           <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-            <div className="border-t-4 border-[#82181a] bg-white px-5 py-6 shadow-sm sm:px-8 sm:py-7">
+            <div className="rounded border border-slate-200 bg-white px-5 py-6 shadow-none sm:px-8 sm:py-7">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="max-w-2xl">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]"><Heart className="h-4 w-4 fill-current" /> {t("favorites.space")}</div>
-                  <h1 className="mt-4 text-3xl font-black tracking-[-0.03em] text-[#421012] sm:text-4xl">{t("favorites.title")}</h1>
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary"><Heart className="h-4 w-4 fill-current" /> {t("favorites.space")}</div>
+                  <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{t("favorites.title")}</h1>
                   <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">{t("favorites.description")}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 border-l-2 border-[#f4c66a] pl-4 sm:min-w-40">
-                  <p className="text-4xl font-black tracking-[-0.04em] text-[#82181a]">{savedPhotos.length}</p>
-                  <p className="max-w-20 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-slate-500">{t("favorites.count")}</p>
+                <div className="flex shrink-0 items-center gap-3 border-l border-slate-200 pl-4 sm:min-w-40">
+                  <p className="text-4xl font-bold tracking-tight text-primary">{savedPhotos.length}</p>
+                  <p className="max-w-20 text-[10px] font-semibold uppercase leading-4 tracking-wider text-muted-foreground">{t("favorites.count")}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8 lg:py-11">
           <section>
-            <div className="mb-7 flex items-end justify-between gap-4 border-b border-[#d8d2ca] pb-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">{t("favorites.collection")}</p><h2 className="mt-2 text-2xl font-black tracking-[-0.02em] sm:text-3xl">{t("favorites.saved_collection")}</h2></div><span className="hidden text-xs font-semibold text-slate-500 sm:block">{savedPhotos.length} / {t("favorites.count")}</span></div>
+            <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4"><div><p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("favorites.collection")}</p><h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{t("favorites.saved_collection")}</h2></div><span className="hidden text-xs font-medium text-muted-foreground sm:block">{savedPhotos.length} / {t("favorites.count")}</span></div>
             {isLoading ? (
-              <div className="flex min-h-36 items-center justify-center py-10 text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />{t("favorites.loading")}</div>
+              <div className="flex min-h-36 items-center justify-center rounded border border-dashed border-slate-300 bg-white py-10 text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />{t("favorites.loading")}</div>
             ) : error ? (
-              <div className="flex min-h-36 items-center justify-center py-10 text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
+              <div className="flex min-h-36 items-center justify-center rounded border border-red-200 bg-red-50 py-10 text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
             ) : savedPhotos.length > 0 ? (
               <PhotoGrid photos={savedPhotos} compact={true} showConfidence={false} showShare={false} />
             ) : (
-              <div className="relative flex min-h-36 items-center justify-center overflow-hidden py-10"><Sparkles className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" /><p className="select-none text-center text-3xl font-black uppercase tracking-[0.12em] text-[#82181a] opacity-[0.08] sm:text-4xl">{t("favorites.empty")}</p></div>
+              <div className="flex min-h-52 flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-white p-10 text-center"><div className="mb-3 rounded bg-primary/10 p-3 text-primary"><Heart className="h-7 w-7" /></div><p className="text-lg font-semibold text-foreground">{t("favorites.empty")}</p><p className="mt-1 text-sm text-muted-foreground">{t("favorites.empty_description")}</p></div>
             )}
           </section>
         </div>

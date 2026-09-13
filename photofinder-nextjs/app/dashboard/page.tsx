@@ -365,7 +365,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-5 my-8">
-                  <div className={`relative h-32 w-32 shrink-0 overflow-hidden rounded border-4 border-white bg-slate-100 shadow-sm sm:h-36 sm:w-36 ${!hasConsentedToFaceSearch ? "grayscale opacity-50" : ""}`}>
+                  <div className={`relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-slate-100 shadow-md sm:h-44 sm:w-44 lg:h-52 lg:w-52 ${!hasConsentedToFaceSearch ? "grayscale opacity-50" : ""}`}>
                     {hasReferenceFace && referenceFaceUrl ? (
                       <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover" />
                     ) : (
