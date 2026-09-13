@@ -56,6 +56,14 @@ The Next.js development server normally runs at `http://localhost:3000`; the AI 
 - For AI changes, preserve the service API contract and CPU-compatible behavior used by the Docker image.
 - Avoid unrelated refactors, dependency upgrades, or generated-file churn while implementing a focused change.
 
+## UI Changes
+
+- Read the root `DESIGN.md` before modifying or adding frontend UI.
+- Follow the documented color tokens, layout patterns, responsive rules, localization rules, accessibility requirements, and shared component patterns.
+- Reuse existing components and design tokens before creating page-specific UI.
+- Keep loading, empty, error, and mobile states intact when changing a UI surface.
+- Update `DESIGN.md` when introducing a reusable design decision or a new shared UI pattern.
+
 ## Privacy and Security
 
 - Treat facial images, embeddings, identity data, consent data, and authentication credentials as sensitive.
