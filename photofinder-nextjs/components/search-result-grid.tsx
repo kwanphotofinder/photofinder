@@ -8,6 +8,7 @@ import { Eye, Download, CheckCircle, Heart, Share2 } from "lucide-react"
 import { PhotoDetailModal } from "@/components/photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
+import { apiClient } from "@/lib/api-client"
 
 interface Photo {
   id: string
@@ -27,17 +28,16 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const [showDetail, setShowDetail] = useState(false)
   const [openShareSheet, setOpenShareSheet] = useState(false)
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
+  const [savingPhotoIds, setSavingPhotoIds] = useState<string[]>([])
 
   useEffect(() => {
     // Load saved photos from API
     const loadSavedPhotos = async () => {
       try {
         const userId = localStorage.getItem("user_id") || 'guest'
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
-        if (response.ok) {
-          const savedPhotos = await response.json()
-          const ids = savedPhotos.map((item: any) => item.photo.id)
+        const response = await apiClient.getSavedPhotos(userId)
+        if (response.status === 200 && response.data) {
+          const ids = (response.data as any[]).map((item) => item.photo.id)
           setSavedPhotoIds(ids)
         }
       } catch (err) {
@@ -49,6 +49,8 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
 
   const handleSavePhoto = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (savingPhotoIds.includes(photoId)) return
+    setSavingPhotoIds((current) => [...current, photoId])
 
     const userId = localStorage.getItem("user_id") || 'guest'
     const isSaved = savedPhotoIds.includes(photoId)
@@ -56,34 +58,22 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
     try {
       if (isSaved) {
         // Remove from saved
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photoId}`, {
-          method: 'DELETE',
-          headers: {
-            'user-id': userId,
-          },
-        })
-        if (response.ok) {
-          setSavedPhotoIds(savedPhotoIds.filter((id) => id !== photoId))
+        const response = await apiClient.removeSavedPhoto(userId, photoId)
+        if (response.status === 200) {
+          setSavedPhotoIds((current) => current.filter((id) => id !== photoId))
         }
       } else {
         // Add to saved
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const response = await fetch(`${apiUrl}/saved-photos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'user-id': userId,
-          },
-          body: JSON.stringify({ photoId }),
-        })
-        if (response.ok) {
-          setSavedPhotoIds([...savedPhotoIds, photoId])
+        const response = await apiClient.savePhoto(userId, photoId)
+        if (response.status === 201) {
+          setSavedPhotoIds((current) => [...current, photoId])
         }
       }
     } catch (err) {
       console.error('Failed to save/unsave photo:', err)
       alert('Failed to update saved photos. Please try again.')
+    } finally {
+      setSavingPhotoIds((current) => current.filter((id) => id !== photoId))
     }
   }
 
@@ -160,7 +150,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                   className={`${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-white/90 hover:bg-white text-black'} shadow-lg`}
                   onClick={(e) => handleSavePhoto(photo.id, e)}
                 >
-                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
+                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''} ${savingPhotoIds.includes(photo.id) ? 'animate-pulse' : ''}`} />
                   {savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
                 </Button>
                 <Button
@@ -234,7 +224,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                     handleSavePhoto(photo.id, e)
                   }}
                 >
-                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''}`} />
+                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''} ${savingPhotoIds.includes(photo.id) ? 'animate-pulse' : ''}`} />
                   {savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
                 </Button>
                 <Button

@@ -6,6 +6,7 @@ import { Header } from "@/components/header"
 import { PhotoGrid } from "@/components/photo-grid"
 import { Heart, Loader2, AlertCircle, Sparkles } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
+import { apiClient } from "@/lib/api-client"
 
 interface Photo {
   id: string
@@ -58,14 +59,13 @@ export default function FavoritesPage() {
       setIsAuthChecking(false)
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        const response = await apiClient.getSavedPhotos(userId)
 
-        if (!response.ok) {
+        if (response.status !== 200 || !response.data) {
           throw new Error("Failed to fetch favorites")
         }
 
-        const data: SavedPhotoResponse[] = await response.json()
+        const data = response.data as SavedPhotoResponse[]
         const photos = data.map((item) => ({
           id: item.photo.id,
           url: item.photo.storageUrl,

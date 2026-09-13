@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Download } from "lucide-react"
 import { format } from 'date-fns'
-import { downloadPhoto } from "@/lib/download"
+import { downloadOriginalPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
@@ -84,12 +84,10 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
       try {
         setIsFavoriteLoading(true)
         const userId = localStorage.getItem("user_id") || "guest"
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        const response = await apiClient.getSavedPhotos(userId)
 
-        if (response.ok) {
-          const savedPhotos = await response.json()
-          setIsFavorite(savedPhotos.some((item: any) => item.photo.id === photo.id))
+        if (response.status === 200 && response.data) {
+          setIsFavorite((response.data as any[]).some((item) => item.photo.id === photo.id))
         }
       } catch (error) {
         console.error("Failed to load favorite state:", error)
@@ -113,7 +111,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
   const handleDownload = async () => {
     trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
+    await downloadOriginalPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
   const handleNativeShare = async () => {
@@ -143,32 +141,18 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
     try {
       setIsFavoriteLoading(true)
       const userId = localStorage.getItem("user_id") || "guest"
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-
       if (isFavorite) {
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photo.id}`, {
-          method: "DELETE",
-          headers: {
-            "user-id": userId,
-          },
-        })
+        const response = await apiClient.removeSavedPhoto(userId, photo.id)
 
-        if (response.ok) {
+        if (response.status === 200) {
           setIsFavorite(false)
         } else {
           alert("Unable to remove this photo from Favorites right now.")
         }
       } else {
-        const response = await fetch(`${apiUrl}/saved-photos`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "user-id": userId,
-          },
-          body: JSON.stringify({ photoId: photo.id }),
-        })
+        const response = await apiClient.savePhoto(userId, photo.id)
 
-        if (response.ok) {
+        if (response.status === 201) {
           setIsFavorite(true)
         } else {
           alert("Unable to add this photo to Favorites right now.")
@@ -232,17 +216,19 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{photo.eventName}</DialogTitle>
+      <DialogContent aria-describedby={undefined} className="max-h-[92vh] max-w-3xl overflow-y-auto border-[#d8d2ca] bg-[#faf9f7] p-0 text-slate-950 shadow-2xl">
+        <DialogHeader className="border-b border-[#e5dfd8] bg-white px-5 py-5 pr-14 sm:px-7">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#82181a]">Photo moment</p>
+          <DialogTitle className="mt-1 text-xl font-black tracking-[-0.02em] text-[#421012] sm:text-2xl">{photo.eventName}</DialogTitle>
+          <p className="mt-1 text-sm text-slate-500">{formatDayMonthYear(photo.uploadDate || photo.eventDate)}</p>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5 p-4 sm:p-7">
           {/* Photo Display */}
           <div
             ref={imageContainerRef}
-            className={`relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center ${
-              isFullscreen ? "h-screen" : "h-[400px]"
+            className={`relative flex w-full items-center justify-center overflow-hidden border border-[#d8d2ca] bg-[#eee9e3] shadow-sm ${
+              isFullscreen ? "h-screen w-screen border-0 bg-[#171514] p-4 sm:p-10" : "h-[min(62vh,500px)] min-h-[300px] p-3 sm:p-6"
             }`}
           >
             <Image
@@ -251,8 +237,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
               width={800}
               height={600}
               onClick={handleToggleZoom}
-              className={`w-auto object-contain transition-transform duration-300 ${
-                isFullscreen ? "max-h-screen" : "max-h-[400px]"
+              className={`h-auto max-w-full object-contain transition-transform duration-300 ${
+                isFullscreen ? "max-h-full" : "max-h-full"
               } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
             />
 
@@ -260,7 +246,16 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
               <Button
                 size="icon"
                 variant="secondary"
-                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                className="h-9 w-9 rounded-sm border border-white/20 bg-black/55 text-white shadow hover:bg-black/70"
+                onClick={handleDownload}
+                title="Download original photo without watermark"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-sm border border-white/20 bg-black/55 text-white shadow hover:bg-black/70"
                 onClick={handleToggleZoom}
                 title={isZoomed ? "Zoom out" : "Zoom in"}
               >
@@ -269,7 +264,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
               <Button
                 size="icon"
                 variant="secondary"
-                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                className="h-9 w-9 rounded-sm border border-white/20 bg-black/55 text-white shadow hover:bg-black/70"
                 onClick={handleToggleFullscreen}
                 title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
               >
@@ -279,14 +274,14 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
           </div>
 
           {/* Photo Info */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-card border border-border rounded-lg">
+          <div className="grid grid-cols-2 divide-x divide-[#e5dfd8] border-y border-[#d8d2ca] bg-white">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Event</p>
-              <p className="font-semibold text-foreground">{photo.eventName}</p>
+              <p className="px-4 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Event</p>
+              <p className="px-4 pb-3 pt-1 font-semibold text-[#421012]">{photo.eventName}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Date</p>
-              <p className="font-semibold text-foreground">
+              <p className="px-4 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Date</p>
+              <p className="px-4 pb-3 pt-1 font-semibold text-[#421012]">
                 {formatDayMonthYear(photo.uploadDate || photo.eventDate)}
               </p>
             </div>
@@ -294,37 +289,38 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Share your moment</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-              
-              <div className="flex justify-center">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <Button
+                onClick={handleToggleFavorite}
+                disabled={isFavoriteLoading}
+                variant="outline"
+                className={`h-11 gap-2 border-[#cfc8bf] bg-white font-semibold ${isFavorite ? "border-[#82181a] bg-[#82181a] text-white hover:bg-[#641416]" : "text-[#82181a] hover:bg-[#f2e8e3]"}`}
+              >
+                {isFavoriteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />}
+                <span className="hidden sm:inline">{isFavorite ? "Saved" : "Favorite"}</span>
+              </Button>
                 <Button
                   onClick={handleNativeShare}
                   disabled={isSubmitting || activeShareChannel !== null}
-                  className="group relative h-20 w-full max-w-sm justify-start gap-4 rounded-3xl border border-border bg-transparent px-5 text-left text-foreground shadow-none backdrop-blur-0 transition-all hover:border-red-900 hover:bg-red-800 hover:text-white active:border-red-950 active:bg-red-900 active:text-white"
+                  variant="outline"
+                  className="h-11 gap-2 border-[#cfc8bf] bg-white font-semibold text-[#421012] hover:bg-[#f2e8e3]"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-transparent transition-transform group-hover:scale-105 group-hover:border-red-200/60 group-hover:bg-white/15 group-active:border-red-100/70 group-active:bg-white/20">
-                    {activeShareChannel === "native" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
-                  </div>
-                  <div className="flex flex-col items-start gap-0.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover:text-white/85 group-active:text-white/85">
-                      Share original photo
-                    </span>
-                    <span className="text-sm font-bold tracking-tight">Original</span>
-                  </div>
+                  {activeShareChannel === "native" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                  <span className="hidden sm:inline">Share</span>
                 </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={handleDownload}
+                  variant="outline"
+                  className="h-11 gap-2 border-[#82181a] bg-[#82181a] font-semibold text-white hover:bg-[#641416] sm:col-span-1"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Original</span>
+                </Button>
                 <Button
                   onClick={() => handleQuickShare("line")}
                   disabled={isSubmitting || activeShareChannel !== null}
                   variant="outline"
-                  className="justify-center gap-2"
+                  className="h-11 gap-2 border-[#cfc8bf] bg-white font-semibold text-[#421012] hover:bg-[#f2e8e3]"
                 >
                   {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
                   LINE
@@ -333,12 +329,11 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                   onClick={() => handleQuickShare("facebook")}
                   disabled={isSubmitting || activeShareChannel !== null}
                   variant="outline"
-                  className="justify-center gap-2"
+                  className="h-11 gap-2 border-[#cfc8bf] bg-white font-semibold text-[#421012] hover:bg-[#f2e8e3]"
                 >
                   {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
                   Facebook
                 </Button>
-              </div>
             </div>
 
             {!showRemovalRequest ? (

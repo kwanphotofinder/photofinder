@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
 import { IdentityVerification } from "@/components/identity-verification"
-import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, Search, ShieldCheck, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
+import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, ShieldCheck, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
 import { UploadLoader } from "@/components/upload-loader"
 import { useLanguage } from "@/lib/language-context"
 
@@ -171,9 +171,8 @@ export default function DashboardPage() {
         setAutoMatches([])
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       const storedId = localStorage.getItem("user_id") || "guest"
-      const savedRes = await fetch(`${apiUrl}/saved-photos/${storedId}`)
+      const savedRes = await fetch(`/api/saved-photos/${storedId}`)
       if (savedRes.ok) {
         const savedData = await savedRes.json()
         setSavedPhotoCount(savedData.length)
@@ -353,13 +352,10 @@ export default function DashboardPage() {
                     <Camera className="mr-2 h-4 w-4" />
                     {hasReferenceFace ? t("student.update_profile") : t("student.set_selfie")}
                   </Button>
-                  <Button onClick={() => router.push("/search")} variant="outline" size="lg" className="h-11 rounded-none border-[#cfc8bf] bg-white px-5 text-sm font-bold text-[#82181a] hover:bg-[#f5f3ef]">
-                    <Search className="mr-2 h-4 w-4" /> {t("student.browse_photos")}
-                  </Button>
                 </div>
               </div>
-              <div className="relative min-h-70 border-l-4 border-l-[#f4c66a] bg-[#721719] p-6 text-white sm:p-9 lg:p-10">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#f4c66a]">
+              <div className="relative min-h-70 border-l-4 border-l-[#f4c66a] bg-[#f2e8e3] p-6 text-[#421012] sm:p-9 lg:p-10">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">
                   <span>{t("student.profile_signal")}</span>
                   <ShieldCheck className="h-5 w-5" />
                 </div>
@@ -372,8 +368,8 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-xl font-black tracking-tight text-white">{hasReferenceFace ? t("student.ready") : t("student.not_set_up")}</p>
-                    <p className="mt-2 max-w-42.5 text-sm leading-5 text-white/70">{hasReferenceFace ? t("student.ready_description") : t("student.not_set_up_description")}</p>
+                    <p className="text-xl font-black tracking-tight text-[#421012]">{hasReferenceFace ? t("student.ready") : t("student.not_set_up")}</p>
+                    <p className="mt-2 max-w-42.5 text-sm leading-5 text-[#421012]/65">{hasReferenceFace ? t("student.ready_description") : t("student.not_set_up_description")}</p>
                   </div>
                 </div>
                 {hasReferenceFace && (

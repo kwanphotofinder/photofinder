@@ -35,6 +35,30 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
   }
 }
 
+export async function downloadOriginalPhoto(url: string, eventName: string, eventDate: string) {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`Failed to fetch photo: ${response.status}`)
+
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const date = new Date(eventDate).toISOString().split('T')[0]
+    const safeEventName = eventName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+
+    anchor.href = blobUrl
+    anchor.download = `${safeEventName || 'photo'}_${date}_original.${extension}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    window.URL.revokeObjectURL(blobUrl)
+    anchor.remove()
+  } catch (error) {
+    console.error('Failed to download original photo:', error)
+    alert('Unable to download the original photo right now. Please try again.')
+  }
+}
+
 function sanitizeText(value: string) {
   return value
     .trim()

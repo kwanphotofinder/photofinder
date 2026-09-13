@@ -181,6 +181,20 @@ export const apiClient = {
       body: JSON.stringify({ action }),
     }),
 
+  // Saved photos
+  getSavedPhotos: (userId: string) => apiCall(`/saved-photos/${userId}`),
+  savePhoto: (userId: string, photoId: string) =>
+    apiCall(`/saved-photos`, {
+      method: "POST",
+      headers: { "user-id": userId },
+      body: JSON.stringify({ photoId }),
+    }),
+  removeSavedPhoto: (userId: string, photoId: string) =>
+    apiCall(`/saved-photos/${userId}/${photoId}`, {
+      method: "DELETE",
+      headers: { "user-id": userId },
+    }),
+
   // Admin User Management
   getAdminUsers: () => apiCall<any>("/admin/users"),
   setUserRole: (email: string, role: string) =>
