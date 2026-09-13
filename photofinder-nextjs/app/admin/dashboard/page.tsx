@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
@@ -1417,30 +1418,27 @@ export default function AdminDashboardPage() {
               {callerRole === "SUPER_ADMIN" && (
                 <TabsContent value="audit" className="mt-0">
                   <div className="space-y-4">
-                    {/* Header Card with Export */}
                     <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                      {/* Top Header */}
                       <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                           <div>
                             <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
                               <FileText className="w-4 h-4 text-[#82181a]" />
                               {t("audit.title")}
+                              {auditLogsTotal > 0 && (
+                                <span className="text-[11px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                                  {auditLogsTotal}
+                                </span>
+                              )}
                             </CardTitle>
                             <CardDescription className="text-xs text-slate-500 mt-0.5">
                               {t("audit.desc")}
                             </CardDescription>
                           </div>
+                          
+                          {/* Export CSV Button (Primary Action) */}
                           <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => fetchAuditLogs(auditCategoryFilter, auditSearchQuery, auditPage)}
-                              disabled={auditLogsLoading}
-                              className="h-8 text-xs px-2.5 rounded border-slate-300 hover:bg-slate-50 shrink-0"
-                              title="Refresh logs"
-                            >
-                              <RefreshCw className={`w-3.5 h-3.5 ${auditLogsLoading ? "animate-spin" : ""}`} />
-                            </Button>
                             <Button
                               size="sm"
                               onClick={handleExportAuditLogsCsv}
@@ -1463,21 +1461,20 @@ export default function AdminDashboardPage() {
                         </div>
                       </CardHeader>
 
-                      <CardContent className="p-4 space-y-4">
-                        {/* PDPA 90-Day Retention Notice Banner */}
-                        <div className="rounded border border-amber-200 bg-amber-50/70 p-3 flex items-start gap-2.5">
-                          <Shield className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                          <div className="text-xs text-amber-900 leading-relaxed font-medium">
-                            {t("audit.retention_notice")}
-                          </div>
-                        </div>
+                      {/* PDPA 90-Day Retention Notice Banner */}
+                      <div className="flex items-center gap-2 px-4 py-2 bg-amber-50/70 border-b border-amber-200/60 text-xs text-amber-800">
+                        <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="font-medium text-[11px] leading-tight">{t("audit.retention_notice")}</span>
+                      </div>
 
-                        {/* Search & Category Filter Bar */}
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      {/* Filter & Search Toolbar */}
+                      <div className="px-4 py-3 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
                           {/* Search Input */}
-                          <div className="relative w-full sm:w-80">
+                          <div className="relative w-full sm:max-w-[280px]">
                             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                             <Input
+                              type="search"
                               placeholder={t("audit.search_placeholder")}
                               value={auditSearchQuery}
                               onChange={(e) => {
@@ -1485,205 +1482,269 @@ export default function AdminDashboardPage() {
                                 setAuditPage(1)
                                 fetchAuditLogs(auditCategoryFilter, e.target.value, 1)
                               }}
-                              className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
+                              className="h-8 pl-8 text-xs border-slate-300 rounded bg-white w-full shadow-2xs"
                             />
                           </div>
 
-                          {/* Category Filter Pills */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {[
-                              { id: "ALL", label: t("audit.category_all") },
-                              { id: "BIOMETRICS", label: t("audit.category_biometrics") },
-                              { id: "USER_MGMT", label: t("audit.category_users") },
-                              { id: "CONTENT", label: t("audit.category_content") },
-                              { id: "SECURITY", label: t("audit.category_security") },
-                            ].map((cat) => (
-                              <button
-                                key={cat.id}
-                                type="button"
-                                onClick={() => {
-                                  setAuditCategoryFilter(cat.id)
-                                  setAuditPage(1)
-                                  fetchAuditLogs(cat.id, auditSearchQuery, 1)
-                                }}
-                                className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors ${
-                                  auditCategoryFilter === cat.id
-                                    ? "bg-[#82181a] text-white"
-                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                }`}
-                              >
-                                {cat.label}
-                              </button>
-                            ))}
-                          </div>
+                          {/* Category Dropdown Filter */}
+                          <Select
+                            value={auditCategoryFilter}
+                            onValueChange={(val) => {
+                              setAuditCategoryFilter(val)
+                              setAuditPage(1)
+                              fetchAuditLogs(val, auditSearchQuery, 1)
+                            }}
+                          >
+                            <SelectTrigger size="sm" className="w-full sm:w-[180px] h-8 text-xs border-slate-300 bg-white rounded shadow-2xs">
+                              <div className="flex items-center">
+                                <Filter className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
+                                <SelectValue placeholder={t("audit.category_all")} />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent className="text-xs">
+                              <SelectItem value="ALL">{t("audit.category_all")}</SelectItem>
+                              <SelectItem value="BIOMETRICS">{t("audit.category_biometrics")}</SelectItem>
+                              <SelectItem value="USER_MGMT">{t("audit.category_users")}</SelectItem>
+                              <SelectItem value="CONTENT">{t("audit.category_content")}</SelectItem>
+                              <SelectItem value="SECURITY">{t("audit.category_security")}</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
-                        {/* Audit Table (Desktop & Tablet) + Cards (Mobile) */}
-                        {auditLogsLoading ? (
-                          <div className="py-12 text-center text-slate-500">
-                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#82181a] mb-2" />
-                            <p className="text-xs">Loading audit logs...</p>
-                          </div>
-                        ) : auditLogs.length === 0 ? (
-                          <div className="py-12 text-center text-slate-500 border border-dashed border-slate-200 rounded">
-                            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                            <p className="text-xs">{t("audit.empty")}</p>
-                          </div>
-                        ) : (
-                          <div className="border border-slate-200 rounded overflow-hidden">
-                            {/* Mobile Card View (hidden on tablet/desktop) */}
-                            <div className="divide-y divide-slate-100 block md:hidden">
-                              {auditLogs.map((log) => {
-                                const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
-                                const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
+                        {/* Refresh Button */}
+                        <div className="flex items-center justify-end shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fetchAuditLogs(auditCategoryFilter, auditSearchQuery, auditPage)}
+                            disabled={auditLogsLoading}
+                            className="h-8 px-3 text-xs rounded border-slate-300 hover:bg-slate-50 flex items-center shadow-2xs"
+                            title="Refresh logs"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${auditLogsLoading ? "animate-spin" : ""}`} />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
 
-                                return (
-                                  <div key={log.id} className="p-3 space-y-2 text-xs bg-white">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span
-                                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                          isDestructive
-                                            ? "bg-red-100 text-red-700 border border-red-200"
-                                            : isWarning
-                                            ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                            : "bg-blue-50 text-blue-700 border border-blue-200"
-                                        }`}
-                                      >
-                                        {log.action}
-                                      </span>
-                                      <span className="font-mono text-[10px] text-slate-400">
-                                        {new Date(log.createdAt).toLocaleString(undefined, {
-                                          month: "short",
-                                          day: "numeric",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-[11px]">
-                                      <span className="text-slate-500 font-medium">Actor:</span>
-                                      <span className="font-semibold text-slate-800 truncate max-w-[200px]">
-                                        {log.actorEmail} ({log.actorRole || "USER"})
-                                      </span>
-                                    </div>
-                                    {log.targetLabel && (
-                                      <div className="flex items-center justify-between text-[11px]">
-                                        <span className="text-slate-500 font-medium">Target:</span>
-                                        <span className="text-slate-700 truncate max-w-[200px]">{log.targetLabel}</span>
-                                      </div>
-                                    )}
-                                    {log.details && (
-                                      <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
-                                        {log.details}
-                                      </p>
-                                    )}
+                      {/* CardContent: Full Bleed Table (p-0) */}
+                      <CardContent className="p-0">
+                        {/* Mobile Card View (hidden on md and larger) */}
+                        <div className="divide-y divide-slate-100 block md:hidden">
+                          {auditLogsLoading ? (
+                            <div className="py-12 text-center text-slate-500">
+                              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#82181a] mb-2" />
+                              <p className="text-xs">Loading audit logs...</p>
+                            </div>
+                          ) : auditLogs.length === 0 ? (
+                            <div className="py-12 text-center text-slate-500">
+                              <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                              <p className="text-xs font-medium text-slate-700">{t("audit.empty")}</p>
+                            </div>
+                          ) : (
+                            auditLogs.map((log) => {
+                              const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
+                              const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
+                              const isBiometrics = ["WIPE_ALL_SELFIES", "REGISTER_FACE", "FACE_SEARCH"].includes(log.action)
+
+                              return (
+                                <div key={log.id} className="p-4 space-y-2 text-xs bg-white">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span
+                                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        isDestructive
+                                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                          : isWarning
+                                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                          : isBiometrics
+                                          ? "bg-sky-50 text-sky-700 border border-sky-200"
+                                          : "bg-slate-100 text-slate-700 border border-slate-200"
+                                      }`}
+                                    >
+                                      {log.action}
+                                    </span>
+                                    <span className="font-mono text-[10px] text-slate-400">
+                                      {new Date(log.createdAt).toLocaleString(undefined, {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
                                   </div>
-                                )
-                              })}
-                            </div>
-
-                            {/* Desktop & Tablet Table View */}
-                            <div className="hidden md:block overflow-x-auto">
-                              <Table>
-                                <TableHeader className="bg-slate-50">
-                                  <TableRow className="border-b border-slate-200">
-                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_time")}</TableHead>
-                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_actor")}</TableHead>
-                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_action")}</TableHead>
-                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_target")}</TableHead>
-                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_details")}</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody className="divide-y divide-slate-100">
-                                  {auditLogs.map((log) => {
-                                    const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
-                                    const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
-
-                                    return (
-                                      <TableRow key={log.id} className="hover:bg-slate-50/80 text-xs">
-                                        <TableCell className="px-3 py-2.5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                                          {new Date(log.createdAt).toLocaleString(undefined, {
-                                            month: "short",
-                                            day: "numeric",
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                            second: "2-digit",
-                                          })}
-                                        </TableCell>
-                                        <TableCell className="px-3 py-2.5">
-                                          <div className="flex flex-col">
-                                            <span className="font-semibold text-slate-800 truncate max-w-[180px]">
-                                              {log.actorEmail}
-                                            </span>
-                                            {log.actorRole && (
-                                              <span className="text-[10px] text-slate-500 font-mono">
-                                                {log.actorRole}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="px-3 py-2.5">
-                                          <span
-                                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                              isDestructive
-                                                ? "bg-red-100 text-red-700 border border-red-200"
-                                                : isWarning
-                                                ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                                : "bg-blue-50 text-blue-700 border border-blue-200"
-                                            }`}
-                                          >
-                                            {log.action}
-                                          </span>
-                                        </TableCell>
-                                        <TableCell className="px-3 py-2.5 text-slate-700 font-medium max-w-[160px] truncate">
-                                          {log.targetLabel || log.targetType || "—"}
-                                        </TableCell>
-                                        <TableCell className="px-3 py-2.5 text-slate-600 max-w-[260px] leading-snug">
-                                          {log.details || "—"}
-                                        </TableCell>
-                                      </TableRow>
-                                    )
-                                  })}
-                                </TableBody>
-                              </Table>
-                            </div>
-
-                            {/* Pagination Footer */}
-                            {auditTotalPages > 1 && (
-                              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
-                                <span>
-                                  Showing {auditLogs.length} of {auditLogsTotal} logs (Page {auditPage} of {auditTotalPages})
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const next = Math.max(1, auditPage - 1)
-                                      setAuditPage(next)
-                                      fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
-                                    }}
-                                    disabled={auditPage <= 1}
-                                    className="h-7 text-xs px-2.5 rounded"
-                                  >
-                                    Previous
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const next = Math.min(auditTotalPages, auditPage + 1)
-                                      setAuditPage(next)
-                                      fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
-                                    }}
-                                    disabled={auditPage >= auditTotalPages}
-                                    className="h-7 text-xs px-2.5 rounded"
-                                  >
-                                    Next
-                                  </Button>
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-500 font-medium">Actor:</span>
+                                    <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                                      {log.actorEmail} ({log.actorRole || "USER"})
+                                    </span>
+                                  </div>
+                                  {log.targetLabel && (
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-slate-500 font-medium">Target:</span>
+                                      <span className="text-slate-700 truncate max-w-[200px]">{log.targetLabel}</span>
+                                    </div>
+                                  )}
+                                  {log.details && (
+                                    <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
+                                      {log.details}
+                                    </p>
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              )
+                            })
+                          )}
+                        </div>
+
+                        {/* Desktop & Tablet Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
+                                <TableHead className="w-[15%] text-xs font-bold text-slate-700 uppercase h-10 px-4">{t("audit.col_time")}</TableHead>
+                                <TableHead className="w-[23%] text-xs font-bold text-slate-700 uppercase h-10 px-4">{t("audit.col_actor")}</TableHead>
+                                <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10 px-4">{t("audit.col_action")}</TableHead>
+                                <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10 px-4">{t("audit.col_target")}</TableHead>
+                                <TableHead className="w-[26%] text-xs font-bold text-slate-700 uppercase h-10 px-4">{t("audit.col_details")}</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody className="divide-y divide-slate-100">
+                              {auditLogsLoading ? (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="h-44 text-center text-slate-500 text-xs">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#82181a] mb-2" />
+                                    <p className="text-xs">Loading audit logs...</p>
+                                  </TableCell>
+                                </TableRow>
+                              ) : auditLogs.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="h-44 text-center text-slate-500 text-xs">
+                                    <FileText className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                                    <p className="font-semibold text-slate-700">{t("audit.empty")}</p>
+                                    <p className="text-slate-400 text-[11px] mt-0.5">No administrative actions have been logged for this filter.</p>
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                auditLogs.map((log) => {
+                                  const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
+                                  const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
+                                  const isBiometrics = ["WIPE_ALL_SELFIES", "REGISTER_FACE", "FACE_SEARCH"].includes(log.action)
+
+                                  return (
+                                    <TableRow key={log.id} className="hover:bg-slate-50/70 text-xs transition-colors">
+                                      {/* Timestamp */}
+                                      <TableCell className="px-4 py-3">
+                                        <div className="flex flex-col">
+                                          <span className="text-xs font-medium text-slate-800">
+                                            {new Date(log.createdAt).toLocaleDateString(undefined, {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                            })}
+                                          </span>
+                                          <span className="text-[10px] font-mono text-slate-400">
+                                            {new Date(log.createdAt).toLocaleTimeString(undefined, {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              second: "2-digit",
+                                              hour12: false,
+                                            })}
+                                          </span>
+                                        </div>
+                                      </TableCell>
+
+                                      {/* Actor */}
+                                      <TableCell className="px-4 py-3">
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="font-semibold text-slate-800 truncate text-xs" title={log.actorEmail}>
+                                            {log.actorEmail}
+                                          </span>
+                                          {log.actorRole && (
+                                            <span className="text-[10px] font-mono text-slate-400">
+                                              {log.actorRole}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </TableCell>
+
+                                      {/* Action */}
+                                      <TableCell className="px-4 py-3">
+                                        <span
+                                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                            isDestructive
+                                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                              : isWarning
+                                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                              : isBiometrics
+                                              ? "bg-sky-50 text-sky-700 border border-sky-200"
+                                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                                          }`}
+                                        >
+                                          {log.action}
+                                        </span>
+                                      </TableCell>
+
+                                      {/* Target */}
+                                      <TableCell className="px-4 py-3">
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-xs font-medium text-slate-800 truncate" title={log.targetLabel || log.targetType || "—"}>
+                                            {log.targetLabel || log.targetType || "—"}
+                                          </span>
+                                          {log.targetLabel && log.targetType && (
+                                            <span className="text-[10px] text-slate-400 font-mono">
+                                              {log.targetType}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </TableCell>
+
+                                      {/* Details */}
+                                      <TableCell className="px-4 py-3 text-slate-600 text-xs leading-relaxed">
+                                        <span title={log.details || ""}>
+                                          {log.details || "—"}
+                                        </span>
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Pagination Footer */}
+                        {auditTotalPages > 1 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 bg-slate-50/70 border-t border-slate-200 text-xs text-slate-600">
+                            <span>
+                              Showing {auditLogs.length} of {auditLogsTotal} logs (Page {auditPage} of {auditTotalPages})
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const next = Math.max(1, auditPage - 1)
+                                  setAuditPage(next)
+                                  fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
+                                }}
+                                disabled={auditPage <= 1}
+                                className="h-7 text-xs px-2.5 rounded border-slate-300"
+                              >
+                                Previous
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const next = Math.min(auditTotalPages, auditPage + 1)
+                                  setAuditPage(next)
+                                  fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
+                                }}
+                                disabled={auditPage >= auditTotalPages}
+                                className="h-7 text-xs px-2.5 rounded border-slate-300"
+                              >
+                                Next
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </CardContent>
