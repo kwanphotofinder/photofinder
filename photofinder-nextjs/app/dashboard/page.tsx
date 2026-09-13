@@ -243,7 +243,7 @@ export default function DashboardPage() {
   }
 
   const handleDeleteSelfie = async () => {
-    if (!confirm("Are you sure you want to remove your profile selfie?")) return
+    if (!confirm(t("student.remove_profile_confirm"))) return
 
     setIsDeletingReference(true)
     try {
@@ -255,7 +255,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        alert(data?.error || "Failed to delete reference photo.")
+        alert(data?.error || t("student.remove_profile_error"))
         return
       }
 
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                 {hasReferenceFace && (
                   <Button onClick={handleDeleteSelfie} variant="ghost" size="sm" className="mt-6 h-9 rounded-none px-0 font-bold text-[#f4c66a] hover:bg-transparent hover:text-white" disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}>
                     {isDeletingReference ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    Remove profile
+                    {t("student.remove_profile")}
                   </Button>
                 )}
               </div>
