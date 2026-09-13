@@ -22,9 +22,9 @@ interface LivenessDetectionResult {
 }
 
 const challengeSteps = [
-  { key: "blink", label: "Blink", icon: Eye },
-  { key: "turn_left", label: "Turn left", icon: ArrowLeft },
-  { key: "turn_right", label: "Turn right", icon: ArrowRight },
+  { key: "blink", label: "Blink both eyes slowly", icon: Eye },
+  { key: "turn_left", label: "Turn head slowly left", icon: ArrowLeft },
+  { key: "turn_right", label: "Turn head slowly right", icon: ArrowRight },
 ]
 
 export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificationProps) {
@@ -327,12 +327,12 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
                 muted
                 playsInline
               />
-              <div className="absolute inset-0 border-[40px] border-black/40 rounded-full pointer-events-none" />
+              <div className="absolute inset-0 border-8 border-black/20 rounded-full pointer-events-none" />
               
               {/* Liveness Overlay */}
               {step === "liveness" && livenessData && (
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-                  <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${livenessData.face_detected ? 'bg-green-500/80 text-white' : 'bg-red-500/80 text-white'}`}>
+                <div className="absolute bottom-5 left-0 right-0 z-20 flex justify-center">
+                  <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-xs ${livenessData.face_detected ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
                     {livenessData.face_detected ? "Face Detected" : "No Face"}
                   </span>
                 </div>
@@ -343,13 +343,33 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
         {/* Direction Indicators for Liveness */}
         {step === "liveness" && currentChallenge.key === "turn_left" && (
-          <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="absolute left-6 text-primary animate-pulse pointer-events-none">
-            <ArrowLeft className="w-12 h-12 drop-shadow-lg" />
+          <motion.div
+            initial={{ x: -10, opacity: 0 }}
+            animate={{ x: [0, -6, 0], opacity: 1 }}
+            transition={{ repeat: Infinity, duration: 1.2 }}
+            className="absolute left-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-primary shadow-xl ring-2 ring-primary/40 pointer-events-none"
+          >
+            <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
           </motion.div>
         )}
         {step === "liveness" && currentChallenge.key === "turn_right" && (
-          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="absolute right-6 text-primary animate-pulse pointer-events-none">
-            <ArrowRight className="w-12 h-12 drop-shadow-lg" />
+          <motion.div
+            initial={{ x: 10, opacity: 0 }}
+            animate={{ x: [0, 8, 0], opacity: 1 }}
+            transition={{ repeat: Infinity, duration: 1.2 }}
+            className="absolute right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-primary shadow-xl ring-2 ring-primary/40 pointer-events-none"
+          >
+            <ArrowRight className="w-6 h-6 stroke-[2.5]" />
+          </motion.div>
+        )}
+        {step === "liveness" && currentChallenge.key === "blink" && (
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: [1, 1.12, 1], opacity: 1 }}
+            transition={{ repeat: Infinity, duration: 1.4 }}
+            className="absolute top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-primary shadow-xl ring-2 ring-primary/40 pointer-events-none"
+          >
+            <Eye className="w-5 h-5 stroke-[2.2]" />
           </motion.div>
         )}
 
