@@ -12,6 +12,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
@@ -70,6 +71,8 @@ export default function DashboardPage() {
   const [savedPhotoCount, setSavedPhotoCount] = useState(0)
   const [hasConsentedToFaceSearch, setHasConsentedToFaceSearch] = useState(true)
   const [showConsentNotice, setShowConsentNotice] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const displayName = userName || "Student"
 
@@ -241,10 +244,9 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDeleteSelfie = async () => {
-    if (!confirm(t("student.remove_profile_confirm"))) return
-
+  const handleConfirmDeleteSelfie = async () => {
     setIsDeletingReference(true)
+    setDeleteError(null)
     try {
       const authToken = localStorage.getItem("auth_token")
       const response = await fetch("/api/me/reference-face", {
@@ -254,7 +256,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        alert(data?.error || t("student.remove_profile_error"))
+        setDeleteError(data?.error || t("student.remove_profile_error"))
         return
       }
 
@@ -262,11 +264,12 @@ export default function DashboardPage() {
       setHasReferenceFace(false)
       setReferenceFaceUrl("")
       setAutoMatches([])
+      setShowDeleteModal(false)
 
       await fetchDashboardData()
     } catch (e) {
       console.error(e)
-      alert("Network error. Please try again.")
+      setDeleteError(t("student.network_error"))
     } finally {
       setIsDeletingReference(false)
     }
@@ -317,6 +320,83 @@ export default function DashboardPage() {
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0">
             <AlertDialogCancel>Dismiss</AlertDialogCancel>
             <AlertDialogAction onClick={() => router.push("/settings")}>Go to Settings</AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Selfie Confirmation Modal (Consistent with PhotoFinder UI theme) */}
+      <AlertDialog
+        open={showDeleteModal}
+        onOpenChange={(open) => {
+          if (!isDeletingReference) {
+            setShowDeleteModal(open)
+            if (!open) setDeleteError(null)
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("student.remove_profile_modal_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>{t("student.remove_profile_modal_desc")}</p>
+
+              {referenceFaceUrl && (
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-slate-50/80 p-3">
+                  <img
+                    src={referenceFaceUrl}
+                    alt={displayName}
+                    className="h-12 w-12 rounded-lg object-cover border border-border shrink-0"
+                  />
+                  <div className="min-w-0 flex-1 text-xs space-y-0.5">
+                    <p className="font-semibold text-foreground truncate">{displayName}</p>
+                    <p className="text-muted-foreground">{t("student.ref_face_registered")}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 text-destructive shrink-0" />
+                <p className="text-xs leading-relaxed text-foreground">
+                  {t("student.remove_profile_consequence")}
+                </p>
+              </div>
+
+              {deleteError && (
+                <p className="text-xs font-medium text-destructive">{deleteError}</p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel
+              disabled={isDeletingReference}
+              onClick={() => {
+                setShowDeleteModal(false)
+                setDeleteError(null)
+              }}
+            >
+              {t("student.remove_profile_cancel")}
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={isDeletingReference}
+              onClick={handleConfirmDeleteSelfie}
+            >
+              {isDeletingReference ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("student.remove_profile_deleting")}
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t("student.remove_profile_action")}
+                </>
+              )}
+            </Button>
           </div>
         </AlertDialogContent>
       </AlertDialog>
@@ -390,13 +470,16 @@ export default function DashboardPage() {
                 </div>
                 {hasReferenceFace && (
                   <Button
-                    onClick={handleDeleteSelfie}
+                    onClick={() => {
+                      setDeleteError(null)
+                      setShowDeleteModal(true)
+                    }}
                     variant="outline"
                     size="sm"
                     className="h-9 w-full rounded border-destructive/20 text-sm font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
                     disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
                   >
-                    {isDeletingReference ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    <Trash2 className="mr-2 h-4 w-4" />
                     {t("student.remove_profile")}
                   </Button>
                 )}
