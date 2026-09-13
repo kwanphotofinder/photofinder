@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PhotoGrid } from "@/components/photo-grid"
 import { IdentityVerification } from "@/components/identity-verification"
-import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, ShieldCheck, Sparkles, Trash2, UploadCloud, User } from "lucide-react"
+import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, ShieldCheck, Sparkles, Trash2, UploadCloud, User, ChevronRight } from "lucide-react"
 import { UploadLoader } from "@/components/upload-loader"
 import { useLanguage } from "@/lib/language-context"
 
@@ -36,18 +36,17 @@ interface Photo {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
-    <Card className="group relative overflow-hidden border-none bg-white/40 shadow-sm transition-all duration-300 hover:bg-white/60 hover:shadow-md hover:-translate-y-1">
-      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/5 transition-transform duration-500 group-hover:scale-150" />
-      <CardContent className="relative p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">{label}</p>
+    <Card className="group relative overflow-hidden rounded border border-slate-200 bg-white shadow-none transition-colors hover:border-primary/30">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{value}</span>
+              <span className="text-2xl font-bold tracking-tight text-foreground">{value}</span>
             </div>
           </div>
-          <div className="rounded-xl bg-primary/10 p-2.5 text-primary shadow-inner">
-            <Icon className="h-5 w-5" />
+          <div className="shrink-0 rounded bg-primary/10 p-2.5 text-primary ring-1 ring-inset ring-primary/10">
+            <Icon className="h-5 w-5" strokeWidth={2.2} />
           </div>
         </div>
       </CardContent>
@@ -292,22 +291,22 @@ export default function DashboardPage() {
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <AlertCircle className="h-5 w-5 text-amber-600" />
               Consent required
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 pt-2">
               <p>Enable these before using face search:</p>
               <div className="space-y-2">
-                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-                  <div className="text-xs text-foreground">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                  <div className="text-xs text-foreground space-y-0.5">
                     <p className="font-semibold">AI face search</p>
                     <p className="text-muted-foreground">Find your face in event photos.</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-                  <div className="text-xs text-foreground">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                  <div className="text-xs text-foreground space-y-0.5">
                     <p className="font-semibold">Data processing</p>
                     <p className="text-muted-foreground">Your biometric data is processed securely.</p>
                   </div>
@@ -315,24 +314,28 @@ export default function DashboardPage() {
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0">
             <AlertDialogCancel>Dismiss</AlertDialogCancel>
             <AlertDialogAction onClick={() => router.push("/settings")}>Go to Settings</AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      <main className="min-h-screen bg-[#faf9f7] text-slate-950">
-        <div className="border-b border-[#e2ddd6] bg-[#f5f3ef]">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
-            <div className="grid overflow-hidden border border-[#d8d2ca] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
-              <div className="relative flex min-h-70 flex-col justify-between overflow-hidden bg-[#fbf8f5] p-6 sm:p-9 lg:p-10">
-                <div className="relative z-10 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">
-                  <Sparkles className="h-4 w-4" /> {t("student.space")}
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="border-b border-slate-200 bg-slate-50">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="grid overflow-hidden rounded border border-slate-200 bg-white shadow-none lg:grid-cols-[1.3fr_.7fr]">
+              <div className="relative flex flex-col justify-between overflow-hidden bg-white p-6 sm:p-8 lg:p-10">
+                <div className="relative z-10">
+                  <div className="inline-flex items-center gap-2 rounded bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/15">
+                    <Sparkles className="h-3.5 w-3.5" /> {t("student.space")}
+                  </div>
                 </div>
-                <div className="relative z-10 mt-12">
-                  <p className="mb-2 text-sm font-medium text-slate-500">{t("student.welcome")}</p>
-                  <h1 className="max-w-xl text-3xl font-black tracking-[-0.03em] text-[#421012] sm:text-4xl lg:text-5xl">{displayName}</h1>
-                  <p className="mt-4 max-w-lg text-sm leading-6 text-slate-600 sm:text-base">
+                <div className="relative z-10 mt-10 space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t("student.welcome")}</p>
+                    <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">{displayName}</h1>
+                  </div>
+                  <p className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
                     {t("student.description")}
                   </p>
                 </div>
@@ -346,7 +349,7 @@ export default function DashboardPage() {
                       setShowVerification(true)
                     }}
                     size="lg"
-                    className="h-11 rounded-none bg-[#82181a] px-5 text-sm font-bold text-white hover:bg-[#641416]"
+                    className="h-11 px-6 text-sm font-semibold shadow-sm hover:shadow-md transition-shadow"
                     disabled={isDeletingReference}
                   >
                     <Camera className="mr-2 h-4 w-4" />
@@ -354,61 +357,122 @@ export default function DashboardPage() {
                   </Button>
                 </div>
               </div>
-              <div className="relative min-h-70 border-l-4 border-l-[#f4c66a] bg-[#f2e8e3] p-6 text-[#421012] sm:p-9 lg:p-10">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">
-                  <span>{t("student.profile_signal")}</span>
-                  <ShieldCheck className="h-5 w-5" />
+              <div className="relative min-h-[320px] flex flex-col justify-between border-t border-slate-200 bg-slate-50 p-6 sm:p-8 lg:border-l lg:border-t-0 lg:p-10">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("student.profile_signal")}</span>
+                  <div className="rounded bg-primary/10 p-2 text-primary ring-1 ring-inset ring-primary/10">
+                    <ShieldCheck className="h-5 w-5" strokeWidth={2.2} />
+                  </div>
                 </div>
-                <div className="mt-7 flex items-center gap-5">
-                  <div className={`h-28 w-28 shrink-0 overflow-hidden border-4 border-white bg-[#ded4c5] shadow-lg sm:h-36 sm:w-36 ${!hasConsentedToFaceSearch ? "grayscale opacity-50" : ""}`}>
+                <div className="flex flex-col items-center gap-5 my-8">
+                  <div className={`relative h-32 w-32 shrink-0 overflow-hidden rounded border-4 border-white bg-slate-100 shadow-sm sm:h-36 sm:w-36 ${!hasConsentedToFaceSearch ? "grayscale opacity-50" : ""}`}>
                     {hasReferenceFace && referenceFaceUrl ? (
                       <img src={referenceFaceUrl} alt="Reference face" className="h-full w-full object-cover" />
                     ) : (
-                      <img src="/Camera Icon.gif" alt="No selfie" className="h-full w-full object-contain p-3 opacity-50" />
+                        <div className="flex h-full w-full items-center justify-center bg-slate-100">
+                        <img src="/Camera Icon.gif" alt="No selfie" className="h-16 w-16 object-contain opacity-60" />
+                      </div>
+                    )}
+                    {hasReferenceFace && (
+                        <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-green-500 p-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                      </div>
                     )}
                   </div>
-                  <div>
-                    <p className="text-xl font-black tracking-tight text-[#421012]">{hasReferenceFace ? t("student.ready") : t("student.not_set_up")}</p>
-                    <p className="mt-2 max-w-42.5 text-sm leading-5 text-[#421012]/65">{hasReferenceFace ? t("student.ready_description") : t("student.not_set_up_description")}</p>
+                  <div className="text-center space-y-1.5">
+                    <p className="text-lg font-bold tracking-tight text-foreground">
+                      {hasReferenceFace ? t("student.ready") : t("student.not_set_up")}
+                    </p>
+                    <p className="text-sm leading-5 text-muted-foreground max-w-[240px]">
+                      {hasReferenceFace ? t("student.ready_description") : t("student.not_set_up_description")}
+                    </p>
                   </div>
                 </div>
                 {hasReferenceFace && (
-                  <Button onClick={handleDeleteSelfie} variant="ghost" size="sm" className="mt-6 h-9 rounded-none px-0 font-bold text-[#f4c66a] hover:bg-transparent hover:text-white" disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}>
+                  <Button
+                    onClick={handleDeleteSelfie}
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-full rounded border-destructive/20 text-sm font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+                    disabled={isDeletingReference || isUploading || !hasConsentedToFaceSearch}
+                  >
                     {isDeletingReference ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                     {t("student.remove_profile")}
                   </Button>
                 )}
               </div>
             </div>
-            <div className="grid border-x border-b border-[#d8d2ca] bg-white sm:grid-cols-3">
-              {stats.map((stat, index) => (
-                <div key={stat.label} className={`flex items-center justify-between px-5 py-5 sm:px-7 ${index > 0 ? "border-t border-[#d8d2ca] sm:border-l sm:border-t-0" : ""}`}>
-                  <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{stat.label}</p><p className="mt-1 text-2xl font-black tracking-tight text-[#421012]">{stat.value}</p></div>
-                  <stat.icon className="h-5 w-5 text-[#82181a]" />
-                </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {stats.map((stat) => (
+                <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
               ))}
             </div>
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8 lg:py-11">
           <section>
-            <div className="mb-7 flex items-end justify-between gap-4 border-b border-[#d8d2ca] pb-4">
-              <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">{t("student.collection")}</p><h2 className="mt-2 text-2xl font-black tracking-[-0.02em] sm:text-3xl">{t("student.recently_matched")}</h2></div>
-              <Button onClick={() => router.push("/search")} variant="ghost" className="hidden rounded-none px-0 font-bold text-[#82181a] hover:bg-transparent sm:flex">{t("student.view_all")} <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
+            <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("student.collection")}</p>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("student.recently_matched")}</h2>
+              </div>
+              <Button
+                onClick={() => router.push("/search")}
+                variant="ghost"
+                size="sm"
+                className="hidden text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-transparent sm:inline-flex items-center gap-1.5 p-0 h-auto"
+              >
+                {t("student.view_all")}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
             {isLoading ? (
-              <div className="border border-dashed border-[#cfc8bf] bg-white p-12 text-center text-sm text-slate-500">Loading your dashboard...</div>
+              <div className="flex flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-white p-14 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium text-foreground">Loading your dashboard...</p>
+                <p className="text-xs text-muted-foreground mt-1">Fetching your matched photos</p>
+              </div>
             ) : hasReferenceFace && autoMatches.length > 0 ? (
               <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={false} />
             ) : (
-              <div className="relative flex min-h-36 items-center justify-center overflow-hidden py-10">
-                <ImageIcon className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" />
-                <p className="select-none text-center text-3xl font-black uppercase tracking-[0.12em] text-[#82181a] opacity-[0.08] sm:text-4xl">{t("student.no_matches")}</p>
+              <div className="relative flex flex-col items-center justify-center rounded border border-slate-200 bg-white overflow-hidden p-14">
+                <div className="relative z-10 flex flex-col items-center text-center space-y-4 max-w-md">
+                  <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-inset ring-primary/10">
+                    <ImageIcon className="h-10 w-10 text-primary" strokeWidth={1.8} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                      {hasReferenceFace ? t("student.no_matches") : "Upload your selfie to get started"}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {hasReferenceFace
+                        ? "No photos matched your profile yet. Check back after your next campus event!"
+                        : "Set up your facial profile and we'll automatically find your photos from events."}
+                    </p>
+                  </div>
+                  {!hasReferenceFace && (
+                    <Button
+                      onClick={() => {
+                        if (!hasConsentedToFaceSearch) {
+                          setShowConsentNotice(true)
+                          return
+                        }
+                        setShowVerification(true)
+                      }}
+                      size="lg"
+                      className="mt-2 h-11 px-6 text-sm font-semibold shadow-sm hover:shadow-md transition-shadow"
+                      disabled={isDeletingReference}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      {t("student.set_selfie")}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </section>
-
         </div>
       </main>
       {/* Branded Loading Overlay */}
