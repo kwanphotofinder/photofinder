@@ -169,6 +169,25 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.requests": "คำร้องขอลบภาพ (Requests)",
     "menu.users": "จัดการผู้ใช้งาน (Users)",
     "menu.health": "สถานะระบบ (Health & Logs)",
+    "menu.audit_logs": "บันทึกการตรวจสอบ (Audit Logs)",
+
+    // Audit Logs Tab
+    "audit.title": "บันทึกการตรวจสอบความปลอดภัยและ PDPA (Audit Logs)",
+    "audit.desc": "ตรวจสอบประวัติการดำเนินงานของผู้ดูแลระบบ การจัดการสิทธิ และข้อมูลชีวมิติ",
+    "audit.retention_notice": "นโยบายการเก็บรักษาข้อมูล (PDPA 90 วัน): บันทึกการตรวจสอบจะถูกเก็บรักษาไว้เป็นเวลา 90 วันเพื่อความโปร่งใสทางกฎหมายและความปลอดภัย โดยระบบจะล้างข้อมูลที่เกินกำหนดโดยอัตโนมัติทุกเที่ยงคืน",
+    "audit.search_placeholder": "ค้นหาด้วยอีเมลผู้ทำรายการ, เป้าหมาย, หรือการกระทำ...",
+    "audit.export_csv": "ส่งออก CSV",
+    "audit.category_all": "ทั้งหมด (All Categories)",
+    "audit.category_biometrics": "ข้อมูลชีวมิติ (Biometrics)",
+    "audit.category_users": "จัดการผู้ใช้ (User Mgmt)",
+    "audit.category_content": "เนื้อหาและภาพถ่าย (Content)",
+    "audit.category_security": "ความปลอดภัย (Security)",
+    "audit.col_time": "เวลา (Timestamp)",
+    "audit.col_actor": "ผู้ดำเนินการ (Actor)",
+    "audit.col_action": "การกระทำ (Action)",
+    "audit.col_target": "เป้าหมาย (Target)",
+    "audit.col_details": "รายละเอียด (Details)",
+    "audit.empty": "ไม่พบบันทึกการตรวจสอบตามเงื่อนไขที่ระบุ",
 
     // Events Tab
     "events.title": "รายการกิจกรรมทั้งหมด (Events List)",
@@ -735,6 +754,25 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.requests": "Removal Requests",
     "menu.users": "User Management",
     "menu.health": "System Health & Logs",
+    "menu.audit_logs": "Audit Logs (Super Admin)",
+
+    // Audit Logs Tab
+    "audit.title": "Security & PDPA Audit Logs",
+    "audit.desc": "Track administrator activities, permission changes, and biometric data lifecycle",
+    "audit.retention_notice": "PDPA Compliance Retention (90 Days): All security and administrative audit logs are retained for 90 days in accordance with data protection regulations. Expired logs are automatically purged nightly by the system cron.",
+    "audit.search_placeholder": "Search by actor email, target, or action keyword...",
+    "audit.export_csv": "Export CSV",
+    "audit.category_all": "All Categories",
+    "audit.category_biometrics": "Biometrics & Privacy",
+    "audit.category_users": "User Management",
+    "audit.category_content": "Content Moderation",
+    "audit.category_security": "System Security",
+    "audit.col_time": "Timestamp",
+    "audit.col_actor": "Actor",
+    "audit.col_action": "Action",
+    "audit.col_target": "Target",
+    "audit.col_details": "Details",
+    "audit.empty": "No audit records found matching the current filters.",
 
     // Events Tab
     "events.title": "Events List",

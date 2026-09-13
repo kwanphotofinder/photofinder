@@ -38,6 +38,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: caller.sub,
+      actorEmail: caller.email || "unknown_admin",
+      actorRole: caller.role,
+      action: "SET_USER_ROLE",
+      category: "USER_MGMT",
+      targetType: "USER",
+      targetId: user.id,
+      targetLabel: user.email,
+      details: `Assigned role ${role} to ${email}.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    });
+
     return NextResponse.json({ message: `User ${email} role set to ${role}`, user });
   } catch (error) {
     console.error('POST /api/admin/users/set-role error:', error);

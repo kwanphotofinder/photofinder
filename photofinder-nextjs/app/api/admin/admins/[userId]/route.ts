@@ -78,6 +78,20 @@ export async function DELETE(
       await tx.user.delete({ where: { id: p.userId } });
     });
 
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: caller.sub,
+      actorEmail: caller.email || "unknown_admin",
+      actorRole: caller.role,
+      action: "PERMANENTLY_REMOVE_USER",
+      category: "USER_MGMT",
+      targetType: "USER",
+      targetId: p.userId,
+      targetLabel: target.email,
+      details: `Permanently deleted user account ${target.email} (${target.role}) and associated data.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    });
+
     return NextResponse.json({
       message: `User ${target.email} has been permanently removed from the system`,
     });

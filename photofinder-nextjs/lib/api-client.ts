@@ -222,4 +222,12 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ photoId }),
     }),
+  getAuditLogs: (params?: { category?: string; search?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.category) query.set("category", params.category)
+    if (params?.search) query.set("search", params.search)
+    if (params?.page) query.set("page", params.page.toString())
+    if (params?.limit) query.set("limit", params.limit.toString())
+    return apiCall<any>(`/admin/audit-logs?${query.toString()}`)
+  },
 };

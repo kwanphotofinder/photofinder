@@ -38,6 +38,20 @@ export async function DELETE(
     // 3. Delete original file from Cloudinary 
     await deleteFromCloudinary(photo.storageUrl);
 
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email || "unknown_user",
+      actorRole: user.role,
+      action: "DELETE_PHOTO",
+      category: "CONTENT",
+      targetType: "PHOTO",
+      targetId: p.id,
+      targetLabel: `Photo #${p.id.slice(0, 8)}`,
+      details: `Deleted photo and associated face records.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    });
+
     return NextResponse.json({ message: 'Photo deleted successfully', id: p.id });
   } catch (error) {
     console.error('DELETE /api/photos/[id] error:', error);

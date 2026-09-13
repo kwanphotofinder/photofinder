@@ -37,6 +37,20 @@ export async function POST(req: NextRequest) {
     // 3. Clear from Database
     const dbResult = await prisma.userFace.deleteMany({})
 
+    // 4. Record Audit Log
+    const { recordAuditLog } = await import("@/lib/audit-logger")
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email || "unknown_admin",
+      actorRole: user.role,
+      action: "WIPE_ALL_SELFIES",
+      category: "BIOMETRICS",
+      targetType: "SYSTEM",
+      targetLabel: "Student Biometric Profiles",
+      details: `Wiped ${deletedCount} selfie images from Cloudinary and ${dbResult.count} facial vector records from DB.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    })
+
     return NextResponse.json({ 
       success: true, 
       message: `Clean-up complete. ${deletedCount} images removed from Cloudinary, ${dbResult.count} records removed from DB.` 

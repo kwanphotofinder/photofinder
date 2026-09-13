@@ -35,6 +35,20 @@ export async function POST(req: NextRequest) {
       data: { isActive },
     });
 
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: caller.sub,
+      actorEmail: caller.email || "unknown_admin",
+      actorRole: caller.role,
+      action: isActive ? "UNBLOCK_USER" : "BLOCK_USER",
+      category: "USER_MGMT",
+      targetType: "USER",
+      targetId: user.id,
+      targetLabel: user.email,
+      details: isActive ? `Unblocked user account access for ${user.email}.` : `Blocked user account access for ${user.email}.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    });
+
     return NextResponse.json({ 
       success: true, 
       user: {

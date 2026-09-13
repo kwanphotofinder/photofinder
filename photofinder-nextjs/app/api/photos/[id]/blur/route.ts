@@ -129,6 +129,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       data: { storageUrl: uploadResult.secure_url }
     })
 
+    const { recordAuditLog } = await import("@/lib/audit-logger")
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email || "unknown_admin",
+      actorRole: user.role,
+      action: "BLUR_PHOTO_FACE",
+      category: "CONTENT",
+      targetType: "PHOTO",
+      targetId: photoId,
+      targetLabel: `Photo #${photoId.slice(0, 8)}`,
+      details: `Applied facial privacy blur to face coordinates [${bboxes}].`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    })
+
     return NextResponse.json({ success: true, url: uploadResult.secure_url, remainingFaces: photo.faces.length - 1 })
 
   } catch (error: any) {

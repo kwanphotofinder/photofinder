@@ -229,3 +229,23 @@ model PhotoEngagement {
   @@index([photoId], name: "idx_photo_engagements_photo")
   @@map("photo_engagements")
 }
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actorEmail  String
+  actorRole   Role?
+  action      String
+  category    String
+  targetType  String?
+  targetId    String?
+  targetLabel String?
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt], name: "audit_logs_createdAt_idx")
+  @@index([category], name: "audit_logs_category_idx")
+  @@index([actorEmail], name: "audit_logs_actorEmail_idx")
+  @@map("audit_logs")
+}

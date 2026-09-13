@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2 } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
@@ -42,6 +42,16 @@ export default function AdminDashboardPage() {
   const [userMgmtLoading, setUserMgmtLoading] = useState(false)
   const [userMgmtMessage, setUserMgmtMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [requestProcessingId, setRequestProcessingId] = useState<string | null>(null)
+
+  // Audit Logs state (Super Admin Only)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [auditLogsTotal, setAuditLogsTotal] = useState(0)
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false)
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState("ALL")
+  const [auditSearchQuery, setAuditSearchQuery] = useState("")
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditTotalPages, setAuditTotalPages] = useState(1)
+  const [isExportingCsv, setIsExportingCsv] = useState(false)
 
   const filteredAndSortedUsers = useMemo(() => {
     let result = allUsers
@@ -129,6 +139,16 @@ export default function AdminDashboardPage() {
           setAllUsers(usersRes.data.users || [])
           setCallerRole(usersRes.data.callerRole || "")
           setCallerEmail(usersRes.data.callerEmail || "")
+
+          // Fetch initial audit logs if caller is SUPER_ADMIN
+          if (usersRes.data.callerRole === "SUPER_ADMIN") {
+            const auditRes = await apiClient.getAuditLogs({ page: 1, limit: 25 })
+            if (auditRes.data) {
+              setAuditLogs(auditRes.data.logs || [])
+              setAuditLogsTotal(auditRes.data.total || 0)
+              setAuditTotalPages(auditRes.data.totalPages || 1)
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to fetch data", error)
@@ -139,6 +159,60 @@ export default function AdminDashboardPage() {
 
     fetchData()
   }, [router, lowConfidenceThreshold])
+
+  const fetchAuditLogs = async (cat = auditCategoryFilter, search = auditSearchQuery, page = auditPage) => {
+    setAuditLogsLoading(true)
+    try {
+      const res = await apiClient.getAuditLogs({
+        category: cat !== "ALL" ? cat : undefined,
+        search: search.trim() || undefined,
+        page,
+        limit: 25,
+      })
+      if (res.data) {
+        setAuditLogs(res.data.logs || [])
+        setAuditLogsTotal(res.data.total || 0)
+        setAuditTotalPages(res.data.totalPages || 1)
+      }
+    } catch (err) {
+      console.error("Failed to load audit logs:", err)
+    } finally {
+      setAuditLogsLoading(false)
+    }
+  }
+
+  const handleExportAuditLogsCsv = async () => {
+    setIsExportingCsv(true)
+    try {
+      const token = localStorage.getItem("auth_token")
+      const query = new URLSearchParams({ format: "csv" })
+      if (auditCategoryFilter !== "ALL") query.set("category", auditCategoryFilter)
+      if (auditSearchQuery.trim()) query.set("search", auditSearchQuery.trim())
+
+      const res = await fetch(`/api/admin/audit-logs?${query.toString()}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!res.ok) throw new Error("Failed to export audit logs")
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `photofinder_audit_logs_${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error("Export error:", err)
+      alert("Failed to export audit logs. Please try again.")
+    } finally {
+      setIsExportingCsv(false)
+    }
+  }
 
   // Confirmation Modal States
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null)
@@ -574,6 +648,9 @@ export default function AdminDashboardPage() {
                 { value: "requests", icon: Shield, label: t("menu.requests"), badge: removalRequests.length },
                 { value: "users", icon: Users, label: t("menu.users"), badge: allUsers.length },
                 { value: "health", icon: BarChart3, label: t("menu.health") },
+                ...(callerRole === "SUPER_ADMIN"
+                  ? [{ value: "audit", icon: FileText, label: t("menu.audit_logs"), badge: auditLogsTotal > 0 ? auditLogsTotal : undefined }]
+                  : []),
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -1335,6 +1412,285 @@ export default function AdminDashboardPage() {
                   </Card>
                 </div>
               </TabsContent>
+
+              {/* TAB: AUDIT LOGS (Super Admin Only) */}
+              {callerRole === "SUPER_ADMIN" && (
+                <TabsContent value="audit" className="mt-0">
+                  <div className="space-y-4">
+                    {/* Header Card with Export */}
+                    <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                      <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-[#82181a]" />
+                              {t("audit.title")}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-slate-500 mt-0.5">
+                              {t("audit.desc")}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => fetchAuditLogs(auditCategoryFilter, auditSearchQuery, auditPage)}
+                              disabled={auditLogsLoading}
+                              className="h-8 text-xs px-2.5 rounded border-slate-300 hover:bg-slate-50 shrink-0"
+                              title="Refresh logs"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${auditLogsLoading ? "animate-spin" : ""}`} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleExportAuditLogsCsv}
+                              disabled={isExportingCsv || auditLogs.length === 0}
+                              className="h-8 bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs px-3 rounded shrink-0 font-medium"
+                            >
+                              {isExportingCsv ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                  Exporting...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                                  {t("audit.export_csv")}
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="p-4 space-y-4">
+                        {/* PDPA 90-Day Retention Notice Banner */}
+                        <div className="rounded border border-amber-200 bg-amber-50/70 p-3 flex items-start gap-2.5">
+                          <Shield className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-900 leading-relaxed font-medium">
+                            {t("audit.retention_notice")}
+                          </div>
+                        </div>
+
+                        {/* Search & Category Filter Bar */}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          {/* Search Input */}
+                          <div className="relative w-full sm:w-80">
+                            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              placeholder={t("audit.search_placeholder")}
+                              value={auditSearchQuery}
+                              onChange={(e) => {
+                                setAuditSearchQuery(e.target.value)
+                                setAuditPage(1)
+                                fetchAuditLogs(auditCategoryFilter, e.target.value, 1)
+                              }}
+                              className="h-8 border-slate-300 bg-white pl-8 text-xs rounded"
+                            />
+                          </div>
+
+                          {/* Category Filter Pills */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {[
+                              { id: "ALL", label: t("audit.category_all") },
+                              { id: "BIOMETRICS", label: t("audit.category_biometrics") },
+                              { id: "USER_MGMT", label: t("audit.category_users") },
+                              { id: "CONTENT", label: t("audit.category_content") },
+                              { id: "SECURITY", label: t("audit.category_security") },
+                            ].map((cat) => (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => {
+                                  setAuditCategoryFilter(cat.id)
+                                  setAuditPage(1)
+                                  fetchAuditLogs(cat.id, auditSearchQuery, 1)
+                                }}
+                                className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors ${
+                                  auditCategoryFilter === cat.id
+                                    ? "bg-[#82181a] text-white"
+                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                {cat.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Audit Table (Desktop & Tablet) + Cards (Mobile) */}
+                        {auditLogsLoading ? (
+                          <div className="py-12 text-center text-slate-500">
+                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#82181a] mb-2" />
+                            <p className="text-xs">Loading audit logs...</p>
+                          </div>
+                        ) : auditLogs.length === 0 ? (
+                          <div className="py-12 text-center text-slate-500 border border-dashed border-slate-200 rounded">
+                            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-xs">{t("audit.empty")}</p>
+                          </div>
+                        ) : (
+                          <div className="border border-slate-200 rounded overflow-hidden">
+                            {/* Mobile Card View (hidden on tablet/desktop) */}
+                            <div className="divide-y divide-slate-100 block md:hidden">
+                              {auditLogs.map((log) => {
+                                const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
+                                const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
+
+                                return (
+                                  <div key={log.id} className="p-3 space-y-2 text-xs bg-white">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span
+                                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                          isDestructive
+                                            ? "bg-red-100 text-red-700 border border-red-200"
+                                            : isWarning
+                                            ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                            : "bg-blue-50 text-blue-700 border border-blue-200"
+                                        }`}
+                                      >
+                                        {log.action}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-slate-400">
+                                        {new Date(log.createdAt).toLocaleString(undefined, {
+                                          month: "short",
+                                          day: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-slate-500 font-medium">Actor:</span>
+                                      <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                                        {log.actorEmail} ({log.actorRole || "USER"})
+                                      </span>
+                                    </div>
+                                    {log.targetLabel && (
+                                      <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-slate-500 font-medium">Target:</span>
+                                        <span className="text-slate-700 truncate max-w-[200px]">{log.targetLabel}</span>
+                                      </div>
+                                    )}
+                                    {log.details && (
+                                      <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
+                                        {log.details}
+                                      </p>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+
+                            {/* Desktop & Tablet Table View */}
+                            <div className="hidden md:block overflow-x-auto">
+                              <Table>
+                                <TableHeader className="bg-slate-50">
+                                  <TableRow className="border-b border-slate-200">
+                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_time")}</TableHead>
+                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_actor")}</TableHead>
+                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_action")}</TableHead>
+                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_target")}</TableHead>
+                                    <TableHead className="text-[11px] font-bold text-slate-700 h-9 px-3">{t("audit.col_details")}</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody className="divide-y divide-slate-100">
+                                  {auditLogs.map((log) => {
+                                    const isDestructive = ["WIPE_ALL_SELFIES", "PERMANENTLY_REMOVE_USER", "DELETE_PHOTO", "BLOCK_USER"].includes(log.action)
+                                    const isWarning = ["SET_USER_ROLE", "UNBLOCK_USER", "BLUR_PHOTO_FACE"].includes(log.action)
+
+                                    return (
+                                      <TableRow key={log.id} className="hover:bg-slate-50/80 text-xs">
+                                        <TableCell className="px-3 py-2.5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                                          {new Date(log.createdAt).toLocaleString(undefined, {
+                                            month: "short",
+                                            day: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit",
+                                          })}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2.5">
+                                          <div className="flex flex-col">
+                                            <span className="font-semibold text-slate-800 truncate max-w-[180px]">
+                                              {log.actorEmail}
+                                            </span>
+                                            {log.actorRole && (
+                                              <span className="text-[10px] text-slate-500 font-mono">
+                                                {log.actorRole}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2.5">
+                                          <span
+                                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                              isDestructive
+                                                ? "bg-red-100 text-red-700 border border-red-200"
+                                                : isWarning
+                                                ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                                : "bg-blue-50 text-blue-700 border border-blue-200"
+                                            }`}
+                                          >
+                                            {log.action}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2.5 text-slate-700 font-medium max-w-[160px] truncate">
+                                          {log.targetLabel || log.targetType || "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2.5 text-slate-600 max-w-[260px] leading-snug">
+                                          {log.details || "—"}
+                                        </TableCell>
+                                      </TableRow>
+                                    )
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+
+                            {/* Pagination Footer */}
+                            {auditTotalPages > 1 && (
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                                <span>
+                                  Showing {auditLogs.length} of {auditLogsTotal} logs (Page {auditPage} of {auditTotalPages})
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const next = Math.max(1, auditPage - 1)
+                                      setAuditPage(next)
+                                      fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
+                                    }}
+                                    disabled={auditPage <= 1}
+                                    className="h-7 text-xs px-2.5 rounded"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const next = Math.min(auditTotalPages, auditPage + 1)
+                                      setAuditPage(next)
+                                      fetchAuditLogs(auditCategoryFilter, auditSearchQuery, next)
+                                    }}
+                                    disabled={auditPage >= auditTotalPages}
+                                    className="h-7 text-xs px-2.5 rounded"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              )}
             </div>
           </Tabs>
         </div>
