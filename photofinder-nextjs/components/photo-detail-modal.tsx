@@ -376,7 +376,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                       placeholder="Please explain why you want this photo removed"
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      className="min-h-[80px] rounded-xl"
+                      className="min-h-[80px] rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-primary focus-visible:ring-primary/25"
                       disabled={isSubmitting}
                     />
                   </div>
