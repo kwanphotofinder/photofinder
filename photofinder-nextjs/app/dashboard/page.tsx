@@ -21,6 +21,7 @@ import { IdentityVerification } from "@/components/identity-verification"
 import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Loader2, ShieldCheck, Sparkles, Trash2, UploadCloud, User, ChevronRight } from "lucide-react"
 import { UploadLoader } from "@/components/upload-loader"
 import { useLanguage } from "@/lib/language-context"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 
 interface Photo {
   id: string
@@ -291,23 +292,23 @@ export default function DashboardPage() {
     <>
       <Header userRole="student" />
       <AlertDialog open={showConsentNotice} onOpenChange={setShowConsentNotice}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="w-[92vw] sm:max-w-md max-h-[88vh] overflow-y-auto rounded-xl p-5 sm:p-6 border-border bg-card">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
+            <AlertDialogTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground text-left">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
               Consent required
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 pt-2">
+            <AlertDialogDescription className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
               <p>Enable these before using face search:</p>
               <div className="space-y-2">
-                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                   <div className="text-xs text-foreground space-y-0.5">
                     <p className="font-semibold">AI face search</p>
                     <p className="text-muted-foreground">Find your face in event photos.</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                   <div className="text-xs text-foreground space-y-0.5">
                     <p className="font-semibold">Data processing</p>
@@ -317,15 +318,17 @@ export default function DashboardPage() {
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0">
-            <AlertDialogCancel>Dismiss</AlertDialogCancel>
-            <AlertDialogAction onClick={() => router.push("/settings")}>Go to Settings</AlertDialogAction>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0 mt-4 pt-1">
+            <AlertDialogCancel className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium">Dismiss</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/settings")} className="w-full sm:w-auto h-10 sm:h-9 text-xs font-semibold">
+              Go to Settings
+            </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Selfie Confirmation Modal (Consistent with PhotoFinder UI theme) */}
-      <AlertDialog
+      {/* Delete Selfie Confirmation Modal */}
+      <ConfirmationModal
         open={showDeleteModal}
         onOpenChange={(open) => {
           if (!isDeletingReference) {
@@ -333,73 +336,44 @@ export default function DashboardPage() {
             if (!open) setDeleteError(null)
           }
         }}
-      >
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              {t("student.remove_profile_modal_title")}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 pt-2">
-              <p>{t("student.remove_profile_modal_desc")}</p>
+        title={t("student.remove_profile_modal_title")}
+        description={
+          <div className="space-y-3">
+            <p>{t("student.remove_profile_modal_desc")}</p>
 
-              {referenceFaceUrl && (
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-slate-50/80 p-3">
-                  <img
-                    src={referenceFaceUrl}
-                    alt={displayName}
-                    className="h-12 w-12 rounded-lg object-cover border border-border shrink-0"
-                  />
-                  <div className="min-w-0 flex-1 text-xs space-y-0.5">
-                    <p className="font-semibold text-foreground truncate">{displayName}</p>
-                    <p className="text-muted-foreground">{t("student.ref_face_registered")}</p>
-                  </div>
+            {referenceFaceUrl && (
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-slate-50/80 p-2.5 sm:p-3">
+                <img
+                  src={referenceFaceUrl}
+                  alt={displayName}
+                  className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg object-cover border border-border shrink-0"
+                />
+                <div className="min-w-0 flex-1 text-xs space-y-0.5">
+                  <p className="font-semibold text-foreground truncate">{displayName}</p>
+                  <p className="text-muted-foreground">{t("student.ref_face_registered")}</p>
                 </div>
-              )}
-
-              <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 text-destructive shrink-0" />
-                <p className="text-xs leading-relaxed text-foreground">
-                  {t("student.remove_profile_consequence")}
-                </p>
               </div>
+            )}
 
-              {deleteError && (
-                <p className="text-xs font-medium text-destructive">{deleteError}</p>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 sm:p-3">
+              <AlertCircle className="mt-0.5 h-4 w-4 text-destructive shrink-0" />
+              <p className="text-xs leading-relaxed text-foreground">
+                {t("student.remove_profile_consequence")}
+              </p>
+            </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0 mt-2">
-            <AlertDialogCancel
-              disabled={isDeletingReference}
-              onClick={() => {
-                setShowDeleteModal(false)
-                setDeleteError(null)
-              }}
-            >
-              {t("student.remove_profile_cancel")}
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={isDeletingReference}
-              onClick={handleConfirmDeleteSelfie}
-            >
-              {isDeletingReference ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("student.remove_profile_deleting")}
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t("student.remove_profile_action")}
-                </>
-              )}
-            </Button>
+            {deleteError && (
+              <p className="text-xs font-medium text-destructive">{deleteError}</p>
+            )}
           </div>
-        </AlertDialogContent>
-      </AlertDialog>
+        }
+        confirmText={t("student.remove_profile_action")}
+        cancelText={t("student.remove_profile_cancel")}
+        confirmIcon={<Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+        variant="destructive"
+        isLoading={isDeletingReference}
+        onConfirm={handleConfirmDeleteSelfie}
+      />
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="border-b border-slate-200 bg-slate-50">
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

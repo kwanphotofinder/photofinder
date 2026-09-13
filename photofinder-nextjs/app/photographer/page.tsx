@@ -37,6 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiClient } from "@/lib/api-client"
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useLanguage } from "@/lib/language-context"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 
 async function extractFilesFromDataTransfer(dataTransfer: DataTransfer): Promise<File[]> {
   const files: File[] = [];
@@ -541,14 +542,16 @@ export default function PhotographerPage() {
     }
   }
 
-  const handleDeletePhoto = async (photoId: string) => {
-    if (!confirm("Are you sure you want to delete this photo? This action cannot be undone.")) {
-      return
-    }
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null)
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false)
 
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete) return
+
+    setIsDeletingPhoto(true)
     try {
-      console.log('Deleting photo:', photoId);
-      const response = await apiClient.deletePhoto(photoId);
+      console.log('Deleting photo:', photoToDelete);
+      const response = await apiClient.deletePhoto(photoToDelete);
       console.log('Delete response:', response);
 
       if (response.error) {
@@ -558,10 +561,13 @@ export default function PhotographerPage() {
       // Reload data from server to ensure sync
       await loadData();
       await loadPhotographerAnalytics();
+      setPhotoToDelete(null)
       console.log('Photo deleted and data reloaded');
     } catch (error) {
       console.error("[v0] Delete error:", error)
       alert("Failed to delete photo. Please try again.")
+    } finally {
+      setIsDeletingPhoto(false)
     }
   }
 
@@ -1113,7 +1119,7 @@ export default function PhotographerPage() {
                         <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs px-2 py-1 rounded text-white">
                           <button
                             type="button"
-                            onClick={() => handleDeletePhoto(photo.id)}
+                            onClick={() => setPhotoToDelete(photo.id)}
                             className="text-white hover:text-red-400 p-0.5"
                             title={t("photo.manage.delete")}
                           >
@@ -1299,6 +1305,18 @@ export default function PhotographerPage() {
           )}
         </main>
       </div>
+
+      <ConfirmationModal
+        open={!!photoToDelete}
+        onOpenChange={(open) => !open && setPhotoToDelete(null)}
+        title="Delete Photo"
+        description="Are you sure you want to delete this photo? This action cannot be undone and will remove all facial matches associated with it."
+        confirmText="Delete Photo"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeletingPhoto}
+        onConfirm={confirmDeletePhoto}
+      />
     </>
   )
 }

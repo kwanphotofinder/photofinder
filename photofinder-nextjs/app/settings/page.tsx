@@ -24,6 +24,7 @@ import { FaLine } from "react-icons/fa"
 import { SiGmail } from "react-icons/si"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 
 type AccountProfile = {
   name: string
@@ -177,8 +178,10 @@ export default function SettingsPage() {
     }
   }
 
-  const handleUnlinkLine = async () => {
-    if (!confirm("Are you sure you want to unlink your LINE account? You will stop receiving photo notifications via LINE.")) return
+  const [showUnlinkLineModal, setShowUnlinkLineModal] = useState(false)
+  const [showFullDeleteModal, setShowFullDeleteModal] = useState(false)
+
+  const handleConfirmUnlinkLine = async () => {
     const authToken = localStorage.getItem("auth_token")
     if (!authToken) return
 
@@ -190,6 +193,7 @@ export default function SettingsPage() {
       })
       if (res.ok) {
         setLineLinked(false)
+        setShowUnlinkLineModal(false)
       } else {
         alert("Failed to unlink LINE account. Please try again.")
       }
@@ -274,12 +278,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleFullDeleteData = async () => {
-    const shouldProceed = confirm(
-      "คำเตือน: การลบข้อมูลจะลบรูปใบหน้าอ้างอิง เวกเตอร์ใบหน้า และข้อมูลที่บันทึกไว้ทั้งหมดอย่างถาวร ยืนยันที่จะดำเนินการหรือไม่?",
-    )
-    if (!shouldProceed) return
-
+  const handleConfirmFullDeleteData = async () => {
     setIsDeletingData(true)
     setDeletionStatus("processing")
     setDeletionSummary("")
@@ -301,6 +300,7 @@ export default function SettingsPage() {
       )
 
       setConsent({ globalFaceSearch: false, dataProcessing: false })
+      setShowFullDeleteModal(false)
 
       localStorage.setItem(
         "consent_preferences",
@@ -470,7 +470,7 @@ export default function SettingsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleUnlinkLine}
+                      onClick={() => setShowUnlinkLineModal(true)}
                       disabled={isUnlinkingLine}
                       className="border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold h-8 rounded cursor-pointer"
                     >
@@ -660,7 +660,7 @@ export default function SettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleFullDeleteData}
+                  onClick={() => setShowFullDeleteModal(true)}
                   disabled={isDeletingData || isExportingData}
                   className="w-full bg-white hover:bg-rose-50 text-rose-700 border-rose-200 text-xs font-semibold h-8 rounded cursor-pointer"
                 >
@@ -701,6 +701,34 @@ export default function SettingsPage() {
           </div>
         </div>
       </main>
+
+      {/* Unlink LINE Confirmation Modal */}
+      <ConfirmationModal
+        open={showUnlinkLineModal}
+        onOpenChange={setShowUnlinkLineModal}
+        title="Unlink LINE Account"
+        description="Are you sure you want to unlink your LINE account? You will no longer receive instant event photo notifications via LINE."
+        confirmText="Unlink LINE"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isUnlinkingLine}
+        onConfirm={handleConfirmUnlinkLine}
+      />
+
+      {/* Full Privacy Data Deletion Modal */}
+      <ConfirmationModal
+        open={showFullDeleteModal}
+        onOpenChange={setShowFullDeleteModal}
+        title="Permanently Delete All Biometric Data"
+        description="Warning: This action will permanently erase your reference selfies, facial embeddings/vectors, and saved photo bookmarks. Your account will be reset to an unverified state."
+        confirmText="Permanently Delete All Data"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeletingData}
+        requireMatchText="DELETE"
+        matchPlaceholder="Type DELETE to confirm"
+        onConfirm={handleConfirmFullDeleteData}
+      />
     </>
   )
 }

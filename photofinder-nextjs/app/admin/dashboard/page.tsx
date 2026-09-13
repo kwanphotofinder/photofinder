@@ -13,6 +13,7 @@ import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, B
 import { SystemHealth } from "@/components/system-health"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -139,16 +140,38 @@ export default function AdminDashboardPage() {
     fetchData()
   }, [router, lowConfidenceThreshold])
 
-  const handleDeletePhoto = async (photoId: string) => {
-    if (!confirm("Are you sure you want to delete this photo?")) return
+  // Confirmation Modal States
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null)
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false)
 
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null)
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false)
+
+  const [approveRequestItem, setApproveRequestItem] = useState<{ requestId: string; photoId: string } | null>(null)
+  const [rejectRequestItem, setRejectRequestItem] = useState<string | null>(null)
+  const [blurRequestItem, setBlurRequestItem] = useState<{ requestId: string; photoId: string; bboxes: string } | null>(null)
+
+  const [showCleanOldSelfiesModal, setShowCleanOldSelfiesModal] = useState(false)
+  const [isCleaningSelfies, setIsCleaningSelfies] = useState(false)
+
+  const [userStatusToToggle, setUserStatusToToggle] = useState<any | null>(null)
+  const [userToDemote, setUserToDemote] = useState<any | null>(null)
+  const [userToRemove, setUserToRemove] = useState<any | null>(null)
+
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete) return
+
+    setIsDeletingPhoto(true)
     try {
-      await apiClient.deletePhoto(photoId)
-      setPhotos(photos.filter(p => p.id !== photoId))
-      setLowConfidencePhotos(lowConfidencePhotos.filter((p) => p.id !== photoId))
+      await apiClient.deletePhoto(photoToDelete)
+      setPhotos(prev => prev.filter(p => p.id !== photoToDelete))
+      setLowConfidencePhotos(prev => prev.filter((p) => p.id !== photoToDelete))
+      setPhotoToDelete(null)
     } catch (error) {
       console.error("Failed to delete photo", error)
       alert("Failed to delete photo")
+    } finally {
+      setIsDeletingPhoto(false)
     }
   }
 
@@ -215,7 +238,7 @@ export default function AdminDashboardPage() {
 
   const handleDeleteFromModal = async () => {
     if (!selectedLowConfidencePhoto) return
-    await handleDeletePhoto(selectedLowConfidencePhoto.id)
+    setPhotoToDelete(selectedLowConfidencePhoto.id)
     closeLowConfidenceModal()
   }
 
@@ -230,32 +253,34 @@ export default function AdminDashboardPage() {
     window.open(selectedLowConfidencePhoto.storageUrl, "_blank", "noopener,noreferrer")
   }
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm("Are you sure you want to delete this event? This will also delete all associated photos.")) return
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return
 
+    setIsDeletingEvent(true)
     try {
-      await apiClient.deleteEvent(eventId)
-      setEvents(events.filter(e => e.id !== eventId))
-      // Also remove photos associated with this event from the local state
-      setPhotos(photos.filter(p => p.eventId !== eventId))
+      await apiClient.deleteEvent(eventToDelete)
+      setEvents(events.filter(e => e.id !== eventToDelete))
+      setPhotos(photos.filter(p => p.eventId !== eventToDelete))
+      setEventToDelete(null)
     } catch (error) {
       console.error("Failed to delete event", error)
       alert("Failed to delete event")
+    } finally {
+      setIsDeletingEvent(false)
     }
   }
 
-  const handleApproveRequest = async (requestId: string, photoId: string) => {
-    if (!confirm("Are you sure you want to approve this removal request and delete the photo?")) return
+  const confirmApproveRequest = async () => {
+    if (!approveRequestItem) return
 
+    const { requestId, photoId } = approveRequestItem
     setRequestProcessingId(requestId)
     try {
-      // Delete the request first to avoid foreign-key constraint conflicts when deleting the photo.
       await apiClient.deleteRemovalRequest(requestId)
-      // Then delete the photo
       await apiClient.deletePhoto(photoId)
-      // Update local state
       setPhotos(photos.filter(p => p.id !== photoId))
       setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
+      setApproveRequestItem(null)
       alert("Photo removed successfully")
     } catch (error) {
       console.error("Failed to approve request", error)
@@ -265,13 +290,15 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const handleRejectRequest = async (requestId: string) => {
-    if (!confirm("Are you sure you want to reject this removal request?")) return
+  const confirmRejectRequest = async () => {
+    if (!rejectRequestItem) return
 
+    const requestId = rejectRequestItem
     setRequestProcessingId(requestId)
     try {
       await apiClient.deleteRemovalRequest(requestId)
       setRemovalRequests(removalRequests.filter(r => r.id !== requestId))
+      setRejectRequestItem(null)
       alert("Request rejected")
     } catch (error) {
       console.error("Failed to reject request", error)
@@ -281,9 +308,10 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const handleBlurRequest = async (requestId: string, photoId: string, bboxes: string) => {
-    if (!confirm("Are you sure you want to blur the faces in this photo? This cannot be undone.")) return
+  const confirmBlurRequest = async () => {
+    if (!blurRequestItem) return
 
+    const { requestId, photoId, bboxes } = blurRequestItem
     setRequestProcessingId(requestId)
     try {
       const token = localStorage.getItem("auth_token")
@@ -315,6 +343,7 @@ export default function AdminDashboardPage() {
       } else {
         alert("Photo blurred successfully and request resolved.")
       }
+      setBlurRequestItem(null)
     } catch (error) {
       console.error("Failed to blur request", error)
       alert("Failed to blur request")
@@ -323,9 +352,8 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const handleCleanUpOldSelfies = async () => {
-    if (!confirm("WARNING: This will permanently delete ALL old profile selfies and force all users to re-verify their identity. Are you absolutely sure?")) return
-
+  const confirmCleanUpOldSelfies = async () => {
+    setIsCleaningSelfies(true)
     try {
       const authToken = localStorage.getItem("auth_token")
       const res = await fetch("/api/admin/clean-old-selfies", { 
@@ -335,6 +363,7 @@ export default function AdminDashboardPage() {
         }
       })
       const result = await res.json()
+      setShowCleanOldSelfiesModal(false)
       if (res.ok) {
         alert(result.message)
       } else {
@@ -342,6 +371,71 @@ export default function AdminDashboardPage() {
       }
     } catch (error) {
       alert("Failed to run clean-up script.")
+    } finally {
+      setIsCleaningSelfies(false)
+    }
+  }
+
+  const confirmToggleUserStatus = async () => {
+    if (!userStatusToToggle) return
+    setUserMgmtLoading(true)
+    setUserMgmtMessage(null)
+    try {
+      const res = await apiClient.setUserStatus(userStatusToToggle.id, !userStatusToToggle.isActive)
+      if (res.error) {
+        setUserMgmtMessage({ type: "error", text: res.error })
+      } else {
+        setUserMgmtMessage({ type: "success", text: `Updated status for ${userStatusToToggle.email}` })
+        const usersRes = await apiClient.getAdminUsers()
+        if (usersRes.data) setAllUsers(usersRes.data.users || [])
+      }
+      setUserStatusToToggle(null)
+    } catch (err) {
+      setUserMgmtMessage({ type: "error", text: "Failed to update user status" })
+    } finally {
+      setUserMgmtLoading(false)
+    }
+  }
+
+  const confirmDemoteUser = async () => {
+    if (!userToDemote) return
+    setUserMgmtLoading(true)
+    setUserMgmtMessage(null)
+    try {
+      const res = await apiClient.removeUserRole(userToDemote.id)
+      if (res.error) {
+        setUserMgmtMessage({ type: "error", text: res.error })
+      } else {
+        setUserMgmtMessage({ type: "success", text: `Demoted ${userToDemote.email} to student` })
+        const usersRes = await apiClient.getAdminUsers()
+        if (usersRes.data) setAllUsers(usersRes.data.users || [])
+      }
+      setUserToDemote(null)
+    } catch (err) {
+      setUserMgmtMessage({ type: "error", text: "Failed to demote user" })
+    } finally {
+      setUserMgmtLoading(false)
+    }
+  }
+
+  const confirmRemoveUser = async () => {
+    if (!userToRemove) return
+    setUserMgmtLoading(true)
+    setUserMgmtMessage(null)
+    try {
+      const res = await apiClient.removeAdmin(userToRemove.id)
+      if (res.error) {
+        setUserMgmtMessage({ type: "error", text: res.error })
+      } else {
+        setUserMgmtMessage({ type: "success", text: `Deleted user ${userToRemove.email}` })
+        const usersRes = await apiClient.getAdminUsers()
+        if (usersRes.data) setAllUsers(usersRes.data.users || [])
+      }
+      setUserToRemove(null)
+    } catch (err) {
+      setUserMgmtMessage({ type: "error", text: "Failed to delete user" })
+    } finally {
+      setUserMgmtLoading(false)
     }
   }
 
@@ -581,7 +675,7 @@ export default function AdminDashboardPage() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleDeleteEvent(event.id)}
+                                      onClick={() => setEventToDelete(event.id)}
                                       className="h-7 px-2.5 text-xs border-red-200 text-red-600 hover:bg-red-50 bg-white rounded"
                                     >
                                       <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -641,7 +735,7 @@ export default function AdminDashboardPage() {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeletePhoto(photo.id)}
+                                onClick={() => setPhotoToDelete(photo.id)}
                                 className="h-8 w-8 p-0 rounded shadow-xs"
                                 title="Delete Photo"
                               >
@@ -882,7 +976,7 @@ export default function AdminDashboardPage() {
                               {request.photo && request.photo.faceCount > 1 && request.faceCoordinates ? (
                                 <Button
                                   size="sm"
-                                  onClick={() => handleBlurRequest(request.id, request.photoId, request.faceCoordinates)}
+                                  onClick={() => setBlurRequestItem({ requestId: request.id, photoId: request.photoId, bboxes: request.faceCoordinates })}
                                   disabled={requestProcessingId === request.id}
                                   className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#6b1416] text-white disabled:opacity-60"
                                 >
@@ -899,7 +993,7 @@ export default function AdminDashboardPage() {
                                 /* If solo photo (1 face) or no coordinates, approve Delete */
                                 <Button
                                   size="sm"
-                                  onClick={() => handleApproveRequest(request.id, request.photoId)}
+                                  onClick={() => setApproveRequestItem({ requestId: request.id, photoId: request.photoId })}
                                   disabled={requestProcessingId === request.id}
                                   className="h-8 text-xs rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
                                 >
@@ -916,7 +1010,7 @@ export default function AdminDashboardPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleRejectRequest(request.id)}
+                                onClick={() => setRejectRequestItem(request.id)}
                                 disabled={requestProcessingId === request.id}
                                 className="h-8 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                               >
@@ -1157,20 +1251,7 @@ export default function AdminDashboardPage() {
                                             size="sm"
                                             className={`h-7 px-2 text-xs rounded border ${u.isActive ? "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
                                             disabled={userMgmtLoading}
-                                            onClick={async () => {
-                                              if (!confirm(`Are you sure you want to ${u.isActive ? 'block' : 'unblock'} ${u.email}?`)) return
-                                              setUserMgmtLoading(true)
-                                              setUserMgmtMessage(null)
-                                              const res = await apiClient.setUserStatus(u.id, !u.isActive)
-                                              if (res.error) {
-                                                setUserMgmtMessage({ type: "error", text: res.error })
-                                              } else {
-                                                setUserMgmtMessage({ type: "success", text: `Updated status for ${u.email}` })
-                                                const usersRes = await apiClient.getAdminUsers()
-                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                              }
-                                              setUserMgmtLoading(false)
-                                            }}
+                                            onClick={() => setUserStatusToToggle(u)}
                                             title={u.isActive ? t("users.btn.block") : t("users.btn.unblock")}
                                           >
                                             {u.isActive ? <Ban className="w-3 h-3 mr-1" /> : <Unlock className="w-3 h-3 mr-1" />}
@@ -1184,20 +1265,7 @@ export default function AdminDashboardPage() {
                                             size="sm"
                                             className="h-7 px-2 text-xs rounded border-slate-300 text-slate-700 hover:bg-slate-100"
                                             disabled={userMgmtLoading}
-                                            onClick={async () => {
-                                              if (!confirm(`Demote ${u.email} to student?`)) return
-                                              setUserMgmtLoading(true)
-                                              setUserMgmtMessage(null)
-                                              const res = await apiClient.removeUserRole(u.id)
-                                              if (res.error) {
-                                                setUserMgmtMessage({ type: "error", text: res.error })
-                                              } else {
-                                                setUserMgmtMessage({ type: "success", text: `Demoted ${u.email} to student` })
-                                                const usersRes = await apiClient.getAdminUsers()
-                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                              }
-                                              setUserMgmtLoading(false)
-                                            }}
+                                            onClick={() => setUserToDemote(u)}
                                             title={t("users.btn.demote")}
                                           >
                                             <UserMinus className="w-3 h-3 mr-1" />
@@ -1211,24 +1279,7 @@ export default function AdminDashboardPage() {
                                             size="sm"
                                             className="h-7 px-2 text-xs rounded border-red-200 text-red-600 hover:bg-red-50"
                                             disabled={userMgmtLoading}
-                                            onClick={async () => {
-                                              const confirmation = prompt(
-                                                `Type REMOVE to permanently delete user ${u.email}:`
-                                              )
-                                              if (confirmation !== "REMOVE") return
-    
-                                              setUserMgmtLoading(true)
-                                              setUserMgmtMessage(null)
-                                              const res = await apiClient.removeAdmin(u.id)
-                                              if (res.error) {
-                                                setUserMgmtMessage({ type: "error", text: res.error })
-                                              } else {
-                                                setUserMgmtMessage({ type: "success", text: `Deleted user ${u.email}` })
-                                                const usersRes = await apiClient.getAdminUsers()
-                                                if (usersRes.data) setAllUsers(usersRes.data.users || [])
-                                              }
-                                              setUserMgmtLoading(false)
-                                            }}
+                                            onClick={() => setUserToRemove(u)}
                                             title={t("users.btn.delete")}
                                           >
                                             <Trash2 className="w-3 h-3 mr-1" />
@@ -1270,7 +1321,7 @@ export default function AdminDashboardPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={handleCleanUpOldSelfies}
+                          onClick={() => setShowCleanOldSelfiesModal(true)}
                           className="h-8 text-xs rounded shrink-0 bg-red-600 hover:bg-red-700"
                         >
                           {t("health.danger.wipe_btn")}
@@ -1288,6 +1339,131 @@ export default function AdminDashboardPage() {
           </Tabs>
         </div>
       </main>
+
+      {/* Delete Photo Confirmation Modal */}
+      <ConfirmationModal
+        open={!!photoToDelete}
+        onOpenChange={(open) => !open && setPhotoToDelete(null)}
+        title="Delete Photo"
+        description="Are you sure you want to delete this photo? This will permanently remove the photo file and all facial match embeddings."
+        confirmText="Delete Photo"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeletingPhoto}
+        onConfirm={confirmDeletePhoto}
+      />
+
+      {/* Delete Event Confirmation Modal */}
+      <ConfirmationModal
+        open={!!eventToDelete}
+        onOpenChange={(open) => !open && setEventToDelete(null)}
+        title="Delete Event"
+        description="Are you sure you want to delete this event? This will also permanently remove all photos associated with this event."
+        confirmText="Delete Event"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeletingEvent}
+        onConfirm={confirmDeleteEvent}
+      />
+
+      {/* Approve Removal Request (Delete Photo) Modal */}
+      <ConfirmationModal
+        open={!!approveRequestItem}
+        onOpenChange={(open) => !open && setApproveRequestItem(null)}
+        title="Approve Removal Request (Delete Photo)"
+        description="Are you sure you want to approve this privacy removal request? The photo will be permanently deleted from the system and event gallery."
+        confirmText="Approve & Delete Photo"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={!!requestProcessingId}
+        onConfirm={confirmApproveRequest}
+      />
+
+      {/* Reject Removal Request Modal */}
+      <ConfirmationModal
+        open={!!rejectRequestItem}
+        onOpenChange={(open) => !open && setRejectRequestItem(null)}
+        title="Reject Removal Request"
+        description="Are you sure you want to reject this removal request? The photo will remain published in the event gallery."
+        confirmText="Reject Request"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={!!requestProcessingId}
+        onConfirm={confirmRejectRequest}
+      />
+
+      {/* Blur Face on Photo Modal */}
+      <ConfirmationModal
+        open={!!blurRequestItem}
+        onOpenChange={(open) => !open && setBlurRequestItem(null)}
+        title="Blur Face on Photo"
+        description="Are you sure you want to apply AI facial blurring to this photo? The requested face will be permanently blurred."
+        confirmText="Blur Photo"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={!!requestProcessingId}
+        onConfirm={confirmBlurRequest}
+      />
+
+      {/* Clean Up Old Selfies Modal */}
+      <ConfirmationModal
+        open={showCleanOldSelfiesModal}
+        onOpenChange={setShowCleanOldSelfiesModal}
+        title="Permanently Wipe All Old Selfies"
+        description="WARNING: This will permanently delete ALL registered student profile selfies and facial vectors from the database. All students will be required to re-verify identity."
+        confirmText="Wipe All Selfies"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isCleaningSelfies}
+        requireMatchText="WIPE"
+        matchPlaceholder="Type WIPE to confirm"
+        onConfirm={confirmCleanUpOldSelfies}
+      />
+
+      {/* Block / Unblock User Modal */}
+      <ConfirmationModal
+        open={!!userStatusToToggle}
+        onOpenChange={(open) => !open && setUserStatusToToggle(null)}
+        title={userStatusToToggle?.isActive ? "Block User" : "Unblock User"}
+        description={
+          userStatusToToggle?.isActive
+            ? `Are you sure you want to block access for ${userStatusToToggle?.email}? They will not be able to log in.`
+            : `Are you sure you want to unblock access for ${userStatusToToggle?.email}?`
+        }
+        confirmText={userStatusToToggle?.isActive ? "Block User" : "Unblock User"}
+        cancelText="Cancel"
+        variant={userStatusToToggle?.isActive ? "destructive" : "default"}
+        isLoading={userMgmtLoading}
+        onConfirm={confirmToggleUserStatus}
+      />
+
+      {/* Demote User Modal */}
+      <ConfirmationModal
+        open={!!userToDemote}
+        onOpenChange={(open) => !open && setUserToDemote(null)}
+        title="Demote User Role"
+        description={`Are you sure you want to demote ${userToDemote?.email} back to standard student role? They will lose access to privileged dashboards.`}
+        confirmText="Demote User"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={userMgmtLoading}
+        onConfirm={confirmDemoteUser}
+      />
+
+      {/* Permanently Remove User Modal */}
+      <ConfirmationModal
+        open={!!userToRemove}
+        onOpenChange={(open) => !open && setUserToRemove(null)}
+        title="Permanently Remove User"
+        description={`Warning: This action will permanently remove ${userToRemove?.email} from the administrator/photographer roster.`}
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={userMgmtLoading}
+        requireMatchText="REMOVE"
+        matchPlaceholder="Type REMOVE to confirm"
+        onConfirm={confirmRemoveUser}
+      />
     </>
   )
 }
