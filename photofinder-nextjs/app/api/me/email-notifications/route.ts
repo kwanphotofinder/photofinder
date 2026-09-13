@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { enabled } = await req.json();
+    const { enabled } = await req.json().catch(() => ({}));
 
     const updatedUser = await prisma.user.update({
       where: { id: user.sub },
@@ -35,4 +35,8 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+export async function PUT(req: NextRequest) {
+  return PATCH(req);
 }

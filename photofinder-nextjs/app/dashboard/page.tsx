@@ -161,12 +161,25 @@ export default function DashboardPage() {
         setHasReferenceFace(true)
         setReferenceFaceUrl(faceData.userFace.imageUrl)
 
-        const matchRes = await fetch("/api/me/matches", {
-          headers: { Authorization: `Bearer ${authToken}` },
-        })
-        const matchData = await matchRes.json()
-        if (matchRes.ok) {
-          setAutoMatches(matchData.results)
+        let allowAutoMatch = true
+        const storedPrefs = localStorage.getItem("consent_preferences")
+        if (storedPrefs) {
+          try {
+            const parsed = JSON.parse(storedPrefs)
+            if (parsed.globalFaceSearch === false) allowAutoMatch = false
+          } catch (e) {}
+        }
+
+        if (allowAutoMatch) {
+          const matchRes = await fetch("/api/me/matches", {
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+          const matchData = await matchRes.json()
+          if (matchRes.ok) {
+            setAutoMatches(matchData.results)
+          }
+        } else {
+          setAutoMatches([])
         }
       } else {
         setHasReferenceFace(false)

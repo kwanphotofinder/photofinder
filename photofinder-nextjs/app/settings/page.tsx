@@ -50,6 +50,7 @@ export default function SettingsPage() {
 
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [saveError, setSaveError] = useState("")
   const [isExportingData, setIsExportingData] = useState(false)
   const [isDeletingData, setIsDeletingData] = useState(false)
   const [deletionStatus, setDeletionStatus] = useState<"idle" | "processing" | "completed" | "failed">("idle")
@@ -111,13 +112,26 @@ export default function SettingsPage() {
     if (!authToken) return
 
     // 1. Consent
+    let localGlobalFaceSearch = true
+    let localDataProcessing = true
+    const storedConsent = localStorage.getItem("consent_preferences")
+    if (storedConsent) {
+      try {
+        const parsed = JSON.parse(storedConsent)
+        if (typeof parsed.globalFaceSearch === "boolean") localGlobalFaceSearch = parsed.globalFaceSearch
+        if (typeof parsed.dataProcessing === "boolean") localDataProcessing = parsed.dataProcessing
+      } catch (e) {
+        console.error("Failed to parse stored consent preferences:", e)
+      }
+    }
+
     fetch("/api/me/consent", { headers: { Authorization: `Bearer ${authToken}` } })
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.pdpaConsent === "boolean") {
           setConsent({
-            globalFaceSearch: data.pdpaConsent,
-            dataProcessing: data.pdpaConsent,
+            globalFaceSearch: localGlobalFaceSearch,
+            dataProcessing: storedConsent ? localDataProcessing : data.pdpaConsent,
           })
         }
       })
@@ -205,22 +219,32 @@ export default function SettingsPage() {
     }
   }
 
+  const handleToggleGlobalFaceSearch = (checked: boolean) => {
+    setConsent((prev) => ({ ...prev, globalFaceSearch: checked }))
+  }
+
+  const handleToggleDataProcessing = (checked: boolean) => {
+    setConsent((prev) => ({ ...prev, dataProcessing: checked }))
+  }
+
   const handleSavePreferences = async () => {
     setIsSaving(true)
     setShowSuccess(false)
+    setSaveError("")
     try {
       const authToken = localStorage.getItem("auth_token")
-      const consentAccepted = consent.globalFaceSearch && consent.dataProcessing
+      const pdpaAccepted = Boolean(consent.dataProcessing)
 
       if (authToken) {
         const response = await fetch("/api/me/consent", {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify({
-            pdpaConsent: consentAccepted,
+            accepted: pdpaAccepted,
+            pdpaConsent: pdpaAccepted,
           }),
         })
 
@@ -234,7 +258,7 @@ export default function SettingsPage() {
         JSON.stringify({
           globalFaceSearch: consent.globalFaceSearch,
           dataProcessing: consent.dataProcessing,
-          accepted: consentAccepted,
+          accepted: pdpaAccepted,
           timestamp: new Date().toISOString(),
         }),
       )
@@ -243,7 +267,8 @@ export default function SettingsPage() {
       setTimeout(() => setShowSuccess(false), 3500)
     } catch (error) {
       console.error("Failed to save preferences:", error)
-      alert("Failed to save preferences. Please try again.")
+      setSaveError(t("student.save_error") || "Failed to save preferences. Please try again.")
+      setTimeout(() => setSaveError(""), 4000)
     } finally {
       setIsSaving(false)
     }
@@ -324,7 +349,8 @@ export default function SettingsPage() {
     () => (profile.name?.[0] || profile.email?.[0] || "S").toUpperCase(),
     [profile.name, profile.email],
   )
-  const isConsentWithdrawn = !consent.globalFaceSearch || !consent.dataProcessing
+  const isDataProcessingWithdrawn = !consent.dataProcessing
+  const isFaceSearchDisabledOnly = consent.dataProcessing && !consent.globalFaceSearch
 
   return (
     <>
@@ -555,9 +581,7 @@ export default function SettingsPage() {
                 <div className="shrink-0">
                   <Switch
                     checked={consent.globalFaceSearch}
-                    onCheckedChange={(checked) =>
-                      setConsent((prev) => ({ ...prev, globalFaceSearch: checked }))
-                    }
+                    onCheckedChange={handleToggleGlobalFaceSearch}
                     disabled={isSaving}
                   />
                 </div>
@@ -572,9 +596,7 @@ export default function SettingsPage() {
                 <div className="shrink-0">
                   <Switch
                     checked={consent.dataProcessing}
-                    onCheckedChange={(checked) =>
-                      setConsent((prev) => ({ ...prev, dataProcessing: checked }))
-                    }
+                    onCheckedChange={handleToggleDataProcessing}
                     disabled={isSaving}
                   />
                 </div>
@@ -582,20 +604,32 @@ export default function SettingsPage() {
             </div>
 
             {/* Warning if disabled */}
-            {isConsentWithdrawn && (
+            {isDataProcessingWithdrawn && (
               <div className="rounded border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
                 <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                <p className="leading-relaxed">{t("student.withdraw_warning")}</p>
+                <p className="leading-relaxed">{t("student.withdraw_data_warning")}</p>
+              </div>
+            )}
+            {isFaceSearchDisabledOnly && (
+              <div className="rounded border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <p className="leading-relaxed">{t("student.withdraw_face_warning")}</p>
               </div>
             )}
 
             {/* Save Button & Feedback */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100">
               <div>
                 {showSuccess && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 animate-in fade-in duration-200">
                     <Check className="h-4 w-4 text-emerald-600" />
                     {t("student.save_success")}
+                  </span>
+                )}
+                {saveError && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-destructive animate-in fade-in duration-200">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    {saveError}
                   </span>
                 )}
               </div>

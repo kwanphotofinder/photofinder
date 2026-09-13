@@ -28,14 +28,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleUpdateConsent(request: NextRequest) {
   try {
     const authUser = await getUserFromRequest(request)
     if (!authUser?.sub) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { accepted } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const accepted = typeof body.accepted === "boolean" ? body.accepted : body.pdpaConsent
     if (typeof accepted !== "boolean") {
       return NextResponse.json({ error: "accepted must be a boolean" }, { status: 400 })
     }
@@ -51,7 +52,15 @@ export async function POST(request: NextRequest) {
       pdpaConsent: updatedUser.pdpaConsent,
     })
   } catch (error) {
-    console.error("POST /api/me/consent error:", error)
+    console.error("Update /api/me/consent error:", error)
     return NextResponse.json({ error: "Failed to update consent" }, { status: 500 })
   }
+}
+
+export async function POST(request: NextRequest) {
+  return handleUpdateConsent(request)
+}
+
+export async function PUT(request: NextRequest) {
+  return handleUpdateConsent(request)
 }
