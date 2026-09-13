@@ -38,6 +38,65 @@ import { apiClient } from "@/lib/api-client"
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useLanguage } from "@/lib/language-context"
 
+async function extractFilesFromDataTransfer(dataTransfer: DataTransfer): Promise<File[]> {
+  const files: File[] = [];
+  const items = Array.from(dataTransfer.items || []);
+
+  const readEntry = async (entry: any): Promise<void> => {
+    if (!entry) return;
+    if (entry.isFile) {
+      await new Promise<void>((resolve) => {
+        entry.file(
+          (file: File) => {
+            files.push(file);
+            resolve();
+          },
+          () => resolve()
+        );
+      });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readAllEntries = async (): Promise<any[]> => {
+        let entries: any[] = [];
+        let read = await new Promise<any[]>((resolve) => {
+          reader.readEntries(
+            (results: any[]) => resolve(results),
+            () => resolve([])
+          );
+        });
+        while (read.length > 0) {
+          entries = entries.concat(read);
+          read = await new Promise<any[]>((resolve) => {
+            reader.readEntries(
+              (results: any[]) => resolve(results),
+              () => resolve([])
+            );
+          });
+        }
+        return entries;
+      };
+      const dirEntries = await readAllEntries();
+      for (const childEntry of dirEntries) {
+        await readEntry(childEntry);
+      }
+    }
+  };
+
+  const entries = items
+    .map((item) => ((item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null))
+    .filter(Boolean);
+
+  if (entries.length > 0) {
+    for (const entry of entries) {
+      await readEntry(entry);
+    }
+  } else {
+    files.push(...Array.from(dataTransfer.files));
+  }
+
+  return files;
+}
+
 export default function PhotographerPage() {
   const router = useRouter()
   const { t } = useLanguage()
@@ -318,8 +377,11 @@ export default function PhotographerPage() {
     const oversized: string[] = [];
     
     for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif', 'tiff'].includes(ext);
       const isHeic = file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
-      if (!file.type.startsWith("image/") && !isHeic) continue;
+      
+      if (!file.type.startsWith("image/") && !isHeic && !isImageExt) continue;
       
       if (file.size > MAX_FILE_SIZE) {
         oversized.push(file.name);
@@ -353,9 +415,9 @@ export default function PhotographerPage() {
     e.preventDefault()
   }
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
-    const droppedFiles = Array.from(e.dataTransfer.files)
+    const droppedFiles = await extractFilesFromDataTransfer(e.dataTransfer)
     const validFiles = filterValidFiles(droppedFiles)
     setSelectedFiles((prev) => [...prev, ...validFiles])
   }
@@ -873,7 +935,11 @@ export default function PhotographerPage() {
                     <div>
                       <h3 className="text-sm font-bold text-slate-900">{t("photo.upload.step3_title")}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {selectedFiles.length > 0 ? `${selectedFiles.length} ${t("photo.upload.files_in_queue")}` : t("photo.upload.no_files")}
+                        {isUploading
+                          ? `${completedUploads}/${selectedFiles.length} ${t("photo.upload.files_in_queue")}`
+                          : selectedFiles.length > 0
+                            ? `${selectedFiles.length} ${t("photo.upload.files_in_queue")}`
+                            : t("photo.upload.no_files")}
                       </p>
                     </div>
                     {selectedFiles.length > 0 && !isUploading && (
@@ -949,7 +1015,7 @@ export default function PhotographerPage() {
                       {isUploading ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          {t("photo.upload.uploading")}
+                          {t("photo.upload.uploading")} ({completedUploads}/{selectedFiles.length})
                         </>
                       ) : (
                         <>
