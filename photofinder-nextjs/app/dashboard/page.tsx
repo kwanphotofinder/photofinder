@@ -415,7 +415,6 @@ export default function DashboardPage() {
           <section>
             <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
               <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("student.collection")}</p>
                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("student.recently_matched")}</h2>
               </div>
               <Button
