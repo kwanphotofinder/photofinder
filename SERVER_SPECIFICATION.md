@@ -194,8 +194,9 @@ Add these entries to the server's root crontab (`crontab -e`):
 # 1. Automated Daily Maintenance (Expired Event Cleanup + 90-Day PDPA Audit Log Purge, runs daily at 17:15 UTC / 00:15 BKK):
 15 17 * * * curl -s http://localhost:3000/api/cron/cleanup -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
 
-# 2. Automated Daily Database Backup (Runs daily at 02:00 AM local time):
-0 2 * * * docker exec photofinder_postgres pg_dump -U postgres facesearch > /backup/photofinder_$(date +\%F).sql
+# 2. Automated Daily Database Backup (Optional — Recommended for Production / University Server only):
+# Automatically creates a compressed safety snapshot nightly at 02:00 AM and retains only the last 7 days:
+0 2 * * * mkdir -p /backup && docker exec photofinder_postgres pg_dump -U postgres facesearch | gzip > /backup/photofinder_$(date +\%F).sql.gz && find /backup -type f -name "photofinder_*.sql.gz" -mtime +7 -delete
 ```
 
 > ⚠️ **Data Safety Warning:** Never run `docker compose down -v` in production. The `-v` flag deletes named storage volumes (`postgres_data`). Always use standard `docker compose down`.
