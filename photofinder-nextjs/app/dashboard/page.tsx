@@ -323,14 +323,14 @@ export default function DashboardPage() {
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="border-b border-slate-200 bg-slate-50">
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            <div className="grid overflow-hidden rounded border border-slate-200 bg-white shadow-none lg:grid-cols-[1.3fr_.7fr]">
-              <div className="relative flex flex-col justify-between overflow-hidden bg-white p-6 sm:p-8 lg:p-10">
+            <div className="grid overflow-hidden rounded border border-slate-200 bg-white shadow-none lg:grid-cols-[1.15fr_.85fr]">
+              <div className="relative flex flex-col overflow-hidden bg-white p-6 sm:p-8 lg:min-h-[360px] lg:p-10">
                 <div className="relative z-10">
                   <div className="inline-flex items-center gap-2 rounded bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/15">
                     <Sparkles className="h-3.5 w-3.5" /> {t("student.space")}
                   </div>
                 </div>
-                <div className="relative z-10 mt-10 space-y-4">
+                <div className="relative z-10 mt-12 space-y-4">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">{t("student.welcome")}</p>
                     <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">{displayName}</h1>
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                     {t("student.description")}
                   </p>
                 </div>
-                <div className="relative z-10 mt-8 flex flex-wrap gap-3">
+                <div className="relative z-10 mt-9 flex flex-wrap gap-3">
                   <Button
                     onClick={() => {
                       if (!hasConsentedToFaceSearch) {
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                   </Button>
                 </div>
               </div>
-              <div className="relative min-h-[320px] flex flex-col justify-between border-t border-slate-200 bg-slate-50 p-6 sm:p-8 lg:border-l lg:border-t-0 lg:p-10">
+              <div className="relative flex min-h-[320px] flex-col justify-between border-t border-slate-200 bg-slate-50 p-6 sm:p-8 lg:min-h-[360px] lg:border-l lg:border-t-0 lg:p-10">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("student.profile_signal")}</span>
                   <div className="rounded bg-primary/10 p-2 text-primary ring-1 ring-inset ring-primary/10">
@@ -451,23 +451,6 @@ export default function DashboardPage() {
                         : t("student.not_set_up_description")}
                     </p>
                   </div>
-                  {!hasReferenceFace && (
-                    <Button
-                      onClick={() => {
-                        if (!hasConsentedToFaceSearch) {
-                          setShowConsentNotice(true)
-                          return
-                        }
-                        setShowVerification(true)
-                      }}
-                      size="lg"
-                      className="mt-2 h-11 px-6 text-sm font-semibold shadow-sm hover:shadow-md transition-shadow"
-                      disabled={isDeletingReference}
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      {t("student.set_selfie")}
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
