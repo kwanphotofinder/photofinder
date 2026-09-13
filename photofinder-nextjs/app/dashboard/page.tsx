@@ -444,12 +444,12 @@ export default function DashboardPage() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold tracking-tight text-foreground">
-                      {hasReferenceFace ? t("student.no_matches") : "Upload your selfie to get started"}
+                      {hasReferenceFace ? t("student.no_matches") : t("student.set_selfie")}
                     </h3>
                     <p className="text-sm leading-relaxed text-muted-foreground">
                       {hasReferenceFace
-                        ? "No photos matched your profile yet. Check back after your next campus event!"
-                        : "Set up your facial profile and we'll automatically find your photos from events."}
+                        ? t("student.no_matches_description")
+                        : t("student.not_set_up_description")}
                     </p>
                   </div>
                   {!hasReferenceFace && (
