@@ -191,7 +191,7 @@ docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy
 Add these entries to the server's root crontab (`crontab -e`):
 
 ```bash
-# 1. Automated Daily Event Expiry Cleanup (Runs daily at 17:15 UTC):
+# 1. Automated Daily Maintenance (Expired Event Cleanup + 90-Day PDPA Audit Log Purge, runs daily at 17:15 UTC / 00:15 BKK):
 15 17 * * * curl -s http://localhost:3000/api/cron/cleanup -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
 
 # 2. Automated Daily Database Backup (Runs daily at 02:00 AM local time):
@@ -207,4 +207,5 @@ Add these entries to the server's root crontab (`crontab -e`):
 1. **Biometric Data Protection:** Facial vectors are stored as mathematical float32 arrays (512 dimensions) rather than raw facial images.
 2. **Right to Erasure:** Students have self-service tools to immediately delete their reference selfie and all associated vector embeddings from the database.
 3. **Face Blurring:** Integrated OpenCV blurring allows event attendees to obscure their faces in public event albums without removing the entire photograph.
-4. **Data Retention Policy:** Events automatically expire after their `expiresAt` date, initiating a cascading wipe of all associated photos, faces, and vectors.
+4. **Event Data Retention Policy:** Events automatically expire after their `expiresAt` date, initiating a cascading wipe of all associated photos, faces, and vectors from Cloudinary and PostgreSQL.
+5. **Audit Log Retention Policy:** Administrative and biometric activity logs are retained for **90 days** in compliance with PDPA accountability principles and are automatically purged nightly by the daily maintenance cron job.
