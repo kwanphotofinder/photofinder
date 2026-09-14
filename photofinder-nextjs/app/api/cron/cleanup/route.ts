@@ -1,31 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { deleteFolderFromCloudinary } from '@/lib/cloudinary';
-import { getUserFromRequest } from '@/lib/auth';
 
 // This allows the cron job to run for up to 60 seconds
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   try {
-    // Basic security: only allow requests with the correct authorization header
-    // In production, Vercel Cron automatically sends this header
+    // Strict security: only allow requests with the matching CRON_SECRET authorization header
+    // Vercel Cron and Linux server crontab automatically supply this Bearer token
     const authHeader = request.headers.get('authorization');
-    let isAuthorized = false;
+    const cronSecret = process.env.CRON_SECRET;
 
-    // Check 1: Is it the valid Cron Secret from Vercel/Local?
-    if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
-      isAuthorized = true;
-    } 
-    // Check 2: If not cron secret, is it an actual logged-in Admin hitting the manual button?
-    else {
-      const payload = await getUserFromRequest(request);
-      if (payload && (payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN')) {
-        isAuthorized = true;
-      }
-    }
-
-    if (!isAuthorized) {
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 

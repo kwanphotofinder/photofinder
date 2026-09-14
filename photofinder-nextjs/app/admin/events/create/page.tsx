@@ -85,10 +85,10 @@ export default function CreateEventPage() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)+/g, "") + "-" + Date.now().toString().slice(-4)
 
-      // Calculate expiry date based on days selected
+      // Calculate expiry date based on days selected from event date
       let expiryDate = null;
       if (formData.expiryDays > 0) {
-        const d = new Date();
+        const d = new Date(formData.date);
         d.setDate(d.getDate() + formData.expiryDays);
         expiryDate = d.toISOString();
       }
