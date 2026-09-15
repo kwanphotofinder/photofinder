@@ -12,20 +12,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Forward to AI service for liveness detection
-    // Prefer local AI in development to avoid forwarding to external URLs
-    const isDev = process.env.NODE_ENV !== 'production';
-    const defaultLocal = 'http://localhost:8000';
-    let aiServiceUrl = process.env.AI_SERVICE_URL || defaultLocal;
-    if (
-      isDev &&
-      process.env.AI_SERVICE_URL &&
-      !process.env.AI_SERVICE_URL.startsWith('http://localhost') &&
-      !process.env.AI_SERVICE_URL.startsWith('http://127.0.0.1')
-    ) {
-      console.log('[LIVENESS API] Development mode: overriding AI_SERVICE_URL to', defaultLocal);
-      aiServiceUrl = defaultLocal;
-    }
+    // Keep the configured URL: in Docker, localhost points to the web container.
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
     const detectUrl = `${aiServiceUrl}/liveness/detect`;
     console.log('[LIVENESS API] Forwarding to AI service URL:', detectUrl);
