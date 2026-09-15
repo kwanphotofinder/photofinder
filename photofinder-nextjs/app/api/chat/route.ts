@@ -88,26 +88,52 @@ export async function POST(req: Request) {
       };
     }).filter((msg: any) => msg.content && msg.content.trim() !== '');
 
-    console.log("Mapped Core Messages:", JSON.stringify(coreMessages, null, 2));
+    // Keep only the most recent 6 messages to prevent ballooning token counts against Groq limits
+    const recentMessages = coreMessages.slice(-6);
 
-    const groqResponse = await fetch(GROQ_API_URL, {
+    const primaryModel = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+    const fallbackModel = 'openai/gpt-oss-20b';
+
+    let groqResponse = await fetch(GROQ_API_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
+        model: primaryModel,
         messages: [
           { role: 'system', content: systemPrompt.trim() },
-          ...coreMessages,
+          ...recentMessages,
         ],
         temperature: 0.7,
         stream: false,
       }),
     });
 
-    const data = await groqResponse.json().catch(() => null);
+    let data = await groqResponse.json().catch(() => null);
+
+    // If primary model is rate-limited (429), automatically retry with fallback model
+    if (!groqResponse.ok && (groqResponse.status === 429 || String(data?.error?.message).includes('429'))) {
+      console.warn(`[Chat API] ${primaryModel} rate limited. Retrying with ${fallbackModel}...`);
+      groqResponse = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: fallbackModel,
+          messages: [
+            { role: 'system', content: systemPrompt.trim() },
+            ...recentMessages,
+          ],
+          temperature: 0.7,
+          stream: false,
+        }),
+      });
+      data = await groqResponse.json().catch(() => null);
+    }
 
     if (!groqResponse.ok) {
       const errorMessage = data?.error?.message || data?.error || 'Internal Server Error';

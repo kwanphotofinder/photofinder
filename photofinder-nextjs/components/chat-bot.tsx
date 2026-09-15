@@ -83,7 +83,7 @@ export function ChatBot() {
 
       if (response.status === 429) {
         setRateLimitHit(true);
-        setTimeout(() => setRateLimitHit(false), 60000);
+        setTimeout(() => setRateLimitHit(false), 5000);
         setMessages(nextMessages);
         return;
       }
@@ -244,7 +244,7 @@ export function ChatBot() {
                   <AlertCircle className="w-4 h-4" />
                 </div>
                 <div className="bg-amber-50 text-amber-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm border border-amber-200">
-                  Oops! I've been helping so many students today that I need a short break. Please try asking your question again in about a minute!
+                  Oops! I've been helping so many students today that I need a short breather. Please try asking your question again in a few seconds!
                 </div>
               </div>
             )}
