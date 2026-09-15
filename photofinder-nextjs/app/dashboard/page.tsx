@@ -223,7 +223,7 @@ export default function DashboardPage() {
     if (!file) return
 
     if (!hasConsentedToFaceSearch) {
-      alert("You need to consent to face search to upload a reference photo. Please update your privacy settings.")
+      setShowConsentNotice(true)
       return
     }
 
@@ -309,32 +309,34 @@ export default function DashboardPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground text-left">
               <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-              Consent required
+              {t("student.consent_modal_title")}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
-              <p>Enable these before using face search:</p>
+              <p>{t("student.consent_modal_desc")}</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                   <div className="text-xs text-foreground space-y-0.5">
-                    <p className="font-semibold">AI face search</p>
-                    <p className="text-muted-foreground">Find your face in event photos.</p>
+                    <p className="font-semibold">{t("student.consent_modal_face_title")}</p>
+                    <p className="text-muted-foreground">{t("student.consent_modal_face_desc")}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                   <div className="text-xs text-foreground space-y-0.5">
-                    <p className="font-semibold">Data processing</p>
-                    <p className="text-muted-foreground">Your biometric data is processed securely.</p>
+                    <p className="font-semibold">{t("student.consent_modal_data_title")}</p>
+                    <p className="text-muted-foreground">{t("student.consent_modal_data_desc")}</p>
                   </div>
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0 mt-4 pt-1">
-            <AlertDialogCancel className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium">Dismiss</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium">
+              {t("student.consent_modal_dismiss")}
+            </AlertDialogCancel>
             <AlertDialogAction onClick={() => router.push("/settings")} className="w-full sm:w-auto h-10 sm:h-9 text-xs font-semibold">
-              Go to Settings
+              {t("student.consent_modal_settings")}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
@@ -530,7 +532,7 @@ export default function DashboardPage() {
       {/* Branded Loading Overlay */}
       <UploadLoader 
         isVisible={isUploading} 
-        message={hasReferenceFace ? "Updating your profile..." : "Mapping your face..."} 
+        message={hasReferenceFace ? t("student.updating_profile") : t("student.mapping_face")} 
       />
       {/* Identity Verification Modal */}
       {showVerification && (
