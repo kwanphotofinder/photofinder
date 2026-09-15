@@ -37,13 +37,6 @@ export function ChatBot() {
     };
   }, []);
 
-    const updateAssistantMessage = (messageId: string, content: string) => {
-      setMessages((currentMessages) =>
-        currentMessages.map((message) =>
-          message.id === messageId ? { ...message, content } : message
-        )
-      );
-    };
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -64,7 +57,7 @@ export function ChatBot() {
     const assistantMessageId = crypto.randomUUID();
 
     const nextMessages = [...messages, userMessage];
-    setMessages([...nextMessages, { id: assistantMessageId, role: 'assistant', content: '' }]);
+    setMessages(nextMessages);
     setInputValue('');
     setIsLoading(true);
     setError(null);
@@ -95,10 +88,14 @@ export function ChatBot() {
       }
 
       const assistantContent = String(payload?.message || '').trim();
-      updateAssistantMessage(
-        assistantMessageId,
-        assistantContent || 'Sorry, I could not generate a response just now.'
-      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: assistantContent || 'Sorry, I could not generate a response just now.',
+        },
+      ]);
     } catch (submitError) {
       setMessages(nextMessages);
       setError(submitError instanceof Error ? submitError.message : 'Unable to send message.');
