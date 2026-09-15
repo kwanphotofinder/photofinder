@@ -10,6 +10,7 @@ import { downloadOriginalPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
+import { useLanguage } from "@/lib/language-context"
 
 interface Photo {
   id: string
@@ -39,6 +40,7 @@ function formatDayMonthYear(dateValue?: string) {
 }
 
 export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
+  const { t } = useLanguage()
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
@@ -123,7 +125,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error("Failed to share photo:", error)
-      alert("Unable to open share right now. Please try again.")
+      alert(t("detail.share_error"))
     }
   }
 
@@ -134,7 +136,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error(`Failed to share photo to ${channel}:`, error)
-      alert("Unable to open share right now. Please try again.")
+      alert(t("detail.share_error"))
     } finally {
       setActiveShareChannel(null)
     }
@@ -150,7 +152,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
         if (response.status === 200) {
           setIsFavorite(false)
         } else {
-          alert("Unable to remove this photo from Favorites right now.")
+          alert(t("detail.favorite_remove_error"))
         }
       } else {
         const response = await apiClient.savePhoto(userId, photo.id)
@@ -158,12 +160,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
         if (response.status === 201) {
           setIsFavorite(true)
         } else {
-          alert("Unable to add this photo to Favorites right now.")
+          alert(t("detail.favorite_add_error"))
         }
       }
     } catch (error) {
       console.error("Failed to update favorite state:", error)
-      alert("Unable to update Favorites right now.")
+      alert(t("detail.favorite_update_error"))
     } finally {
       setIsFavoriteLoading(false)
     }
@@ -182,13 +184,13 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       }
     } catch (error) {
       console.error("Failed to toggle fullscreen:", error)
-      alert("Fullscreen is not available on this browser.")
+      alert(t("detail.fullscreen_error"))
     }
   }
 
   const handleSubmitRemovalRequest = async () => {
     if (!reason.trim()) {
-      alert("Please provide a reason for removal")
+      alert(t("detail.reason_required"))
       return
     }
 
@@ -201,15 +203,15 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", reason, faceCoordinates)
 
       if (response.error) {
-        alert("Failed to submit removal request. Please try again.")
+        alert(t("detail.removal_failed"))
       } else {
-        alert("Removal request submitted successfully. Our team will review it within 24 hours.")
+        alert(t("detail.removal_success"))
         setShowRemovalRequest(false)
         setReason("")
         onClose()
       }
     } catch (error) {
-      alert("An error occurred. Please try again.")
+      alert(t("detail.error_generic"))
     } finally {
       setIsSubmitting(false)
     }
@@ -251,22 +253,22 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
             <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
               {matchPercent !== null && (
                 <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-                  {matchPercent}% match
+                  {matchPercent}% {t("detail.match")}
                 </span>
               )}
             </div>
 
             <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleDownload} title="Download original photo without watermark">
+              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleDownload} title={t("detail.download_original")}>
                 <Download className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleZoom} title={isZoomed ? "Zoom out" : "Zoom in"}>
+              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleZoom} title={isZoomed ? t("detail.zoom_out") : t("detail.zoom_in")}>
                 {isZoomed ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleFullscreen} title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleFullscreen} title={isFullscreen ? t("detail.exit_fullscreen") : t("detail.enter_fullscreen")}>
                 {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
-              <DialogClose className={`${viewerButtonClass} inline-flex items-center justify-center`} aria-label="Close">
+              <DialogClose className={`${viewerButtonClass} inline-flex items-center justify-center`} aria-label={t("detail.close")}>
                 <X className="h-4 w-4" />
               </DialogClose>
             </div>
@@ -274,7 +276,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
 
           <div className="flex flex-col bg-[#faf9f7] lg:max-h-[92vh] lg:overflow-y-auto">
             <DialogHeader className="gap-0 border-b border-[#ece6df] bg-white px-5 py-5 text-left sm:px-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#82181a]">Photo moment</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#82181a]">{t("detail.photo_moment")}</p>
               <DialogTitle className="mt-1.5 text-xl font-black tracking-[-0.03em] text-[#421012]">
                 {photo.eventName}
               </DialogTitle>
@@ -297,7 +299,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   }`}
                 >
                   {isFavoriteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />}
-                  {isFavorite ? "Saved" : "Favorite"}
+                  {isFavorite ? t("detail.saved") : t("detail.favorite")}
                 </Button>
                 <Button
                   onClick={handleNativeShare}
@@ -306,7 +308,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   className="h-11 flex-1 rounded-xl border-[#e2d9d0] bg-white font-semibold text-[#421012] hover:bg-[#f2e8e3]"
                 >
                   {activeShareChannel === "native" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-                  Share
+                  {t("detail.share")}
                 </Button>
               </div>
 
@@ -315,11 +317,11 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                 className="h-12 rounded-xl bg-[#82181a] text-sm font-bold text-white hover:bg-[#641416]"
               >
                 <Download className="h-4 w-4" />
-                Download original
+                {t("detail.download_original")}
               </Button>
 
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Share to</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{t("detail.share_to")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     onClick={() => handleQuickShare("line")}
@@ -349,31 +351,32 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   onClick={() => setShowRemovalRequest(true)}
                 >
                   <Trash2 className="mr-2 h-3 w-3" />
-                  Request Removal
+                  {t("detail.request_removal")}
                 </Button>
               ) : (
                 <div className="space-y-3 rounded-2xl border border-destructive/20 bg-destructive/8 p-4">
                   <div className="flex gap-3">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
                     <div className="space-y-2 text-sm">
-                      <p className="font-semibold text-foreground">Request Photo Removal</p>
+                      <p className="font-semibold text-foreground">{t("detail.removal_title")}</p>
                       <p className="text-muted-foreground">
-                        Our team will review your request within 24 hours. You'll receive an email confirmation.
+                        {t("detail.removal_desc")}
                       </p>
                       <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 p-3">
                         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         <p className="text-xs leading-relaxed text-foreground/80">
-                          <strong className="font-semibold text-primary">Group Photos:</strong> If this photo contains multiple people, our team may choose to apply a mosaic pixelation to your face instead of deleting the entire photo. This ensures your privacy is protected while preserving the memory for others.
+                          <strong className="font-semibold text-primary">{t("detail.group_photos_label")}</strong>{" "}
+                          {t("detail.group_photos_desc")}
                         </p>
                       </div>
                     </div>
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-foreground">
-                      Reason for Removal <span className="text-destructive">*</span>
+                      {t("detail.reason_label")} <span className="text-destructive">*</span>
                     </label>
                     <Textarea
-                      placeholder="Please explain why you want this photo removed"
+                      placeholder={t("detail.reason_placeholder")}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       className="min-h-[80px] rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-primary focus-visible:ring-primary/25"
@@ -387,7 +390,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                       disabled={isSubmitting}
                       className="flex-1 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {isSubmitting ? "Submitting..." : "Submit Request"}
+                      {isSubmitting ? t("detail.submitting") : t("detail.submit_request")}
                     </Button>
                     <Button
                       size="sm"
@@ -399,7 +402,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                       disabled={isSubmitting}
                       className="flex-1 rounded-xl border-border"
                     >
-                      Cancel
+                      {t("detail.cancel")}
                     </Button>
                   </div>
                 </div>
