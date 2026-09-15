@@ -91,8 +91,9 @@ class FaceMeshLiveness:
         right_eye = np.array([landmarks[i] for i in right_eye_indices])
         left_ear = eye_aspect_ratio(left_eye)
         right_ear = eye_aspect_ratio(right_eye)
-        EAR_THRESHOLD = 0.21
-        return left_ear < EAR_THRESHOLD or right_ear < EAR_THRESHOLD
+        EAR_THRESHOLD = 0.235
+        # Both eyes must close together
+        return left_ear < EAR_THRESHOLD and right_ear < EAR_THRESHOLD
 
     @staticmethod
     def detect_head_turn_direction(landmarks, left_cheek_idx, right_cheek_idx, nose_idx):

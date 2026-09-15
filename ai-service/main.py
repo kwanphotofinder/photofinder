@@ -181,7 +181,7 @@ async def compare_faces(file1: UploadFile = File(...), file2: UploadFile = File(
             }
 
         sim = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
-        return {"match": bool(sim > 0.6), "score": float(sim)}
+        return {"match": bool(sim >= 0.50), "score": float(sim)}
     except Exception as e:
         from fastapi import HTTPException
 
@@ -351,37 +351,37 @@ async def detect_liveness(file: UploadFile = File(...)):
         right_eye = np.array([landmark_xy[i] for i in RIGHT_EYE_IDX])
         left_ear = eye_aspect_ratio(left_eye)
         right_ear = eye_aspect_ratio(right_eye)
-        current_ear = (left_ear + right_ear) / 2.0
+        # Both eyes must blink together
+        EAR_THRESHOLD = 0.235
+        both_eyes_open = (left_ear >= EAR_THRESHOLD) and (right_ear >= EAR_THRESHOLD)
+        both_eyes_closed = (left_ear < EAR_THRESHOLD) and (right_ear < EAR_THRESHOLD)
 
-        EAR_THRESHOLD = 0.21
-        current_ear_open = current_ear >= EAR_THRESHOLD
-
-        # Track blink: transition from open → closed → open
+        # Track blink: transition from both open → both closed → both open
         blink = False
-        if hasattr(liveness_detector, "prev_ear_open"):
-            # If eyes were open and now closed, mark that we detected a closure
-            if liveness_detector.prev_ear_open and not current_ear_open:
+        if hasattr(liveness_detector, "prev_both_eyes_open"):
+            # If both eyes were open and now both are closed, mark closure detected
+            if liveness_detector.prev_both_eyes_open and both_eyes_closed:
                 liveness_detector.blink_detected = True
                 print(
-                    f"[BLINK] Eyes closing detected: EAR {current_ear:.3f} < {EAR_THRESHOLD}"
+                    f"[BLINK] Both eyes closing detected: left={left_ear:.3f}, right={right_ear:.3f} < {EAR_THRESHOLD}"
                 )
-            # If eyes were closed and now open again, that completes the blink
+            # If both eyes were closed and are now open again, complete the 2-eye blink
             elif (
-                not liveness_detector.prev_ear_open
-                and current_ear_open
-                and liveness_detector.blink_detected
+                not liveness_detector.prev_both_eyes_open
+                and both_eyes_open
+                and getattr(liveness_detector, "blink_detected", False)
             ):
                 blink = True
                 liveness_detector.blink_detected = False
                 print(
-                    f"[BLINK] Blink completed! EAR {current_ear:.3f} >= {EAR_THRESHOLD}"
+                    f"[BLINK] Both eyes blink completed! left={left_ear:.3f}, right={right_ear:.3f} >= {EAR_THRESHOLD}"
                 )
-            liveness_detector.prev_ear_open = current_ear_open
+            liveness_detector.prev_both_eyes_open = both_eyes_open
         else:
-            liveness_detector.prev_ear_open = current_ear_open
+            liveness_detector.prev_both_eyes_open = both_eyes_open
 
         print(
-            f"[DEBUG] EAR: {current_ear:.3f}, Open: {current_ear_open}, Blink: {blink}, State: {liveness_detector.blink_detected if hasattr(liveness_detector, 'blink_detected') else 'N/A'}"
+            f"[DEBUG] EAR: left={left_ear:.3f}, right={right_ear:.3f}, BothOpen: {both_eyes_open}, BothClosed: {both_eyes_closed}, Blink: {blink}"
         )
 
         # Other liveness checks
