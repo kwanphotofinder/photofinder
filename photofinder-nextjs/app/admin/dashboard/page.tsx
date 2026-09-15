@@ -36,6 +36,8 @@ export default function AdminDashboardPage() {
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [userSearchQuery, setUserSearchQuery] = useState("")
+  const [userPage, setUserPage] = useState(1)
+  const USERS_PER_PAGE = 10
   const [callerRole, setCallerRole] = useState("")
   const [callerEmail, setCallerEmail] = useState("")
   const [newPhotographerEmail, setNewPhotographerEmail] = useState("")
@@ -75,6 +77,13 @@ export default function AdminDashboardPage() {
       return getRank(a.role) - getRank(b.role)
     })
   }, [allUsers, userSearchQuery])
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (userPage - 1) * USERS_PER_PAGE
+    return filteredAndSortedUsers.slice(startIndex, startIndex + USERS_PER_PAGE)
+  }, [filteredAndSortedUsers, userPage])
+
+  const userTotalPages = Math.max(1, Math.ceil(filteredAndSortedUsers.length / USERS_PER_PAGE))
 
   const filteredLowConfidencePhotos = useMemo(() => {
     const q = lowConfidenceSearch.trim().toLowerCase()
@@ -1223,7 +1232,10 @@ export default function AdminDashboardPage() {
                             placeholder={t("users.search_placeholder")}
                             className="h-8 pl-8 text-xs border-slate-300 rounded bg-white"
                             value={userSearchQuery}
-                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                              setUserSearchQuery(e.target.value)
+                              setUserPage(1)
+                            }}
                           />
                         </div>
                       </div>
@@ -1249,7 +1261,7 @@ export default function AdminDashboardPage() {
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              filteredAndSortedUsers.map((u) => {
+                              paginatedUsers.map((u) => {
                                 const isSuperAdmin = u.role === "SUPER_ADMIN"
                                 const isAdmin = u.role === "ADMIN"
                                 const isPhotographer = u.role === "PHOTOGRAPHER"
@@ -1373,14 +1385,39 @@ export default function AdminDashboardPage() {
                           </TableBody>
                         </Table>
                       </div>
+
+                      {/* Pagination Footer */}
+                      {userTotalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 bg-slate-50/70 border-t border-slate-200 text-xs text-slate-600">
+                          <span>
+                            Showing {paginatedUsers.length} of {filteredAndSortedUsers.length} users (Page {userPage} of {userTotalPages})
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUserPage((prev) => Math.max(1, prev - 1))}
+                              disabled={userPage <= 1}
+                              className="h-7 text-xs px-2.5 rounded border-slate-300"
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUserPage((prev) => Math.min(userTotalPages, prev + 1))}
+                              disabled={userPage >= userTotalPages}
+                              className="h-7 text-xs px-2.5 rounded border-slate-300"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
-                </div>
-              </TabsContent>
 
-              {/* TAB: SYSTEM HEALTH */}
-              <TabsContent value="health" className="mt-0">
-                <div className="space-y-4">
+                  {/* Danger Zone: Wipe Old Reference Selfies */}
                   <Card className="border border-slate-200 border-t-4 border-t-red-600 bg-white rounded shadow-2xs">
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-sm font-bold text-red-700 flex items-center gap-2">
@@ -1407,7 +1444,12 @@ export default function AdminDashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              </TabsContent>
 
+              {/* TAB: SYSTEM HEALTH */}
+              <TabsContent value="health" className="mt-0">
+                <div className="space-y-4">
                   <Card className="border border-slate-200 bg-white rounded shadow-2xs p-4">
                     <SystemHealth />
                   </Card>

@@ -178,7 +178,7 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.low_confidence": "คิวตรวจสอบ AI (Review)",
     "menu.requests": "คำร้องขอลบภาพ (Requests)",
     "menu.users": "จัดการผู้ใช้งาน (Users)",
-    "menu.health": "สถานะระบบ (Health & Logs)",
+    "menu.health": "สถานะระบบ (System Health)",
     "menu.audit_logs": "บันทึกการตรวจสอบ (Audit Logs)",
 
     // Audit Logs Tab
@@ -773,7 +773,7 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.low_confidence": "AI Review Queue",
     "menu.requests": "Removal Requests",
     "menu.users": "User Management",
-    "menu.health": "System Health & Logs",
+    "menu.health": "System Health",
     "menu.audit_logs": "Audit Logs (Super Admin)",
 
     // Audit Logs Tab
