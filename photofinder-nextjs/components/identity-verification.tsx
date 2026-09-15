@@ -241,25 +241,23 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       setCurrentChallengeIndex(newNextIndex === -1 ? challengeSteps.length - 1 : newNextIndex)
 
       if (nextCompleted.length === challengeSteps.length) {
-        stopLivenessDetection()
-        // Wait 450ms for user to naturally return their face to center before capturing the baseline anchor image
-        setTimeout(() => {
-          if (canvasRef.current && videoRef.current) {
-            const video = videoRef.current
-            const canvas = canvasRef.current
-            const videoW = video.videoWidth || 640
-            const videoH = video.videoHeight || 480
-            canvas.width = videoW
-            canvas.height = videoH
+        // Challenges complete: Capture anchor image silently with true aspect ratio
+        if (canvasRef.current && videoRef.current) {
+          const video = videoRef.current
+          const canvas = canvasRef.current
+          const videoW = video.videoWidth || 640
+          const videoH = video.videoHeight || 480
+          canvas.width = videoW
+          canvas.height = videoH
 
-            const ctx = canvas.getContext("2d")
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, videoW, videoH)
-              setAnchorImage(canvas.toDataURL("image/jpeg", 0.9))
-              setStep("capture-selfie")
-            }
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, videoW, videoH)
+            setAnchorImage(canvas.toDataURL("image/jpeg", 0.9))
+            stopLivenessDetection()
+            setStep("capture-selfie")
           }
-        }, 450)
+        }
       }
     }
   }, [livenessData, step, completedChallenges, challengeSteps])
