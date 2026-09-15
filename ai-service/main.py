@@ -351,7 +351,7 @@ async def detect_liveness(file: UploadFile = File(...)):
         right_ear = eye_aspect_ratio(right_eye)
         current_ear = (left_ear + right_ear) / 2.0
 
-        EAR_THRESHOLD = 0.21
+        EAR_THRESHOLD = 0.24
         current_ear_open = current_ear >= EAR_THRESHOLD
 
         # Track blink: transition from open → closed → open

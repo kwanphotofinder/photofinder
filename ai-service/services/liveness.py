@@ -91,7 +91,7 @@ class FaceMeshLiveness:
         right_eye = np.array([landmarks[i] for i in right_eye_indices])
         left_ear = eye_aspect_ratio(left_eye)
         right_ear = eye_aspect_ratio(right_eye)
-        EAR_THRESHOLD = 0.21
+        EAR_THRESHOLD = 0.24
         return left_ear < EAR_THRESHOLD or right_ear < EAR_THRESHOLD
 
     @staticmethod
