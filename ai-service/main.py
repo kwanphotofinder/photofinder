@@ -32,7 +32,9 @@ if Instrumentator is not None:
 model = None
 if FaceAnalysis is not None:
     model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-    model.prepare(ctx_id=-1, det_size=(640, 640))
+    # Use a larger detector input so faces in group photos remain visible.
+    model.prepare(ctx_id=-1, det_size=(1280, 1280))
+    model.det_model.det_thresh = 0.35
 
 # Initialize FaceMeshLiveness for liveness detection
 try:
