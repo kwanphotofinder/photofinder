@@ -10,8 +10,14 @@ export async function DELETE(
     const p = await params;
     const user = await getUserFromRequest(req);
     
-    // Auth guard (optional)
-    // if (!user || user.sub !== p.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only allow the owner of the saved photo or admins to delete it
+    if (user.sub !== p.userId && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: You can only remove your own saved photos' }, { status: 403 });
+    }
 
     await prisma.savedPhoto.delete({
       where: {

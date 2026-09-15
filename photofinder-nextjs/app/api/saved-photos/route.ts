@@ -5,15 +5,13 @@ import { getUserFromRequest } from '@/lib/auth';
 export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
-    const body = await req.json();
-    
-    // Support either proper JWT or the old custom header ('user-id')
-    const userId = user?.sub || req.headers.get('user-id');
-    const { photoId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const body = await req.json();
+    const userId = user.sub;
+    const { photoId } = body;
     if (!photoId) {
       return NextResponse.json({ error: 'Photo ID required' }, { status: 400 });
     }

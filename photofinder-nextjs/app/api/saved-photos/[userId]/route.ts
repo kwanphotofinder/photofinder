@@ -10,8 +10,13 @@ export async function GET(
     const p = await params;
     const user = await getUserFromRequest(req);
     
-    // Authorization check
-    // if (!user || user.sub !== p.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.sub !== p.userId && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: You can only view your own saved photos' }, { status: 403 });
+    }
 
     const savedPhotos = await prisma.savedPhoto.findMany({
       where: { userId: p.userId },
