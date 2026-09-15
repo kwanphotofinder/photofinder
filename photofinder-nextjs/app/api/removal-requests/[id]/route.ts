@@ -13,8 +13,29 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const existingReq = await prisma.removalRequest.findUnique({
+      where: { id: p.id },
+      include: {
+        photo: { select: { id: true, event: { select: { name: true } } } },
+      },
+    });
+
     await prisma.removalRequest.delete({
       where: { id: p.id },
+    });
+
+    // Log audit event
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: "REMOVAL_REQUEST_RESOLVED",
+      category: "CONTENT",
+      targetType: "PHOTO",
+      targetId: existingReq?.photoId || null,
+      targetLabel: existingReq?.photo?.event?.name ? `Photo in ${existingReq.photo.event.name}` : `Photo ${existingReq?.photoId}`,
+      details: `Admin resolved/dismissed removal request #${p.id} (${existingReq?.requestType || 'TAKEDOWN'})`,
     });
 
     return NextResponse.json({ message: 'Request deleted successfully' });

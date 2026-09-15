@@ -66,6 +66,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Log audit event
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: "EVENT_CREATE",
+      category: "CONTENT",
+      targetType: "EVENT",
+      targetId: newEvent.id,
+      targetLabel: newEvent.name,
+      details: `Created event '${newEvent.name}' scheduled for ${new Date(newEvent.date).toLocaleDateString()}`,
+    });
+
     return NextResponse.json(newEvent, { status: 201 })
   } catch (error) {
     console.error("POST /api/events error:", error);

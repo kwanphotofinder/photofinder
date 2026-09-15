@@ -89,6 +89,11 @@ export async function DELETE(
 
     const p = await params;
     
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: p.id },
+      select: { id: true, name: true },
+    });
+
     // 1. Delete physical folder from Cloudinary instantly (much faster than individual deletion)
     await deleteFolderFromCloudinary(p.id);
 
@@ -97,6 +102,20 @@ export async function DELETE(
     // the event, photos, pgvector faces, saved photos, and abuse reports!
     await prisma.event.delete({
       where: { id: p.id },
+    });
+
+    // 3. Log audit event
+    const { recordAuditLog } = await import("@/lib/audit-logger");
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: "EVENT_DELETE",
+      category: "CONTENT",
+      targetType: "EVENT",
+      targetId: p.id,
+      targetLabel: existingEvent?.name || `Event ${p.id}`,
+      details: `Deleted event '${existingEvent?.name || p.id}' and all associated photos`,
     });
 
     return NextResponse.json({ message: "Event deleted successfully" })
