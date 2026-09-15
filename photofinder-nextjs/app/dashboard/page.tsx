@@ -188,7 +188,9 @@ export default function DashboardPage() {
       }
 
       const storedId = localStorage.getItem("user_id") || "guest"
-      const savedRes = await fetch(`/api/saved-photos/${storedId}`)
+      const savedRes = await fetch(`/api/saved-photos/${storedId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
       if (savedRes.ok) {
         const savedData = await savedRes.json()
         setSavedPhotoCount(savedData.length)
