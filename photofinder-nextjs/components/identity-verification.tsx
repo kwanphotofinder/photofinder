@@ -83,7 +83,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     try {
       setError(null)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: "user", width: { ideal: 1280 } },
       })
       streamRef.current = stream
       setStep("liveness")
@@ -169,7 +169,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         frameInFlightRef.current = true
 
         const blob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9)
+          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
         })
 
         if (!isRunningRef.current || !blob) {
@@ -203,7 +203,12 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       }
 
       if (isRunningRef.current) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
+        // 120ms throttle keeps mobile CPU cool and network smooth (~8 FPS)
+        setTimeout(() => {
+          if (isRunningRef.current) {
+            animationFrameRef.current = requestAnimationFrame(processFrame)
+          }
+        }, 120)
       }
     }
 
@@ -236,12 +241,19 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       setCurrentChallengeIndex(newNextIndex === -1 ? challengeSteps.length - 1 : newNextIndex)
 
       if (nextCompleted.length === challengeSteps.length) {
-        // Challenges complete: Capture anchor image silently
+        // Challenges complete: Capture anchor image silently with true aspect ratio
         if (canvasRef.current && videoRef.current) {
-          const ctx = canvasRef.current.getContext("2d")
+          const video = videoRef.current
+          const canvas = canvasRef.current
+          const videoW = video.videoWidth || 640
+          const videoH = video.videoHeight || 480
+          canvas.width = videoW
+          canvas.height = videoH
+
+          const ctx = canvas.getContext("2d")
           if (ctx) {
-            ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
-            setAnchorImage(canvasRef.current.toDataURL("image/jpeg", 0.9))
+            ctx.drawImage(video, 0, 0, videoW, videoH)
+            setAnchorImage(canvas.toDataURL("image/jpeg", 0.9))
             stopLivenessDetection()
             setStep("capture-selfie")
           }
@@ -255,10 +267,17 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
     setStep("verifying")
     try {
-      const ctx = canvasRef.current.getContext("2d")
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const videoW = video.videoWidth || 1280
+      const videoH = video.videoHeight || 720
+      canvas.width = videoW
+      canvas.height = videoH
+
+      const ctx = canvas.getContext("2d")
       if (!ctx) return
-      ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
-      const selfieDataUrl = canvasRef.current.toDataURL("image/jpeg", 0.9)
+      ctx.drawImage(video, 0, 0, videoW, videoH)
+      const selfieDataUrl = canvas.toDataURL("image/jpeg", 0.9)
 
       const authToken = localStorage.getItem("auth_token")
       const response = await fetch("/api/verify-identity", {
@@ -414,7 +433,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           </motion.div>
         )}
 
-        <canvas ref={canvasRef} width={640} height={480} className="hidden" />
+        <canvas ref={canvasRef} className="hidden" />
       </div>
 
       <div className="w-full pt-4 space-y-3">
