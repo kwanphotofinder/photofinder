@@ -96,13 +96,41 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   // Attach stream and start detection when video element mounts
   useEffect(() => {
     if ((step === "liveness" || step === "capture-selfie") && videoMounted && videoRef.current && streamRef.current) {
-      if (videoRef.current.srcObject !== streamRef.current) {
-        videoRef.current.srcObject = streamRef.current
-        videoRef.current.play().then(() => {
-          if (step === "liveness") {
-            startLivenessDetection()
-          }
-        }).catch(console.error)
+      const video = videoRef.current
+      const stream = streamRef.current
+      let cancelled = false
+
+      const startVideo = async () => {
+        if (video.srcObject !== stream) {
+          video.srcObject = stream
+        }
+
+        if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
+          await new Promise<void>((resolve) => {
+            video.addEventListener("loadedmetadata", () => resolve(), { once: true })
+          })
+        }
+
+        await video.play()
+
+        if (cancelled || video.videoWidth === 0 || video.videoHeight === 0) return
+
+        if (canvasRef.current) {
+          canvasRef.current.width = video.videoWidth
+          canvasRef.current.height = video.videoHeight
+        }
+
+        if (step === "liveness") {
+          startLivenessDetection()
+        }
+      }
+
+      startVideo().catch((error) => {
+        if (!cancelled) console.error("Unable to start camera video:", error)
+      })
+
+      return () => {
+        cancelled = true
       }
     }
   }, [step, videoMounted])
@@ -114,21 +142,34 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     const processFrame = async () => {
       if (!isRunningRef.current || !videoRef.current || !canvasRef.current) return
 
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      if (
+        video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        video.videoWidth === 0 ||
+        video.videoHeight === 0 ||
+        canvas.width === 0 ||
+        canvas.height === 0
+      ) {
+        animationFrameRef.current = requestAnimationFrame(processFrame)
+        return
+      }
+
       if (frameInFlightRef.current) {
         animationFrameRef.current = requestAnimationFrame(processFrame)
         return
       }
 
-      const ctx = canvasRef.current.getContext("2d")
+      const ctx = canvas.getContext("2d")
       if (!ctx) return
 
-      ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
       try {
         frameInFlightRef.current = true
 
         const blob = await new Promise<Blob | null>((resolve) => {
-          canvasRef.current?.toBlob((b) => resolve(b), "image/jpeg", 0.9)
+          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9)
         })
 
         if (!isRunningRef.current || !blob) {
