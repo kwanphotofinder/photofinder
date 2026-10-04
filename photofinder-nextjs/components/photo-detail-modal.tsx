@@ -30,6 +30,7 @@ interface PhotoDetailModalProps {
   isOpen: boolean
   onClose: () => void
   initialShareOpen?: boolean
+  onEngagement?: (action: "VIEW" | "DOWNLOAD" | "SHARE") => void
 }
 
 function formatDayMonthYear(dateValue?: string) {
@@ -39,10 +40,9 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
+export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: PhotoDetailModalProps) {
   const { t } = useLanguage()
   const imageContainerRef = useRef<HTMLDivElement>(null)
-  const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -62,7 +62,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
       setActiveShareChannel(null)
       setIsZoomed(false)
       setIsFullscreen(false)
-      trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
 
@@ -99,14 +98,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
     loadFavoriteState()
   }, [isOpen, photo])
 
-  useEffect(() => {
-    if (!isOpen || !photo) return
-    if (trackedViewPhotoIdRef.current === photo.id) return
-
-    trackedViewPhotoIdRef.current = photo.id
-    trackPhotoEngagement(photo.id, "VIEW")
-  }, [isOpen, photo])
-
   if (!photo) return null
 
   const photoDate = formatDayMonthYear(photo.uploadDate || photo.eventDate)
@@ -115,14 +106,16 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
     : null
 
   const handleDownload = async () => {
-    trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadOriginalPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
+    await trackPhotoEngagement(photo.id, "DOWNLOAD")
+    onEngagement?.("DOWNLOAD")
+    await downloadOriginalPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
   }
 
   const handleNativeShare = async () => {
     try {
+      await trackPhotoEngagement(photo.id, "SHARE")
+      onEngagement?.("SHARE")
       await sharePhotoOriginal(photo)
-      trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error("Failed to share photo:", error)
       alert(t("detail.share_error"))
@@ -132,8 +125,9 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   const handleQuickShare = async (channel: "line" | "facebook") => {
     try {
       setActiveShareChannel(channel)
+      await trackPhotoEngagement(photo.id, "SHARE")
+      onEngagement?.("SHARE")
       await sharePhotoToChannel(photo, "original", channel)
-      trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error(`Failed to share photo to ${channel}:`, error)
       alert(t("detail.share_error"))

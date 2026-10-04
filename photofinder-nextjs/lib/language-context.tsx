@@ -155,6 +155,10 @@ const translations: Record<Language, Record<string, string>> = {
     "search.loading": "กำลังโหลดรูปภาพ...",
     "search.error": "ไม่สามารถโหลดรูปภาพได้",
     "search.empty": "ยังไม่มีรูปภาพ",
+    "photo.stats.views": "ผู้ชม",
+    "photo.stats.shares": "แชร์",
+    "photo.stats.likes": "ถูกใจ",
+    "photo.stats.downloads": "ดาวน์โหลด",
 
     // Dashboard Banner & Metrics
     "dash.title": "แดชบอร์ดผู้ดูแลระบบ (Admin Dashboard)",
@@ -783,6 +787,10 @@ const translations: Record<Language, Record<string, string>> = {
     "search.loading": "Loading photos...",
     "search.error": "Unable to load photos.",
     "search.empty": "No photos yet",
+    "photo.stats.views": "Viewers",
+    "photo.stats.shares": "Shares",
+    "photo.stats.likes": "Likes",
+    "photo.stats.downloads": "Downloads",
 
     // Dashboard Banner & Metrics
     "dash.title": "Admin Dashboard",

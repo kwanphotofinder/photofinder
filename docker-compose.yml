@@ -33,7 +33,7 @@ services:
       context: ./photofinder-nextjs
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-495253530403-argqajsjks764d73schnqa8483fl0dr5.apps.googleusercontent.com}
     container_name: photofinder_web
     restart: always
     ports:

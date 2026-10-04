@@ -2,6 +2,13 @@ import prisma from "@/lib/prisma"
 
 type EngagementAction = "VIEW" | "DOWNLOAD" | "SHARE"
 
+export interface PhotoEngagementSummary {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
+
 let tableReady = false
 
 export async function ensurePhotoEngagementTable() {
@@ -61,6 +68,49 @@ export async function recordPhotoEngagement(params: {
   )
 
   return { ok: true as const }
+}
+
+export async function getPhotoEngagementSummaries(photoIds: string[]) {
+  const summaries = new Map<string, PhotoEngagementSummary>()
+
+  if (photoIds.length === 0) return summaries
+
+  await ensurePhotoEngagementTable()
+
+  const placeholders = photoIds.map((_, index) => `$${index + 1}`).join(", ")
+  const rows = await prisma.$queryRawUnsafe<Array<{
+    photoId: string
+    views: bigint | number
+    shares: bigint | number
+    likes: bigint | number
+    downloads: bigint | number
+  }>>(
+    `
+      SELECT
+        p."id" AS "photoId",
+        COUNT(DISTINCT CASE WHEN pe."action" = 'VIEW' THEN pe."id" END) AS "views",
+        COUNT(DISTINCT CASE WHEN pe."action" = 'SHARE' THEN pe."id" END) AS "shares",
+        COUNT(DISTINCT sp."userId") AS "likes",
+        COUNT(DISTINCT CASE WHEN pe."action" = 'DOWNLOAD' THEN pe."id" END) AS "downloads"
+      FROM "photos" p
+      LEFT JOIN "photo_engagements" pe ON pe."photoId" = p."id"
+      LEFT JOIN "saved_photos" sp ON sp."photoId" = p."id"
+      WHERE p."id" IN (${placeholders})
+      GROUP BY p."id"
+    `,
+    ...photoIds,
+  )
+
+  for (const row of rows) {
+    summaries.set(row.photoId, {
+      views: Number(row.views || 0),
+      shares: Number(row.shares || 0),
+      likes: Number(row.likes || 0),
+      downloads: Number(row.downloads || 0),
+    })
+  }
+
+  return summaries
 }
 
 export async function getPhotographerAnalytics(uploaderId: string) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,9 +62,20 @@ export async function GET(req: NextRequest) {
       new Map(rawResults.map(r => [r.id, r])).values()
     );
 
+    const engagementSummaries = await getPhotoEngagementSummaries(finalResults.map((photo) => photo.id));
+    const results = finalResults.map((photo) => ({
+      ...photo,
+      stats: engagementSummaries.get(photo.id) ?? {
+        views: 0,
+        shares: 0,
+        likes: 0,
+        downloads: 0,
+      },
+    }));
+
     return NextResponse.json({
-      message: `Found ${finalResults.length} background matches!`,
-      results: finalResults,
+      message: `Found ${results.length} background matches!`,
+      results,
     });
 
   } catch (error) {

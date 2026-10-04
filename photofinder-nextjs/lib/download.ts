@@ -1,6 +1,15 @@
-export async function downloadPhoto(url: string, eventName: string, eventDate: string) {
+function getDownloadUrl(url: string, photoId?: string) {
+  return photoId ? `/api/photos/${encodeURIComponent(photoId)}/download` : url
+}
+
+function getDownloadHeaders() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+  return token ? { Authorization: `Bearer ${token}` } : undefined
+}
+
+export async function downloadPhoto(url: string, eventName: string, eventDate: string, photoId?: string) {
   try {
-    const response = await fetch(url);
+    const response = await fetch(getDownloadUrl(url, photoId), { headers: getDownloadHeaders() });
     if (!response.ok) {
       throw new Error(`Failed to fetch photo: ${response.status}`);
     }
@@ -35,9 +44,9 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
   }
 }
 
-export async function downloadOriginalPhoto(url: string, eventName: string, eventDate: string) {
+export async function downloadOriginalPhoto(url: string, eventName: string, eventDate: string, photoId?: string) {
   try {
-    const response = await fetch(url)
+    const response = await fetch(getDownloadUrl(url, photoId), { headers: getDownloadHeaders() })
     if (!response.ok) throw new Error(`Failed to fetch photo: ${response.status}`)
 
     const blob = await response.blob()

@@ -79,13 +79,12 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
 
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
-    trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
+    await trackPhotoEngagement(photo.id, "DOWNLOAD")
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
   }
 
-  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
+  const handleShare = (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
-    trackPhotoEngagement(photo.id, "SHARE")
     setSelectedPhoto(photo)
     setOpenShareSheet(true)
     setShowDetail(true)
