@@ -159,6 +159,12 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.stats.shares": "แชร์",
     "photo.stats.likes": "ถูกใจ",
     "photo.stats.downloads": "ดาวน์โหลด",
+    "photo.select": "เลือกภาพ",
+    "photo.selected_count": "เลือกแล้ว {count} ภาพ",
+    "photo.download_selected": "ดาวน์โหลดภาพที่เลือก",
+    "photo.clear_selection": "ล้างการเลือก",
+    "photo.cancel_selection": "ยกเลิก",
+    "photo.downloading_selected": "กำลังดาวน์โหลด {count} ภาพ...",
 
     // Dashboard Banner & Metrics
     "dash.title": "แดชบอร์ดผู้ดูแลระบบ (Admin Dashboard)",
@@ -791,6 +797,12 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.stats.shares": "Shares",
     "photo.stats.likes": "Likes",
     "photo.stats.downloads": "Downloads",
+    "photo.select": "Select photos",
+    "photo.selected_count": "{count} photos selected",
+    "photo.download_selected": "Download selected",
+    "photo.clear_selection": "Clear selection",
+    "photo.cancel_selection": "Cancel",
+    "photo.downloading_selected": "Downloading {count} photos...",
 
     // Dashboard Banner & Metrics
     "dash.title": "Admin Dashboard",

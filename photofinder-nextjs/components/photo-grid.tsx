@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Trash2, Heart, Download, Share2 } from "lucide-react"
+import { Eye, Trash2, Heart, Download, Share2, Check, X } from "lucide-react"
 import { PhotoDetailModal } from "./photo-detail-modal"
 import { downloadPhoto } from "@/lib/download"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
@@ -56,6 +56,9 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
   const [savedPhotoIds, setSavedPhotoIds] = useState<string[]>([])
   const [savingPhotoIds, setSavingPhotoIds] = useState<string[]>([])
   const [photoStats, setPhotoStats] = useState<Record<string, PhotoStats>>({})
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false)
 
   useEffect(() => {
     setPhotoStats(Object.fromEntries(photos.map((photo) => [photo.id, photo.stats ?? {
@@ -82,6 +85,10 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
   }, [])
 
   const openPhoto = (photo: Photo) => {
+    if (isSelectionMode) {
+      togglePhotoSelection(photo.id)
+      return
+    }
     void trackPhotoEngagement(photo.id, "VIEW")
     setSelectedPhoto(photo)
     setShowDetail(true)
@@ -92,6 +99,30 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
         views: (current[photo.id]?.views ?? 0) + 1,
       },
     }))
+  }
+
+  const togglePhotoSelection = (photoId: string) => {
+    setSelectedPhotoIds((current) => current.includes(photoId)
+      ? current.filter((id) => id !== photoId)
+      : [...current, photoId])
+  }
+
+  const handleBatchDownload = async () => {
+    const selectedPhotos = photos.filter((photo) => selectedPhotoIds.includes(photo.id))
+    if (selectedPhotos.length === 0 || isBatchDownloading) return
+
+    setIsBatchDownloading(true)
+    try {
+      for (const photo of selectedPhotos) {
+        await trackPhotoEngagement(photo.id, "DOWNLOAD")
+        updatePhotoStat(photo.id, "DOWNLOAD")
+        await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
+      }
+      setSelectedPhotoIds([])
+      setIsSelectionMode(false)
+    } finally {
+      setIsBatchDownloading(false)
+    }
   }
 
   const updatePhotoStat = (photoId: string, action: "DOWNLOAD" | "SHARE") => {
@@ -161,6 +192,43 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-card p-2.5">
+        {isSelectionMode ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedPhotoIds([])} disabled={selectedPhotoIds.length === 0}>
+              <X className="mr-1.5 h-4 w-4" />
+              {t("photo.clear_selection")}
+            </Button>
+            <span className="text-xs font-medium text-muted-foreground">{t("photo.selected_count").replace("{count}", String(selectedPhotoIds.length))}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">{t("photo.select")}</span>
+        )}
+        <div className="flex items-center gap-2">
+          {isSelectionMode && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedPhotoIds([]) }}>
+              {t("photo.cancel_selection")}
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant={isSelectionMode ? "default" : "outline"}
+            onClick={() => setIsSelectionMode((current) => !current)}
+            disabled={isBatchDownloading}
+          >
+            <Check className="mr-1.5 h-4 w-4" />
+            {isSelectionMode ? t("photo.selected_count").replace("{count}", String(selectedPhotoIds.length)) : t("photo.select")}
+          </Button>
+          {isSelectionMode && (
+            <Button type="button" size="sm" onClick={handleBatchDownload} disabled={selectedPhotoIds.length === 0 || isBatchDownloading}>
+              <Download className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">{isBatchDownloading ? t("photo.downloading_selected").replace("{count}", String(selectedPhotoIds.length)) : t("photo.download_selected")}</span>
+              <span className="sm:hidden">{selectedPhotoIds.length}</span>
+            </Button>
+          )}
+        </div>
+      </div>
       <div className={`grid gap-4 ${compact ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
         {photos.map((photo) => {
           const stats = photoStats[photo.id] ?? { views: 0, shares: 0, likes: 0, downloads: 0 }
@@ -181,6 +249,21 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 className="object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
                 sizes={compact ? "(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
               />
+
+              {isSelectionMode && (
+                <button
+                  type="button"
+                  aria-label={`${t("photo.select")} ${photo.eventName}`}
+                  aria-pressed={selectedPhotoIds.includes(photo.id)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    togglePhotoSelection(photo.id)
+                  }}
+                  className={`absolute left-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded border-2 bg-white/90 shadow-lg backdrop-blur-sm transition-colors ${selectedPhotoIds.includes(photo.id) ? "border-primary bg-primary text-primary-foreground" : "border-white text-transparent"}`}
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+              )}
 
               {showRank && (
                 <div className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-sm text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-lg ring-1 ring-white/10 z-10">

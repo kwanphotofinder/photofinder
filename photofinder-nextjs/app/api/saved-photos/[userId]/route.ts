@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
 export async function GET(
   req: NextRequest,
@@ -28,7 +29,18 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(savedPhotos);
+    const stats = await getPhotoEngagementSummaries(savedPhotos.map((savedPhoto) => savedPhoto.photo.id));
+    const response = savedPhotos.map((savedPhoto) => ({
+      ...savedPhoto,
+      stats: stats.get(savedPhoto.photo.id) ?? {
+        views: 0,
+        shares: 0,
+        likes: 0,
+        downloads: 0,
+      },
+    }));
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Saved Photos GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch saved photos' }, { status: 500 });

@@ -18,6 +18,7 @@ interface Photo {
 }
 
 interface SavedPhotoResponse {
+  stats?: Photo["stats"]
   photo: {
     id: string
     storageUrl: string
@@ -73,6 +74,7 @@ export default function FavoritesPage() {
           eventDate: item.photo.event?.date || item.photo.createdAt,
           uploadDate: item.photo.createdAt,
           confidence: 0.95,
+          stats: item.stats,
         }))
         setSavedPhotos(photos)
       } catch (err) {
