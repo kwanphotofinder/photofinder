@@ -5,12 +5,19 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Download, CalendarDays, X } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Download, CalendarDays, X, Eye } from "lucide-react"
 import { downloadOriginalPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 import { useLanguage } from "@/lib/language-context"
+
+interface PhotoStats {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
 
 interface Photo {
   id: string
@@ -23,6 +30,7 @@ interface Photo {
   y?: number
   w?: number
   h?: number
+  stats?: PhotoStats
 }
 
 interface PhotoDetailModalProps {
@@ -51,6 +59,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
   const [activeShareChannel, setActiveShareChannel] = useState<ShareChannel | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [stats, setStats] = useState<PhotoStats>(photo?.stats ?? { views: 0, shares: 0, likes: 0, downloads: 0 })
 
   // Reset state when modal closes
   useEffect(() => {
@@ -64,6 +73,29 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
       setIsFullscreen(false)
     }
   }, [isOpen])
+
+  // Load live engagement stats from API
+  useEffect(() => {
+    if (!isOpen || !photo) return
+    setStats(photo.stats ?? { views: 0, shares: 0, likes: 0, downloads: 0 })
+
+    const fetchStats = async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+        const res = await fetch(`/api/photos/${photo.id}/stats`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (res.ok) {
+          const data = await res.json() as PhotoStats
+          setStats(data)
+        }
+      } catch {
+        // silently ignore – we already have initial stats from props
+      }
+    }
+
+    void fetchStats()
+  }, [isOpen, photo])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -108,6 +140,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
   const handleDownload = async () => {
     await trackPhotoEngagement(photo.id, "DOWNLOAD")
     onEngagement?.("DOWNLOAD")
+    setStats((s) => ({ ...s, downloads: s.downloads + 1 }))
     await downloadOriginalPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
   }
 
@@ -115,6 +148,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
     try {
       await trackPhotoEngagement(photo.id, "SHARE")
       onEngagement?.("SHARE")
+      setStats((s) => ({ ...s, shares: s.shares + 1 }))
       await sharePhotoOriginal(photo)
     } catch (error) {
       console.error("Failed to share photo:", error)
@@ -127,6 +161,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
       setActiveShareChannel(channel)
       await trackPhotoEngagement(photo.id, "SHARE")
       onEngagement?.("SHARE")
+      setStats((s) => ({ ...s, shares: s.shares + 1 }))
       await sharePhotoToChannel(photo, "original", channel)
     } catch (error) {
       console.error(`Failed to share photo to ${channel}:`, error)
@@ -278,6 +313,38 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
                 <CalendarDays className="h-3.5 w-3.5" />
                 {photoDate}
               </DialogDescription>
+
+              {/* Engagement stats bar */}
+              <div className="mt-3 grid grid-cols-4 divide-x divide-[#ece6df] rounded-xl border border-[#ece6df] bg-[#faf9f7]">
+                <div className="flex flex-col items-center py-2 px-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    <Eye className="h-3 w-3" />
+                    {t("detail.stats.views")}
+                  </div>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.views}</span>
+                </div>
+                <div className="flex flex-col items-center py-2 px-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    <Download className="h-3 w-3" />
+                    {t("detail.stats.downloads")}
+                  </div>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.downloads}</span>
+                </div>
+                <div className="flex flex-col items-center py-2 px-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    <Share2 className="h-3 w-3" />
+                    {t("detail.stats.shares")}
+                  </div>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.shares}</span>
+                </div>
+                <div className="flex flex-col items-center py-2 px-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    <Heart className="h-3 w-3" />
+                    {t("detail.stats.likes")}
+                  </div>
+                  <span className="mt-0.5 text-sm font-black text-[#82181a]">{stats.likes}</span>
+                </div>
+              </div>
             </DialogHeader>
 
             <div className="flex flex-1 flex-col gap-5 p-5 sm:p-6">

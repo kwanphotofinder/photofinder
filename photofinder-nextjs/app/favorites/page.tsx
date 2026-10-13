@@ -8,6 +8,13 @@ import { Heart, Loader2, AlertCircle, Sparkles } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { apiClient } from "@/lib/api-client"
 
+interface PhotoStats {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
+
 interface Photo {
   id: string
   url: string
@@ -15,10 +22,11 @@ interface Photo {
   eventDate: string
   uploadDate?: string
   confidence: number
+  stats?: PhotoStats
 }
 
 interface SavedPhotoResponse {
-  stats?: Photo["stats"]
+  stats?: PhotoStats
   photo: {
     id: string
     storageUrl: string

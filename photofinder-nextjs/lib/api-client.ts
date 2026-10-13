@@ -49,7 +49,7 @@ async function apiCall<T>(
     }
 
     return {
-      data: response.ok ? data : undefined,
+      data: response.ok ? (data as T) : undefined,
       error: response.ok
         ? undefined
         : data.error || `Request failed (${response.status}) at ${endpoint}`,

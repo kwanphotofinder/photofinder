@@ -5,7 +5,14 @@ import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
 export async function GET(req: NextRequest) {
   try {
-    const MIN_MATCH_CONFIDENCE = 0.60; // 60% confidence required to protect privacy
+    const DEFAULT_CONFIDENCE = 0.60;
+    const ABSOLUTE_MIN = 0.35; // hard floor – never return completely unrelated faces
+
+    const thresholdParam = req.nextUrl.searchParams.get("threshold");
+    const parsedThreshold = thresholdParam ? parseFloat(thresholdParam) : NaN;
+    const MIN_MATCH_CONFIDENCE = Number.isFinite(parsedThreshold)
+      ? Math.max(ABSOLUTE_MIN, Math.min(1.0, parsedThreshold))
+      : DEFAULT_CONFIDENCE;
     
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -648,6 +648,19 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.removal_failed": "ไม่สามารถส่งคำร้องขอลบภาพได้ กรุณาลองใหม่อีกครั้ง",
     "detail.removal_success": "ส่งคำร้องขอลบภาพเรียบร้อยแล้ว ทีมงานจะตรวจสอบภายใน 24 ชั่วโมง",
     "detail.error_generic": "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+    "detail.stats_title": "สถิติการมีส่วนร่วม",
+    "detail.stats.views": "คนดู",
+    "detail.stats.downloads": "ดาวน์โหลด",
+    "detail.stats.shares": "แชร์",
+    "detail.stats.likes": "บันทึก",
+
+
+    // Confidence / Search filter
+    "search.filter.confidence": "ความแม่นยำขั้นต่ำ",
+    "search.filter.confidence_desc": "ลดค่าเพื่อให้ได้ภาพมากขึ้น แต่อาจมีภาพที่ไม่ใช่คุณปนอยู่",
+    "search.filter.apply": "ค้นหาใหม่",
+    "search.filter.reset": "รีเซ็ต",
+    "search.filter.label": "กรองผล",
   },
   en: {
     // Header & Global
@@ -1286,6 +1299,18 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.removal_failed": "Failed to submit removal request. Please try again.",
     "detail.removal_success": "Removal request submitted successfully. Our team will review it within 24 hours.",
     "detail.error_generic": "An error occurred. Please try again.",
+    "detail.stats_title": "Engagement Stats",
+    "detail.stats.views": "Views",
+    "detail.stats.downloads": "Downloads",
+    "detail.stats.shares": "Shares",
+    "detail.stats.likes": "Saves",
+
+    // Confidence / Search filter
+    "search.filter.confidence": "Minimum match confidence",
+    "search.filter.confidence_desc": "Lower the value to get more photos, but may include less accurate matches",
+    "search.filter.apply": "Search again",
+    "search.filter.reset": "Reset",
+    "search.filter.label": "Filter results",
   },
 }
 
