@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: photofinder-config
+  namespace: photofinder
+  labels:
+    app.kubernetes.io/name: photofinder
+data:
+  POSTGRES_DB: "facesearch"
+  POSTGRES_USER: "postgres"
+  AI_SERVICE_URL: "http://ai-service.photofinder.svc.cluster.local:7860"
+  NEXT_PUBLIC_API_URL: "/api"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: photofinder-secrets
+  namespace: photofinder
+  labels:
+    app.kubernetes.io/name: photofinder
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "postgres_secure_password"
+  # Standard PostgreSQL URL with pgvector connection
+  DATABASE_URL: "postgresql://postgres:postgres_secure_password@postgres.photofinder.svc.cluster.local:5432/facesearch"
+  DIRECT_URL: "postgresql://postgres:postgres_secure_password@postgres.photofinder.svc.cluster.local:5432/facesearch"
+  JWT_SECRET: "photofinder_jwt_secret_key_change_in_production"
+  # Optional Cloudinary / Storage URL
+  CLOUDINARY_URL: ""
