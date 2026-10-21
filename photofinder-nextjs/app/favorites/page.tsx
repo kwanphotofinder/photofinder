@@ -134,7 +134,7 @@ export default function FavoritesPage() {
             ) : error ? (
               <div className="flex min-h-36 items-center justify-center rounded border border-red-200 bg-red-50 py-10 text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
             ) : savedPhotos.length > 0 ? (
-              <PhotoGrid photos={savedPhotos} compact={true} showConfidence={false} showShare={true} />
+              <PhotoGrid photos={savedPhotos} showRank={true} compact={true} showConfidence={false} showShare={true} showStats={false} />
             ) : (
               <div className="flex min-h-52 flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-white p-10 text-center"><div className="mb-3 rounded bg-primary/10 p-3 text-primary"><Heart className="h-7 w-7" /></div><p className="text-lg font-semibold text-foreground">{t("favorites.empty")}</p><p className="mt-1 text-sm text-muted-foreground">{t("favorites.empty_description")}</p></div>
             )}
