@@ -791,19 +791,6 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
 
                         {/* Actions */}
                         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                          {incident.reproduceCurl && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyToClipboard(incident.reproduceCurl!, `curl-${incident.id}`)}
-                              className="h-7 text-xs border-slate-300 bg-slate-50 hover:bg-slate-100"
-                              title="Copy ready-to-run cURL to reproduce this error"
-                            >
-                              <Terminal className="h-3 w-3 mr-1 text-[#82181a]" />
-                              {copiedKey === `curl-${incident.id}` ? "Copied!" : "Copy cURL"}
-                            </Button>
-                          )}
-
                           <Button
                             size="sm"
                             onClick={() => setSelectedError(incident)}
@@ -1106,30 +1093,6 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   </span>
                 )}
               </div>
-
-              {/* Issue Reproduction: Ready-to-run cURL command */}
-              {selectedError.reproduceCurl && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                      <Terminal className="h-3.5 w-3.5 text-[#82181a]" />
-                      Issue Reproduction (cURL Command)
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(selectedError.reproduceCurl!, "modal-curl")}
-                      className="h-6 text-[10px] px-2 text-[#82181a] border-[#82181a]/30 hover:bg-[#82181a]/10"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      {copiedKey === "modal-curl" ? "Copied!" : "Copy cURL"}
-                    </Button>
-                  </div>
-                  <div className="bg-slate-900 text-emerald-400 p-2.5 rounded font-mono text-[11px] overflow-x-auto whitespace-pre">
-                    {selectedError.reproduceCurl}
-                  </div>
-                </div>
-              )}
 
               {/* Request Payload at failure */}
               {selectedError.requestBody && selectedError.requestBody !== "null" && (
