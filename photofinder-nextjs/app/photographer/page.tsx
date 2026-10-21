@@ -1328,7 +1328,8 @@ export default function PhotographerPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )
+                })}
                 </div>
               )}
             </div>
