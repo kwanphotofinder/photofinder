@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary"
-import { extractFaces } from "@/lib/ai"
+import { uploadToCloudinary } from "@/lib/cloudinary"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { optimizeForStorage } from "@/lib/image"
+import { aiQueue } from "@/lib/ai-queue"
 
 // POST /api/events/:id/upload - Upload multiple photos to an event
 // This mirrors the photographer upload flow which sends files per event
@@ -81,62 +81,28 @@ export async function POST(
       // 3. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
       const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId)
 
-      // 4. Create Photo Record (dimensions from optimized version)
+      // 4. Create Photo Record with PENDING status
       const photo = await prisma.photo.create({
         data: {
           eventId,
           uploaderId: uploaderId || null,
           storageUrl: storageUrl || file.name,
           mimeType: 'image/webp',
-          processingStatus: "PROCESSING",
+          processingStatus: "PENDING",
           width: optimized.width,
           height: optimized.height,
         },
       })
 
-      try {
-        // 4. Extract face embeddings and store in pgvector
-        // CRITICAL: We must use the optimized buffer so the coordinates match the resized image!
-        const faces = await extractFaces(optimized.buffer, file.name)
+      // 5. Enqueue into background AI Processing Queue (non-blocking)
+      await aiQueue.enqueue({
+        photoId: photo.id,
+        storageUrl: storageUrl || file.name,
+        imageBuffer: optimized.buffer,
+        fileName: file.name,
+      })
 
-        if (!faces || faces.length === 0) {
-          // No faces detected; clean up the blank photo and skip to save storage.
-          if (storageUrl) await deleteFromCloudinary(storageUrl);
-          await prisma.photo.delete({ where: { id: photo.id } });
-          results.push({ photoId: photo.id, filename: file.name, facesDetected: 0, status: "failed", error: "Skipped: No faces found (discarded to save storage)" });
-          continue;
-        }
-
-        for (const face of faces) {
-          const vectorString = `[${face.embedding.join(",")}]`
-          await prisma.$executeRawUnsafe(`
-            INSERT INTO "faces" ("id", "photoId", "confidence", "x", "y", "w", "h", "embedding")
-            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::vector)
-          `,
-            photo.id,
-            face.det_score,
-            face.bbox[0],
-            face.bbox[1],
-            face.bbox[2] - face.bbox[0],
-            face.bbox[3] - face.bbox[1],
-            vectorString
-          )
-        }
-
-        await prisma.photo.update({
-          where: { id: photo.id },
-          data: { processingStatus: "COMPLETED" },
-        })
-
-        results.push({ photoId: photo.id, filename: file.name, facesDetected: faces.length, status: "success" })
-      } catch (aiError) {
-        console.warn(`AI processing failed for ${file.name}:`, aiError)
-        await prisma.photo.update({
-          where: { id: photo.id },
-          data: { processingStatus: "FAILED" },
-        })
-        results.push({ photoId: photo.id, filename: file.name, facesDetected: 0, status: "ai_failed" })
-      }
+      results.push({ photoId: photo.id, filename: file.name, status: "queued" })
     }
 
     return NextResponse.json({

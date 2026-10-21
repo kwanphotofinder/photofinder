@@ -372,6 +372,20 @@ export default function PhotographerPage() {
     setIsLoading(false)
   }, [router])
 
+  // Auto-refresh photo list if there are pending or processing photos
+  useEffect(() => {
+    const hasPendingPhotos = uploadedPhotos.some(
+      (p) => p.status === "pending" || p.status === "processing"
+    )
+    if (!hasPendingPhotos) return
+
+    const pollInterval = setInterval(() => {
+      loadData(photographerUser?.id)
+    }, 4000)
+
+    return () => clearInterval(pollInterval)
+  }, [uploadedPhotos, photographerUser?.id])
+
   const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 
   const filterValidFiles = (files: File[]) => {

@@ -2,6 +2,8 @@ import prisma from "../photofinder-nextjs/lib/prisma"
 import { recordLogTap } from "../photofinder-nextjs/lib/log-tap"
 import { trackError } from "../photofinder-nextjs/lib/error-tracker"
 import { recordPhotoEngagement, getPhotoEngagementSummaries } from "../photofinder-nextjs/lib/photo-engagement"
+import { memoryRateLimiter, RATE_LIMIT_TIERS, getRateLimitHeaders } from "../photofinder-nextjs/lib/rate-limit"
+import { aiQueue } from "../photofinder-nextjs/lib/ai-queue"
 
 async function runE2ETests() {
   console.log("==================================================")
@@ -198,6 +200,52 @@ async function runE2ETests() {
   } catch (err: any) {
     console.error("Match Threshold Query Error:", err.message)
     assert(false, "Match Confidence 50% Threshold Query")
+  }
+
+  // TEST 7: AI Processing Queue
+  console.log("\n--- 7. Testing AI Processing Queue ---")
+  try {
+    const queueStats = await aiQueue.getStats()
+    assert(typeof queueStats.queued === "number", "AI Queue: queued count is a valid number")
+    assert(typeof queueStats.processing === "number", "AI Queue: processing count is a valid number")
+    assert(queueStats.concurrencyLimit >= 1, "AI Queue: concurrency limit is active (>= 1)")
+  } catch (err: any) {
+    console.error("AI Queue Error:", err.message)
+    assert(false, "AI Processing Queue")
+  }
+
+  // TEST 8: API Rate Limiter
+  console.log("\n--- 8. Testing API Rate Limiter ---")
+  try {
+    const testKey = `test_rate_limit_${Date.now()}`
+    const limitConfig = { limit: 3, windowMs: 10000, name: "TestLimiter" }
+
+    // Hit 1: Allowed
+    const hit1 = memoryRateLimiter.check(testKey, limitConfig.limit, limitConfig.windowMs)
+    assert(hit1.success === true, "Rate Limiter: First request allowed")
+    assert(hit1.remaining === 2, "Rate Limiter: Remaining count decremented correctly")
+
+    // Hit 2 & 3: Allowed
+    memoryRateLimiter.check(testKey, limitConfig.limit, limitConfig.windowMs)
+    const hit3 = memoryRateLimiter.check(testKey, limitConfig.limit, limitConfig.windowMs)
+    assert(hit3.success === true && hit3.remaining === 0, "Rate Limiter: Quota consumed to 0")
+
+    // Hit 4: Exceeded (Should block with 429)
+    const hit4 = memoryRateLimiter.check(testKey, limitConfig.limit, limitConfig.windowMs)
+    assert(hit4.success === false, "Rate Limiter: 4th request blocked (Rate Limit Exceeded)")
+    assert(hit4.retryAfterSeconds > 0, "Rate Limiter: Returns positive retryAfterSeconds")
+
+    // Test headers generation
+    const headers = getRateLimitHeaders(hit4)
+    assert(headers["X-RateLimit-Limit"] === "3", "Rate Limiter: X-RateLimit-Limit header present")
+    assert(headers["X-RateLimit-Remaining"] === "0", "Rate Limiter: X-RateLimit-Remaining header is 0")
+    assert(!!headers["Retry-After"], "Rate Limiter: Retry-After header present")
+
+    // Cleanup
+    memoryRateLimiter.reset(testKey)
+  } catch (err: any) {
+    console.error("Rate Limiter Error:", err.message)
+    assert(false, "API Rate Limiter")
   }
 
   console.log("\n==================================================")

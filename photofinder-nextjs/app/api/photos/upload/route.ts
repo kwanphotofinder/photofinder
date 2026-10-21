@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
-import { extractFaces } from '@/lib/ai';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { optimizeForStorage } from '@/lib/image';
 import { recordLogTap, createTraceId, extractClientInfo } from '@/lib/log-tap';
 import { trackError } from '@/lib/error-tracker';
+import { aiQueue } from '@/lib/ai-queue';
 
-// Allow Vercel Hobby tier to wait up to 180 seconds for Hugging Face AI to wake up
 export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
@@ -64,113 +63,46 @@ export async function POST(req: NextRequest) {
     // 3. Upload the OPTIMIZED version to Cloudinary (saves ~70-80% storage)
     const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId);
 
-    // 4. Create Photo Record in Prisma (dimensions from the optimized version)
+    // 4. Create Photo Record in Prisma with PENDING status
     const photo = await prisma.photo.create({
       data: {
         eventId,
         uploaderId,
         storageUrl,
         mimeType: 'image/webp',
-        processingStatus: 'PROCESSING',
+        processingStatus: 'PENDING',
         width: optimized.width,
         height: optimized.height,
       },
     });
 
-    try {
-      // 4. Send buffer to AI Service to get Face Embeddings and Bounding Boxes
-      // CRITICAL: We use optimized.buffer so face coordinates match the stored image dimensions!
-      const faces = await extractFaces(optimized.buffer, file.name);
+    // 5. Enqueue into background AI Processing Queue (non-blocking, handled smoothly by worker pool)
+    await aiQueue.enqueue({
+      photoId: photo.id,
+      storageUrl,
+      imageBuffer: optimized.buffer,
+      fileName: file.name,
+    });
 
-      if (!faces || faces.length === 0) {
-        // If no face detected, clean up the photo from Cloudinary and DB to save storage
-        if (storageUrl) await deleteFromCloudinary(storageUrl);
-        await prisma.photo.delete({ where: { id: photo.id } });
-        return NextResponse.json({ error: 'Skipped: No faces found (discarded to save storage)' }, { status: 400 });
-      }
+    recordLogTap({
+      traceId,
+      method: 'POST',
+      path: '/api/photos/upload',
+      statusCode: 201,
+      durationMs: Date.now() - startTime,
+      ipAddress: ip,
+      userAgent,
+      userId: user?.id,
+      userEmail: user?.email,
+      outputSummary: { photoId: photo.id, status: 'queued' },
+    });
 
-      // 5. Save each face's pgvector embedding into PostgreSQL natively
-      for (const face of faces) {
-        // Construct pgvector syntax: '[1.0, 2.0, ...]'
-        const vectorString = `[${face.embedding.join(',')}]`;
-
-        // We use executeRaw to safely cast pgvector data into the Unsupported type
-         await prisma.$executeRawUnsafe(`
-          INSERT INTO "faces" ("id", "photoId", "confidence", "x", "y", "w", "h", "embedding")
-          VALUES (
-            gen_random_uuid(), 
-            $1, 
-            $2, 
-            $3, 
-            $4, 
-            $5, 
-            $6, 
-            $7::vector
-          )
-        `, 
-          photo.id, 
-          face.det_score, 
-          face.bbox[0], 
-          face.bbox[1], 
-          face.bbox[2] - face.bbox[0], 
-          face.bbox[3] - face.bbox[1], 
-          vectorString
-        );
-      }
-
-      // 6. Complete Photo processing status
-      await prisma.photo.update({
-        where: { id: photo.id },
-        data: { processingStatus: 'COMPLETED' },
-      });
-
-      // 7. Notifications are now handled via the /api/events/[id]/notify route 
-      // which is triggered by the photographer when they finish uploading.
-
-      return NextResponse.json({
-        photoId: photo.id,
-        storageUrl,
-        facesDetected: faces.length,
-        status: 'success',
-      }, { status: 201 });
-
-    } catch (error) {
-      console.error(`AI or DB failure for photo ${photo.id}:`, error);
-
-      // Mark processing as failed if AI crashes
-      await prisma.photo.update({
-        where: { id: photo.id },
-        data: { processingStatus: 'FAILED' },
-      });
-
-      trackError({
-        error,
-        route: '/api/photos/upload',
-        method: 'POST',
-        statusCode: 500,
-        severity: 'CRITICAL',
-        traceId,
-        requestBody: { photoId: photo.id, eventId },
-        userEmail: user?.email,
-        ipAddress: ip,
-      });
-
-      recordLogTap({
-        traceId,
-        method: 'POST',
-        path: '/api/photos/upload',
-        statusCode: 500,
-        durationMs: Date.now() - startTime,
-        ipAddress: ip,
-        userAgent,
-        userId: user?.id,
-        userEmail: user?.email,
-        isError: true,
-        errorMessage: 'AI processing failed',
-      });
-
-      return NextResponse.json({ error: 'AI processing failed' }, { status: 500 });
-    }
+    return NextResponse.json({
+      photoId: photo.id,
+      storageUrl,
+      status: 'queued',
+      message: 'Photo uploaded and enqueued for AI face processing',
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Photo Upload General Error:', error);

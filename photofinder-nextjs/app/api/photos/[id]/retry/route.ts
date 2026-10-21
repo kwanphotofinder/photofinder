@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractFaces } from '@/lib/ai';
+import { aiQueue } from '@/lib/ai-queue';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 
@@ -31,60 +31,23 @@ export async function POST(
       return NextResponse.json({ error: 'Only FAILED photos can be retried' }, { status: 400 });
     }
 
-    // Update status to PROCESSING to prevent concurrent retries
-    await prisma.photo.update({
+    // Update status to PENDING and enqueue into AI processing queue
+    const updatedPhoto = await prisma.photo.update({
       where: { id },
-      data: { processingStatus: 'PROCESSING' }
+      data: { processingStatus: 'PENDING' }
     });
 
-    try {
-      // 1. Fetch the image from Cloudinary
-      // (This will be the optimized 2048px WebP image, which is perfectly fine for AI retry)
-      const res = await fetch(photo.storageUrl);
-      if (!res.ok) throw new Error('Failed to download image from storage');
-      
-      const arrayBuffer = await res.arrayBuffer();
-      const fileBuffer = Buffer.from(arrayBuffer);
+    await aiQueue.enqueue({
+      photoId: photo.id,
+      storageUrl: photo.storageUrl,
+      retries: 0,
+    });
 
-      // 2. Extract faces via AI
-      const filename = photo.storageUrl.split('/').pop() || 'retry.jpg';
-      const faces = await extractFaces(fileBuffer, filename);
-
-      // 3. Save faces in DB
-      for (const face of faces) {
-        const vectorString = `[${face.embedding.join(',')}]`;
-        await prisma.$executeRawUnsafe(`
-          INSERT INTO "faces" ("id", "photoId", "confidence", "x", "y", "w", "h", "embedding")
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::vector)
-        `,
-          photo.id,
-          face.det_score,
-          face.bbox[0],
-          face.bbox[1],
-          face.bbox[2],
-          face.bbox[3],
-          vectorString
-        );
-      }
-
-      // 4. Mark as completed
-      const updatedPhoto = await prisma.photo.update({
-        where: { id },
-        data: { processingStatus: 'COMPLETED' }
-      });
-
-      return NextResponse.json(updatedPhoto);
-    } catch (processError) {
-      console.error('Retry processing error:', processError);
-      
-      // Revert status to FAILED
-      await prisma.photo.update({
-        where: { id },
-        data: { processingStatus: 'FAILED' }
-      });
-      
-      return NextResponse.json({ error: 'AI processing failed again' }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      photo: updatedPhoto,
+      message: 'Photo re-enqueued for AI processing',
+    });
 
   } catch (error) {
     console.error('Retry route error:', error);
