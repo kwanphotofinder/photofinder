@@ -17,6 +17,9 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   IMAGE_WEB: "$CI_REGISTRY_IMAGE/web"
   IMAGE_AI: "$CI_REGISTRY_IMAGE/ai-service"
+  DATABASE_URL: "postgresql://ci_dummy:ci_dummy@localhost:5432/ci_dummy"
+  DIRECT_URL: "postgresql://ci_dummy:ci_dummy@localhost:5432/ci_dummy"
+  JWT_SECRET: "ci-test-jwt-secret-key-12345"
 
 # ==============================================================================
 # STAGE 1: TEST & VALIDATION
@@ -49,7 +52,6 @@ test:ai-service:
   before_script:
     - cd ai-service
     - apt-get update && apt-get install -y --no-install-recommends gcc libgl1 libglib2.0-0
-    - pip install --no-cache-dir flake8
   script:
     - python -m py_compile main.py
   rules:
@@ -111,18 +113,14 @@ deploy:staging:
   script:
     - kubectl config get-contexts || true
     - echo "Deploying to Kubernetes namespace photofinder..."
-    # Apply namespace and core configs
     - kubectl apply -f k8s/namespace.yaml
     - kubectl apply -f k8s/configmap.yaml
     - kubectl apply -f k8s/postgres.yaml
-    # Update deployment images to newly built registry images
-    - sed -i "s|image: photofinder-web:latest|image: $IMAGE_WEB:$CI_COMMIT_SHORT_SHA|g" k8s/web.yaml
-    - sed -i "s|image: photofinder-ai:latest|image: $IMAGE_AI:$CI_COMMIT_SHORT_SHA|g" k8s/ai-service.yaml
-    # Roll out workloads
+    - 'sed -i "s|image: photofinder-web:latest|image: $IMAGE_WEB:$CI_COMMIT_SHORT_SHA|g" k8s/web.yaml'
+    - 'sed -i "s|image: photofinder-ai:latest|image: $IMAGE_AI:$CI_COMMIT_SHORT_SHA|g" k8s/ai-service.yaml'
     - kubectl apply -f k8s/ai-service.yaml
     - kubectl apply -f k8s/web.yaml
     - kubectl apply -f k8s/ingress.yaml
-    # Check rollout progress
     - kubectl rollout status deployment/web -n photofinder --timeout=180s || true
     - kubectl rollout status deployment/ai-service -n photofinder --timeout=180s || true
   environment:
@@ -140,8 +138,8 @@ deploy:production:
     - kubectl apply -f k8s/namespace.yaml
     - kubectl apply -f k8s/configmap.yaml
     - kubectl apply -f k8s/postgres.yaml
-    - sed -i "s|image: photofinder-web:latest|image: $IMAGE_WEB:$CI_COMMIT_SHORT_SHA|g" k8s/web.yaml
-    - sed -i "s|image: photofinder-ai:latest|image: $IMAGE_AI:$CI_COMMIT_SHORT_SHA|g" k8s/ai-service.yaml
+    - 'sed -i "s|image: photofinder-web:latest|image: $IMAGE_WEB:$CI_COMMIT_SHORT_SHA|g" k8s/web.yaml'
+    - 'sed -i "s|image: photofinder-ai:latest|image: $IMAGE_AI:$CI_COMMIT_SHORT_SHA|g" k8s/ai-service.yaml'
     - kubectl apply -f k8s/ai-service.yaml
     - kubectl apply -f k8s/web.yaml
     - kubectl apply -f k8s/ingress.yaml
