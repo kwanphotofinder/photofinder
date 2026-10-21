@@ -249,3 +249,57 @@ model AuditLog {
   @@index([actorEmail], name: "audit_logs_actorEmail_idx")
   @@map("audit_logs")
 }
+
+model LogTap {
+  id            String   @id @default(uuid())
+  traceId       String
+  method        String
+  path          String
+  statusCode    Int
+  durationMs    Int
+  ipAddress     String?
+  userAgent     String?
+  userId        String?
+  userEmail     String?
+  inputPayload  String?  @db.Text
+  outputSummary String?  @db.Text
+  isError       Boolean  @default(false)
+  errorMessage  String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt], name: "log_taps_createdAt_idx")
+  @@index([path], name: "log_taps_path_idx")
+  @@index([statusCode], name: "log_taps_statusCode_idx")
+  @@index([isError], name: "log_taps_isError_idx")
+  @@index([traceId], name: "log_taps_traceId_idx")
+  @@map("log_taps")
+}
+
+model ErrorTrackLog {
+  id            String    @id @default(uuid())
+  fingerprint   String
+  errorName     String
+  message       String    @db.Text
+  stack         String?   @db.Text
+  severity      String    @default("ERROR")
+  route         String
+  method        String
+  statusCode    Int       @default(500)
+  traceId       String?
+  requestBody   String?   @db.Text
+  queryParams   String?   @db.Text
+  userEmail     String?
+  ipAddress     String?
+  status        String    @default("UNRESOLVED")
+  occurrences   Int       @default(1)
+  firstSeenAt   DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+  resolvedBy    String?
+
+  @@index([fingerprint], name: "error_track_fingerprint_idx")
+  @@index([status], name: "error_track_status_idx")
+  @@index([lastSeenAt], name: "error_track_lastSeenAt_idx")
+  @@index([route], name: "error_track_route_idx")
+  @@map("error_track_logs")
+}

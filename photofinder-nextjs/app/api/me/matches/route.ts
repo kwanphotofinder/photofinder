@@ -5,8 +5,8 @@ import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
 export async function GET(req: NextRequest) {
   try {
-    const DEFAULT_CONFIDENCE = 0.60;
-    const ABSOLUTE_MIN = 0.35; // hard floor – never return completely unrelated faces
+    const DEFAULT_CONFIDENCE = 0.50;
+    const ABSOLUTE_MIN = 0.30; // hard floor – lower threshold lets users discover more photos
 
     const thresholdParam = req.nextUrl.searchParams.get("threshold");
     const parsedThreshold = thresholdParam ? parseFloat(thresholdParam) : NaN;

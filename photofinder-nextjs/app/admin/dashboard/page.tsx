@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
+import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
 import { ConfirmationModal } from "@/components/confirmation-modal"
@@ -658,6 +659,7 @@ export default function AdminDashboardPage() {
                 { value: "requests", icon: Shield, label: t("menu.requests"), badge: removalRequests.length },
                 { value: "users", icon: Users, label: t("menu.users"), badge: allUsers.length },
                 { value: "health", icon: BarChart3, label: t("menu.health") },
+                { value: "log-tap", icon: Activity, label: t("menu.log_tap") },
                 ...(callerRole === "SUPER_ADMIN"
                   ? [{ value: "audit", icon: FileText, label: t("menu.audit_logs"), badge: auditLogsTotal > 0 ? auditLogsTotal : undefined }]
                   : []),
@@ -1454,6 +1456,11 @@ export default function AdminDashboardPage() {
                     <SystemHealth />
                   </Card>
                 </div>
+              </TabsContent>
+
+              {/* TAB: LOG TAP & ERROR TRACKING */}
+              <TabsContent value="log-tap" className="mt-0">
+                <LogTapDashboard callerRole={callerRole} />
               </TabsContent>
 
               {/* TAB: AUDIT LOGS (Super Admin Only) */}

@@ -85,8 +85,10 @@ export const apiClient = {
     apiCall(`/events/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteEvent: (id: string) => apiCall(`/events/${id}`, { method: "DELETE" }),
   uploadPhotos: async (eventId: string, files: File[]) => {
+    const { optimizeImagesOnClient } = await import("./client-image-optimizer");
+    const optimizedFiles = await optimizeImagesOnClient(files, { maxDimension: 2048, quality: 0.85 });
     const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
+    optimizedFiles.forEach((file) => formData.append("files", file));
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
     const response = await fetch(`${API_BASE}/events/${eventId}/upload`, {
       method: "POST",
@@ -230,4 +232,37 @@ export const apiClient = {
     if (params?.limit) query.set("limit", params.limit.toString())
     return apiCall<any>(`/admin/audit-logs?${query.toString()}`)
   },
+  getLogTapEntries: (params?: { search?: string; method?: string; status?: string; onlyErrors?: boolean; page?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.search) query.set("search", params.search)
+    if (params?.method) query.set("method", params.method)
+    if (params?.status) query.set("status", params.status)
+    if (params?.onlyErrors) query.set("onlyErrors", "true")
+    if (params?.page) query.set("page", params.page.toString())
+    if (params?.limit) query.set("limit", params.limit.toString())
+    return apiCall<any>(`/admin/logs/tap?${query.toString()}`)
+  },
+  pruneLogTap: (days = 14) =>
+    apiCall<any>(`/admin/logs/tap?days=${days}`, { method: "DELETE" }),
+  getErrorTrackLogs: (params?: { status?: string; severity?: string; search?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.status) query.set("status", params.status)
+    if (params?.severity) query.set("severity", params.severity)
+    if (params?.search) query.set("search", params.search)
+    if (params?.page) query.set("page", params.page.toString())
+    if (params?.limit) query.set("limit", params.limit.toString())
+    return apiCall<any>(`/admin/logs/errors?${query.toString()}`)
+  },
+  updateErrorStatus: (id: string, status: "UNRESOLVED" | "INVESTIGATING" | "RESOLVED" | "IGNORED") =>
+    apiCall<any>("/admin/logs/errors", {
+      method: "PATCH",
+      body: JSON.stringify({ id, status }),
+    }),
+  deleteErrorLog: (id?: string, clearResolved?: boolean) => {
+    const query = new URLSearchParams()
+    if (id) query.set("id", id)
+    if (clearResolved) query.set("clearResolved", "true")
+    return apiCall<any>(`/admin/logs/errors?${query.toString()}`, { method: "DELETE" })
+  },
+  getLogStats: () => apiCall<any>("/admin/logs/stats"),
 };

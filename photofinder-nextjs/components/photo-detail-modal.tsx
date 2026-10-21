@@ -48,7 +48,7 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: PhotoDetailModalProps) {
+export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onEngagement }: PhotoDetailModalProps) {
   const { t } = useLanguage()
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
@@ -316,33 +316,41 @@ export function PhotoDetailModal({ photo, isOpen, onClose, onEngagement }: Photo
 
               {/* Engagement stats bar */}
               <div className="mt-3 grid grid-cols-4 divide-x divide-[#ece6df] rounded-xl border border-[#ece6df] bg-[#faf9f7]">
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-2 px-1" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
                   <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     <Eye className="h-3 w-3" />
                     {t("detail.stats.views")}
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.views}</span>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">
+                    {stats.views} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
+                  </span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-2 px-1" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
                   <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     <Download className="h-3 w-3" />
                     {t("detail.stats.downloads")}
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.downloads}</span>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">
+                    {stats.downloads} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
+                  </span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-2 px-1" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
                   <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     <Share2 className="h-3 w-3" />
                     {t("detail.stats.shares")}
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">{stats.shares}</span>
+                  <span className="mt-0.5 text-sm font-black text-[#421012]">
+                    {stats.shares} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
+                  </span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-2 px-1" title={`${stats.likes} ${t("photo.stats.likes")}`}>
                   <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     <Heart className="h-3 w-3" />
                     {t("detail.stats.likes")}
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#82181a]">{stats.likes}</span>
+                  <span className="mt-0.5 text-sm font-black text-[#82181a]">
+                    {stats.likes} <span className="text-[10px] font-medium text-[#82181a]/70">{t("photo.stats.unit")}</span>
+                  </span>
                 </div>
               </div>
             </DialogHeader>

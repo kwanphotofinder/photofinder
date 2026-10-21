@@ -4,11 +4,16 @@ import { extractFaces } from '@/lib/ai';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { optimizeForStorage } from '@/lib/image';
+import { recordLogTap, createTraceId, extractClientInfo } from '@/lib/log-tap';
+import { trackError } from '@/lib/error-tracker';
 
 // Allow Vercel Hobby tier to wait up to 180 seconds for Hugging Face AI to wake up
 export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  const traceId = createTraceId();
+  const { ip, userAgent } = extractClientInfo(req);
   try {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,8 +29,8 @@ export async function POST(req: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
-    if (file.size > 15 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large (max 15MB)' }, { status: 413 });
+    if (file.size > 25 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 25MB)' }, { status: 413 });
     }
     if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
@@ -138,11 +143,57 @@ export async function POST(req: NextRequest) {
         data: { processingStatus: 'FAILED' },
       });
 
+      trackError({
+        error,
+        route: '/api/photos/upload',
+        method: 'POST',
+        statusCode: 500,
+        severity: 'CRITICAL',
+        traceId,
+        requestBody: { photoId: photo.id, eventId },
+        userEmail: user?.email,
+        ipAddress: ip,
+      });
+
+      recordLogTap({
+        traceId,
+        method: 'POST',
+        path: '/api/photos/upload',
+        statusCode: 500,
+        durationMs: Date.now() - startTime,
+        ipAddress: ip,
+        userAgent,
+        userId: user?.id,
+        userEmail: user?.email,
+        isError: true,
+        errorMessage: 'AI processing failed',
+      });
+
       return NextResponse.json({ error: 'AI processing failed' }, { status: 500 });
     }
 
   } catch (error) {
     console.error('Photo Upload General Error:', error);
+    trackError({
+      error,
+      route: '/api/photos/upload',
+      method: 'POST',
+      statusCode: 500,
+      severity: 'ERROR',
+      traceId,
+      ipAddress: ip,
+    });
+    recordLogTap({
+      traceId,
+      method: 'POST',
+      path: '/api/photos/upload',
+      statusCode: 500,
+      durationMs: Date.now() - startTime,
+      ipAddress: ip,
+      userAgent,
+      isError: true,
+      errorMessage: error instanceof Error ? error.message : 'Upload process failed',
+    });
     return NextResponse.json({ error: 'Upload process failed' }, { status: 500 });
   }
 }

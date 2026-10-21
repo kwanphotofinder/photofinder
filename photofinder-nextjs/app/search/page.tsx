@@ -8,8 +8,15 @@ import { AlertCircle, Loader2, Search, SlidersHorizontal, RotateCcw } from "luci
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/language-context"
 
-const DEFAULT_THRESHOLD = 60 // percent
-const ABSOLUTE_MIN = 35      // hard floor on client too
+const DEFAULT_THRESHOLD = 50 // percent (more inclusive by default)
+const ABSOLUTE_MIN = 30      // hard floor on client too
+
+interface PhotoStats {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
 
 interface Photo {
   id: string
@@ -18,6 +25,7 @@ interface Photo {
   eventName: string
   eventDate: string
   confidence: number
+  stats?: PhotoStats
 }
 
 export default function SearchPage() {
@@ -88,10 +96,14 @@ export default function SearchPage() {
     void loadPhotos(DEFAULT_THRESHOLD)
   }
 
+  const handleSelectPreset = (value: number) => {
+    setPendingThreshold(value)
+  }
+
   const confidenceColor =
-    threshold >= 80
+    threshold >= 75
       ? "text-emerald-600"
-      : threshold >= 60
+      : threshold >= 50
         ? "text-amber-600"
         : "text-rose-600"
 
@@ -148,9 +160,55 @@ export default function SearchPage() {
 
                 {showFilter && (
                   <div className="mt-4 rounded-xl border border-[#ece6df] bg-[#faf9f7] p-4">
-                    <p className="mb-1 text-xs font-bold text-slate-700">{t("search.filter.confidence")}</p>
-                    <p className="mb-3 text-[11px] text-slate-500">{t("search.filter.confidence_desc")}</p>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">{t("search.filter.confidence")}</p>
+                        <p className="text-[11px] text-slate-500">{t("search.filter.confidence_desc")}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-[#82181a] bg-[#82181a]/10 px-2.5 py-1 rounded-full self-start sm:self-auto">
+                        {t("search.filter.tip")}
+                      </span>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-medium text-slate-500">{t("search.filter.presets")}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset(35)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                          pendingThreshold === 35
+                            ? "bg-[#82181a] text-white shadow-xs"
+                            : "bg-white border border-[#e2d9d0] text-slate-700 hover:border-[#82181a]"
+                        }`}
+                      >
+                        {t("search.filter.preset_broad")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset(50)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                          pendingThreshold === 50
+                            ? "bg-[#82181a] text-white shadow-xs"
+                            : "bg-white border border-[#e2d9d0] text-slate-700 hover:border-[#82181a]"
+                        }`}
+                      >
+                        ⭐ {t("search.filter.preset_balanced")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset(70)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                          pendingThreshold === 70
+                            ? "bg-[#82181a] text-white shadow-xs"
+                            : "bg-white border border-[#e2d9d0] text-slate-700 hover:border-[#82181a]"
+                        }`}
+                      >
+                        {t("search.filter.preset_precise")}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-3">
                       <span className="w-8 text-right text-[10px] font-semibold text-slate-500">{ABSOLUTE_MIN}%</span>
                       <input
                         id="confidence-slider"
@@ -202,7 +260,7 @@ export default function SearchPage() {
               <AlertCircle className="mr-2 h-5 w-5" />{t("search.error")}
             </div>
           ) : photos.length > 0 ? (
-            <PhotoGrid photos={photos} showRank={true} compact={true} showShare={false} />
+            <PhotoGrid photos={photos} showRank={true} compact={true} showShare={true} />
           ) : (
             <div className="relative flex min-h-48 items-center justify-center overflow-hidden">
               <Search className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" />
@@ -214,3 +272,4 @@ export default function SearchPage() {
     </>
   )
 }
+

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import { convertHeicToJpeg } from "@/lib/heic-converter"
+import { optimizeImageOnClient } from "@/lib/client-image-optimizer"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   AlertDialog,
@@ -23,6 +23,13 @@ import { UploadLoader } from "@/components/upload-loader"
 import { useLanguage } from "@/lib/language-context"
 import { ConfirmationModal } from "@/components/confirmation-modal"
 
+interface PhotoStats {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
+
 interface Photo {
   id: string
   url: string
@@ -34,6 +41,7 @@ interface Photo {
   y?: number
   w?: number
   h?: number
+  stats?: PhotoStats
 }
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
@@ -232,8 +240,8 @@ export default function DashboardPage() {
     setIsUploading(true)
     
     try {
-      // Convert HEIC to JPEG if needed
-      const processedFile = await convertHeicToJpeg(file)
+      // Client-side optimization: Convert HEIC, resize to max 1600px, compress to WebP
+      const processedFile = await optimizeImageOnClient(file, { maxDimension: 1600, quality: 0.85 })
       
       const formData = new FormData()
       formData.append("file", processedFile)
@@ -508,7 +516,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground mt-1">Fetching your matched photos</p>
               </div>
             ) : hasReferenceFace && autoMatches.length > 0 ? (
-              <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={false} />
+              <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={true} />
             ) : (
               <div className="relative flex flex-col items-center justify-center rounded border border-slate-200 bg-white overflow-hidden p-14">
                 <div className="relative z-10 flex flex-col items-center text-center space-y-4 max-w-md">

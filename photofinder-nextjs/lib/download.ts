@@ -44,6 +44,76 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
   }
 }
 
+export interface BatchDownloadPhoto {
+  id: string
+  url: string
+  eventName: string
+  eventDate?: string
+  uploadDate?: string
+}
+
+export async function downloadPhotosAsZip(
+  photos: BatchDownloadPhoto[],
+  onProgress?: (progress: { current: number; total: number; stage: "fetching" | "zipping" | "done" }) => void,
+) {
+  if (photos.length === 0) return
+
+  const JSZip = (await import("jszip")).default
+  const zip = new JSZip()
+  const total = photos.length
+  let successfulCount = 0
+
+  for (let i = 0; i < photos.length; i++) {
+    const photo = photos[i]
+    onProgress?.({ current: i + 1, total, stage: "fetching" })
+
+    try {
+      const response = await fetch(getDownloadUrl(photo.url, photo.id), {
+        headers: getDownloadHeaders(),
+      })
+      if (!response.ok) {
+        const fallbackRes = await fetch(photo.url)
+        if (!fallbackRes.ok) continue
+        const blob = await fallbackRes.blob()
+        const ext = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg"
+        const safeEventName = photo.eventName.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "photo"
+        const filename = `${safeEventName}_${i + 1}.${ext}`
+        zip.file(filename, blob)
+        successfulCount++
+        continue
+      }
+
+      const blob = await response.blob()
+      const ext = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg"
+      const date = new Date(photo.uploadDate || photo.eventDate || Date.now()).toISOString().split("T")[0]
+      const safeEventName = photo.eventName.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "photo"
+      const filename = `${safeEventName}_${date}_${i + 1}.${ext}`
+      zip.file(filename, blob)
+      successfulCount++
+    } catch (err) {
+      console.error(`Failed to download photo ${photo.id}:`, err)
+    }
+  }
+
+  if (successfulCount === 0) {
+    throw new Error("No photos could be downloaded")
+  }
+
+  onProgress?.({ current: total, total, stage: "zipping" })
+  const zipBlob = await zip.generateAsync({ type: "blob" })
+  const blobUrl = window.URL.createObjectURL(zipBlob)
+  const anchor = document.createElement("a")
+  anchor.href = blobUrl
+  const today = new Date().toISOString().split("T")[0]
+  anchor.download = `MFU_PhotoFinder_${today}.zip`
+  document.body.appendChild(anchor)
+  anchor.click()
+  window.URL.revokeObjectURL(blobUrl)
+  anchor.remove()
+
+  onProgress?.({ current: total, total, stage: "done" })
+}
+
 export async function downloadOriginalPhoto(url: string, eventName: string, eventDate: string, photoId?: string) {
   try {
     const response = await fetch(getDownloadUrl(url, photoId), { headers: getDownloadHeaders() })

@@ -159,12 +159,20 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.stats.shares": "แชร์",
     "photo.stats.likes": "ถูกใจ",
     "photo.stats.downloads": "ดาวน์โหลด",
-    "photo.select": "เลือกภาพ",
+    "photo.stats.unit": "คน",
+    "photo.stats.people_viewed": "คนดู",
+    "photo.stats.people_downloaded": "คนดาวน์โหลด",
+    "photo.stats.people_shared": "คนแชร์",
+    "photo.select": "เลือกหลายภาพ",
+    "photo.select_all": "เลือกทั้งหมด",
+    "photo.deselect_all": "ยกเลิกทั้งหมด",
     "photo.selected_count": "เลือกแล้ว {count} ภาพ",
     "photo.download_selected": "ดาวน์โหลดภาพที่เลือก",
+    "photo.download_zip_selected": "ดาวน์โหลด ZIP ({count} ภาพ)",
     "photo.clear_selection": "ล้างการเลือก",
     "photo.cancel_selection": "ยกเลิก",
     "photo.downloading_selected": "กำลังดาวน์โหลด {count} ภาพ...",
+    "photo.zipping_progress": "กำลังเตรียมไฟล์ ZIP {current}/{total}...",
 
     // Dashboard Banner & Metrics
     "dash.title": "แดชบอร์ดผู้ดูแลระบบ (Admin Dashboard)",
@@ -189,6 +197,7 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.requests": "คำร้องขอลบภาพ (Requests)",
     "menu.users": "จัดการผู้ใช้งาน (Users)",
     "menu.health": "สถานะระบบ (System Health)",
+    "menu.log_tap": "Log TAP & Error Tracking",
     "menu.audit_logs": "บันทึกการตรวจสอบ (Audit Logs)",
 
     // Audit Logs Tab
@@ -456,6 +465,7 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.upload.step2_desc": "ลากไฟล์มาวาง หรือเลือกไฟล์/โฟลเดอร์จากเครื่อง",
     "photo.upload.dropzone_text": "ลากและวางไฟล์ภาพถ่ายที่นี่",
     "photo.upload.dropzone_subtext": "รองรับไฟล์ JPG, PNG, WEBP และ HEIC (แปลงอัตโนมัติ)",
+    "photo.upload.client_optimized": "⚡ ระบบบีบอัดและปรับขนาดภาพอัตโนมัติบนเครื่องของคุณ อัปโหลดได้เร็วขึ้น ไม่ติดขนาดจำกัด",
     "photo.upload.btn_select_files": "เลือกไฟล์ภาพ",
     "photo.upload.btn_select_folder": "เลือกทั้งโฟลเดอร์",
     "photo.upload.selected_summary": "ไฟล์ที่เลือกทั้งหมด",
@@ -657,10 +667,15 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Confidence / Search filter
     "search.filter.confidence": "ความแม่นยำขั้นต่ำ",
-    "search.filter.confidence_desc": "ลดค่าเพื่อให้ได้ภาพมากขึ้น แต่อาจมีภาพที่ไม่ใช่คุณปนอยู่",
-    "search.filter.apply": "ค้นหาใหม่",
-    "search.filter.reset": "รีเซ็ต",
-    "search.filter.label": "กรองผล",
+    "search.filter.confidence_desc": "ปรับลดค่า % เพื่อให้ได้ภาพมากขึ้น (ระบบจะค้นพบรูปที่มุมหันข้าง ใส่แว่น หรือแสงน้อยได้)",
+    "search.filter.apply": "ค้นหาด้วยเกณฑ์นี้",
+    "search.filter.reset": "รีเซ็ตค่าเดิม",
+    "search.filter.label": "ปรับความแม่นยำ (% Match)",
+    "search.filter.presets": "ตัวเลือกด่วน:",
+    "search.filter.preset_broad": "ได้ภาพมากขึ้น (35%)",
+    "search.filter.preset_balanced": "แนะนำ (50%)",
+    "search.filter.preset_precise": "แม่นยำสูง (70%)",
+    "search.filter.tip": "💡 ปรับ % ให้น้อยลงจะช่วยให้พบภาพของคุณได้มากขึ้น",
   },
   en: {
     // Header & Global
@@ -810,12 +825,20 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.stats.shares": "Shares",
     "photo.stats.likes": "Likes",
     "photo.stats.downloads": "Downloads",
-    "photo.select": "Select photos",
+    "photo.stats.unit": "people",
+    "photo.stats.people_viewed": "viewers",
+    "photo.stats.people_downloaded": "downloaders",
+    "photo.stats.people_shared": "shares",
+    "photo.select": "Select multiple",
+    "photo.select_all": "Select all",
+    "photo.deselect_all": "Deselect all",
     "photo.selected_count": "{count} photos selected",
     "photo.download_selected": "Download selected",
+    "photo.download_zip_selected": "Download ZIP ({count} photos)",
     "photo.clear_selection": "Clear selection",
     "photo.cancel_selection": "Cancel",
     "photo.downloading_selected": "Downloading {count} photos...",
+    "photo.zipping_progress": "Preparing ZIP {current}/{total}...",
 
     // Dashboard Banner & Metrics
     "dash.title": "Admin Dashboard",
@@ -840,6 +863,7 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.requests": "Removal Requests",
     "menu.users": "User Management",
     "menu.health": "System Health",
+    "menu.log_tap": "Log TAP & Error Tracking",
     "menu.audit_logs": "Audit Logs (Super Admin)",
 
     // Audit Logs Tab
@@ -1107,6 +1131,7 @@ const translations: Record<Language, Record<string, string>> = {
     "photo.upload.step2_desc": "Drag and drop or select images/folder from your computer",
     "photo.upload.dropzone_text": "Drag and drop photo files here",
     "photo.upload.dropzone_subtext": "Supports JPG, PNG, WEBP, and HEIC (automatic conversion)",
+    "photo.upload.client_optimized": "⚡ Client-side auto-optimization active: faster uploads & bandwidth savings",
     "photo.upload.btn_select_files": "Select Files",
     "photo.upload.btn_select_folder": "Select Folder",
     "photo.upload.selected_summary": "Total files selected",
@@ -1307,10 +1332,15 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Confidence / Search filter
     "search.filter.confidence": "Minimum match confidence",
-    "search.filter.confidence_desc": "Lower the value to get more photos, but may include less accurate matches",
-    "search.filter.apply": "Search again",
-    "search.filter.reset": "Reset",
-    "search.filter.label": "Filter results",
+    "search.filter.confidence_desc": "Lower the % to discover more photos (great for side angles, glasses, or low lighting)",
+    "search.filter.apply": "Apply filter",
+    "search.filter.reset": "Reset default",
+    "search.filter.label": "Match Confidence (%)",
+    "search.filter.presets": "Quick presets:",
+    "search.filter.preset_broad": "More photos (35%)",
+    "search.filter.preset_balanced": "Balanced (50%)",
+    "search.filter.preset_precise": "High precision (70%)",
+    "search.filter.tip": "💡 Lowering the match % helps discover more photos of you",
   },
 }
 

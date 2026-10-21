@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { convertHeicToJpeg } from "@/lib/heic-converter"
+import { optimizeImageOnClient } from "@/lib/client-image-optimizer"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +30,7 @@ import {
   User,
   Search,
   RefreshCw,
+  Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -452,8 +453,8 @@ export default function PhotographerPage() {
         setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 0 }))
         setUploadErrors((prev) => { const next = {...prev}; delete next[rawFile.name]; return next; })
 
-        // Convert HEIC to JPEG if needed
-        const file = await convertHeicToJpeg(rawFile);
+        // Client-side optimization: Convert HEIC, resize to max 2048px, compress to WebP
+        const file = await optimizeImageOnClient(rawFile, { maxDimension: 2048, quality: 0.85 });
 
         const formData = new FormData()
         formData.append("file", file)
@@ -894,6 +895,10 @@ export default function PhotographerPage() {
                       </div>
                       <p className="text-sm font-bold text-slate-800">{t("photo.upload.dropzone_text")}</p>
                       <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">{t("photo.upload.dropzone_subtext")}</p>
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 border border-emerald-200">
+                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                        <span>{t("photo.upload.client_optimized")}</span>
+                      </div>
 
                       <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
                         <input

@@ -38,8 +38,8 @@ export async function POST(
       if (!file.type.startsWith("image/")) {
         return NextResponse.json({ error: "Invalid file type. Only images are allowed." }, { status: 400 })
       }
-      if (file.size > 15 * 1024 * 1024) {
-        return NextResponse.json({ error: "One or more files exceed the 15MB size limit." }, { status: 413 })
+      if (file.size > 25 * 1024 * 1024) {
+        return NextResponse.json({ error: "One or more files exceed the 25MB size limit." }, { status: 413 })
       }
     }
     // Verify the event exists

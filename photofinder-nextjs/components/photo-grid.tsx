@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Trash2, Heart, Download, Share2, Check, X } from "lucide-react"
+import { Eye, Trash2, Heart, Download, Share2, Check, X, Loader2, CheckSquare } from "lucide-react"
 import { PhotoDetailModal } from "./photo-detail-modal"
-import { downloadPhoto } from "@/lib/download"
+import { downloadPhoto, downloadPhotosAsZip } from "@/lib/download"
+import { sharePhotoOriginal } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
@@ -59,6 +60,7 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
   const [isBatchDownloading, setIsBatchDownloading] = useState(false)
+  const [batchDownloadStatus, setBatchDownloadStatus] = useState<string>("")
 
   useEffect(() => {
     setPhotoStats(Object.fromEntries(photos.map((photo) => [photo.id, photo.stats ?? {
@@ -107,21 +109,64 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
       : [...current, photoId])
   }
 
+  const handleSelectAll = () => {
+    setSelectedPhotoIds(photos.map((p) => p.id))
+  }
+
+  const handleClearSelection = () => {
+    setSelectedPhotoIds([])
+  }
+
   const handleBatchDownload = async () => {
     const selectedPhotos = photos.filter((photo) => selectedPhotoIds.includes(photo.id))
     if (selectedPhotos.length === 0 || isBatchDownloading) return
 
     setIsBatchDownloading(true)
+    setBatchDownloadStatus(
+      t("photo.zipping_progress")
+        .replace("{current}", "1")
+        .replace("{total}", String(selectedPhotos.length))
+    )
+
     try {
-      for (const photo of selectedPhotos) {
-        await trackPhotoEngagement(photo.id, "DOWNLOAD")
-        updatePhotoStat(photo.id, "DOWNLOAD")
-        await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
-      }
+      // 1. Track download engagement for each selected photo
+      await Promise.allSettled(
+        selectedPhotos.map(async (photo) => {
+          await trackPhotoEngagement(photo.id, "DOWNLOAD")
+          updatePhotoStat(photo.id, "DOWNLOAD")
+        })
+      )
+
+      // 2. Download all selected photos packaged as a ZIP
+      await downloadPhotosAsZip(
+        selectedPhotos.map((p) => ({
+          id: p.id,
+          url: p.url,
+          eventName: p.eventName,
+          eventDate: p.eventDate,
+          uploadDate: p.uploadDate,
+        })),
+        ({ current, total, stage }) => {
+          if (stage === "fetching") {
+            setBatchDownloadStatus(
+              t("photo.zipping_progress")
+                .replace("{current}", String(current))
+                .replace("{total}", String(total))
+            )
+          } else if (stage === "zipping") {
+            setBatchDownloadStatus(t("photo.downloading_selected").replace("{count}", String(total)))
+          }
+        }
+      )
+
       setSelectedPhotoIds([])
       setIsSelectionMode(false)
+    } catch (err) {
+      console.error("Batch download failed:", err)
+      alert("Failed to package photos into ZIP. Please try again.")
     } finally {
       setIsBatchDownloading(false)
+      setBatchDownloadStatus("")
     }
   }
 
@@ -177,8 +222,20 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
     await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
   }
 
-  const handleShare = (photo: Photo, e: React.MouseEvent) => {
+  const handleShare = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
+    await trackPhotoEngagement(photo.id, "SHARE")
+    updatePhotoStat(photo.id, "SHARE")
+
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await sharePhotoOriginal(photo)
+        return
+      }
+    } catch {
+      // Fall through to modal
+    }
+
     openPhoto(photo)
     setOpenShareSheet(true)
   }
@@ -192,40 +249,95 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-card p-2.5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-border/70 bg-card/75 p-3 shadow-xs backdrop-blur-sm">
         {isSelectionMode ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedPhotoIds([])} disabled={selectedPhotoIds.length === 0}>
-              <X className="mr-1.5 h-4 w-4" />
-              {t("photo.clear_selection")}
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              {t("photo.selected_count").replace("{count}", String(selectedPhotoIds.length))}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-xl text-xs font-medium"
+              onClick={selectedPhotoIds.length === photos.length ? handleClearSelection : handleSelectAll}
+            >
+              {selectedPhotoIds.length === photos.length ? t("photo.deselect_all") : t("photo.select_all")}
             </Button>
-            <span className="text-xs font-medium text-muted-foreground">{t("photo.selected_count").replace("{count}", String(selectedPhotoIds.length))}</span>
+            {selectedPhotoIds.length > 0 && selectedPhotoIds.length < photos.length && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-xl text-xs text-muted-foreground hover:text-foreground"
+                onClick={handleClearSelection}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                {t("photo.clear_selection")}
+              </Button>
+            )}
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">{t("photo.select")}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {photos.length} {t("search.count") || "photos"}
+            </span>
+          </div>
         )}
+
         <div className="flex items-center gap-2">
-          {isSelectionMode && (
-            <Button type="button" size="sm" variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedPhotoIds([]) }}>
-              {t("photo.cancel_selection")}
-            </Button>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant={isSelectionMode ? "default" : "outline"}
-            onClick={() => setIsSelectionMode((current) => !current)}
-            disabled={isBatchDownloading}
-          >
-            <Check className="mr-1.5 h-4 w-4" />
-            {isSelectionMode ? t("photo.selected_count").replace("{count}", String(selectedPhotoIds.length)) : t("photo.select")}
-          </Button>
-          {isSelectionMode && (
-            <Button type="button" size="sm" onClick={handleBatchDownload} disabled={selectedPhotoIds.length === 0 || isBatchDownloading}>
-              <Download className="mr-1.5 h-4 w-4" />
-              <span className="hidden sm:inline">{isBatchDownloading ? t("photo.downloading_selected").replace("{count}", String(selectedPhotoIds.length)) : t("photo.download_selected")}</span>
-              <span className="sm:hidden">{selectedPhotoIds.length}</span>
-            </Button>
+          {isSelectionMode ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-xl text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setIsSelectionMode(false)
+                  setSelectedPhotoIds([])
+                }}
+                disabled={isBatchDownloading}
+              >
+                {t("photo.cancel_selection")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-xl bg-[#82181a] px-3.5 text-xs font-bold text-white shadow-sm hover:bg-[#641416] disabled:opacity-50"
+                onClick={handleBatchDownload}
+                disabled={selectedPhotoIds.length === 0 || isBatchDownloading}
+              >
+                {isBatchDownloading ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <span>{batchDownloadStatus || t("photo.downloading_selected").replace("{count}", String(selectedPhotoIds.length))}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    <span>
+                      {selectedPhotoIds.length > 0
+                        ? t("photo.download_zip_selected").replace("{count}", String(selectedPhotoIds.length))
+                        : t("photo.download_selected")}
+                    </span>
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            photos.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl border-[#e2d9d0] bg-white text-xs font-semibold text-foreground hover:border-[#82181a] hover:bg-[#fbf9f8]"
+                onClick={() => setIsSelectionMode(true)}
+              >
+                <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-[#82181a]" />
+                {t("photo.select")}
+              </Button>
+            )
           )}
         </div>
       </div>
@@ -233,10 +345,16 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
         {photos.map((photo) => {
           const stats = photoStats[photo.id] ?? { views: 0, shares: 0, likes: 0, downloads: 0 }
 
+          const isSelected = selectedPhotoIds.includes(photo.id)
+
           return (
           <Card
             key={photo.id}
-            className="overflow-hidden border border-border bg-card shadow-none transition-colors duration-200 hover:border-primary/30 hover:shadow-sm group"
+            className={`overflow-hidden border bg-card shadow-none transition-all duration-200 group ${
+              isSelected
+                ? "border-[#82181a] ring-2 ring-[#82181a]/25 shadow-md"
+                : "border-border hover:border-primary/40 hover:shadow-xs"
+            }`}
           >
             <div 
               className={`relative bg-muted overflow-hidden cursor-pointer ${compact ? "aspect-4/5" : "aspect-square"}`}
@@ -254,14 +372,18 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
                 <button
                   type="button"
                   aria-label={`${t("photo.select")} ${photo.eventName}`}
-                  aria-pressed={selectedPhotoIds.includes(photo.id)}
+                  aria-pressed={isSelected}
                   onClick={(event) => {
                     event.stopPropagation()
                     togglePhotoSelection(photo.id)
                   }}
-                  className={`absolute left-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded border-2 bg-white/90 shadow-lg backdrop-blur-sm transition-colors ${selectedPhotoIds.includes(photo.id) ? "border-primary bg-primary text-primary-foreground" : "border-white text-transparent"}`}
+                  className={`absolute left-2.5 top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-lg border-2 shadow-md backdrop-blur-sm transition-all duration-150 ${
+                    isSelected
+                      ? "border-[#82181a] bg-[#82181a] text-white scale-105"
+                      : "border-white/90 bg-black/40 text-transparent hover:border-white hover:bg-black/50"
+                  }`}
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4 stroke-[3]" />
                 </button>
               )}
 
@@ -346,13 +468,29 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
             <div className="p-3.5 space-y-1">
               <p className={`font-semibold text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{photo.eventName}</p>
               <p className="text-xs text-muted-foreground">{formatDayMonthYear(photo.uploadDate || photo.eventDate)}</p>
-              <div className="mt-3 flex justify-center" aria-label={`${t("photo.stats.views")}, ${t("photo.stats.shares")}, ${t("photo.stats.likes")}, ${t("photo.stats.downloads")}`}>
-                <div className="inline-flex items-center gap-4 py-1 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5" title={t("photo.stats.views")}><Eye className="h-3.5 w-3.5" /> <strong className="font-semibold text-foreground/75">{stats.views}</strong></span>
-                  <span className="inline-flex items-center gap-1.5" title={t("photo.stats.shares")}><Share2 className="h-3.5 w-3.5" /> <strong className="font-semibold text-foreground/75">{stats.shares}</strong></span>
-                  <span className={`inline-flex items-center gap-1.5 ${stats.likes > 0 ? "text-primary" : ""}`} title={t("photo.stats.likes")}><Heart className={`h-3.5 w-3.5 ${stats.likes > 0 ? "fill-current" : ""}`} /> <strong className="font-semibold">{stats.likes}</strong></span>
-                  <span className="inline-flex items-center gap-1.5" title={t("photo.stats.downloads")}><Download className="h-3.5 w-3.5" /> <strong className="font-semibold text-foreground/75">{stats.downloads}</strong></span>
-                </div>
+              <div
+                className="mt-2.5 flex items-center justify-between border-t border-border/40 pt-2 px-0.5 text-[11px] text-muted-foreground"
+                aria-label={`${t("photo.stats.views")}: ${stats.views}, ${t("photo.stats.downloads")}: ${stats.downloads}, ${t("photo.stats.shares")}: ${stats.shares}, ${t("photo.stats.likes")}: ${stats.likes}`}
+              >
+                <span className="inline-flex items-center gap-1" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
+                  <Eye className="h-3.5 w-3.5 text-slate-400" />
+                  <strong className="font-semibold text-foreground/80">{stats.views}</strong>
+                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                </span>
+                <span className="inline-flex items-center gap-1" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
+                  <Download className="h-3.5 w-3.5 text-slate-400" />
+                  <strong className="font-semibold text-foreground/80">{stats.downloads}</strong>
+                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                </span>
+                <span className="inline-flex items-center gap-1" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
+                  <Share2 className="h-3.5 w-3.5 text-slate-400" />
+                  <strong className="font-semibold text-foreground/80">{stats.shares}</strong>
+                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                </span>
+                <span className={`inline-flex items-center gap-1 ${stats.likes > 0 ? "text-primary" : ""}`} title={`${stats.likes} ${t("photo.stats.likes")}`}>
+                  <Heart className={`h-3.5 w-3.5 ${stats.likes > 0 ? "fill-current text-primary" : "text-slate-400"}`} />
+                  <strong className="font-semibold">{stats.likes}</strong>
+                </span>
               </div>
             </div>
 

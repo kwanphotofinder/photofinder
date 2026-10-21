@@ -1,5 +1,19 @@
 type EngagementAction = "VIEW" | "DOWNLOAD" | "SHARE"
 
+function getViewerSessionId(): string {
+  if (typeof window === "undefined") return "server"
+  try {
+    let id = localStorage.getItem("pf_viewer_session")
+    if (!id) {
+      id = "v_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
+      localStorage.setItem("pf_viewer_session", id)
+    }
+    return id
+  } catch {
+    return "guest_" + Date.now().toString(36)
+  }
+}
+
 export async function trackPhotoEngagement(photoId: string, action: EngagementAction) {
   if (!photoId) return false
 
@@ -12,6 +26,7 @@ export async function trackPhotoEngagement(photoId: string, action: EngagementAc
       keepalive: true,
       headers: {
         "Content-Type": "application/json",
+        "X-Viewer-Id": getViewerSessionId(),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ action }),
@@ -23,3 +38,4 @@ export async function trackPhotoEngagement(photoId: string, action: EngagementAc
     return false
   }
 }
+
