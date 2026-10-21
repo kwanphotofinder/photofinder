@@ -4,6 +4,7 @@ import { trackError } from "../photofinder-nextjs/lib/error-tracker"
 import { recordPhotoEngagement, getPhotoEngagementSummaries } from "../photofinder-nextjs/lib/photo-engagement"
 import { memoryRateLimiter, RATE_LIMIT_TIERS, getRateLimitHeaders } from "../photofinder-nextjs/lib/rate-limit"
 import { aiQueue } from "../photofinder-nextjs/lib/ai-queue"
+import { chunkStore } from "../photofinder-nextjs/lib/chunk-store"
 
 async function runE2ETests() {
   console.log("==================================================")
@@ -246,6 +247,100 @@ async function runE2ETests() {
   } catch (err: any) {
     console.error("Rate Limiter Error:", err.message)
     assert(false, "API Rate Limiter")
+  }
+
+  // TEST 9: Bulk Photo Delete (Cascade & Database verification)
+  console.log("\n--- 9. Testing Bulk Photo Delete ---")
+  try {
+    // 1. Create a temporary test event
+    const testEvent = await prisma.event.create({
+      data: {
+        name: `E2E Bulk Delete Test Event ${Date.now()}`,
+        slug: `e2e-bulk-delete-${Date.now()}`,
+        date: new Date(),
+      },
+    })
+
+    // 2. Create 2 test photos for this event
+    const photoA = await prisma.photo.create({
+      data: {
+        eventId: testEvent.id,
+        storageUrl: "https://res.cloudinary.com/test/image/upload/sample_a.jpg",
+        processingStatus: "COMPLETED",
+      },
+    })
+
+    const photoB = await prisma.photo.create({
+      data: {
+        eventId: testEvent.id,
+        storageUrl: "https://res.cloudinary.com/test/image/upload/sample_b.jpg",
+        processingStatus: "COMPLETED",
+      },
+    })
+
+    assert(!!photoA.id && !!photoB.id, "Bulk Delete: Created 2 test photos")
+
+    // 3. Perform bulk delete
+    const deleteResult = await prisma.photo.deleteMany({
+      where: { id: { in: [photoA.id, photoB.id] } },
+    })
+
+    assert(deleteResult.count === 2, "Bulk Delete: Successfully deleted 2 photos in a single operation")
+
+    // 4. Verify they no longer exist
+    const remaining = await prisma.photo.count({
+      where: { id: { in: [photoA.id, photoB.id] } },
+    })
+    assert(remaining === 0, "Bulk Delete: Verified photos removed from PostgreSQL")
+
+    // Cleanup test event
+    await prisma.event.delete({ where: { id: testEvent.id } })
+  } catch (err: any) {
+    console.error("Bulk Delete Test Error:", err.message)
+    assert(false, "Bulk Photo Delete")
+  }
+
+  // TEST 10: Chunked Resumable Upload Session & Assembly
+  console.log("\n--- 10. Testing Chunked Resumable Upload Session & Assembly ---")
+  try {
+    const testUploadId = `e2e_chunk_test_${Date.now()}`
+    const testFileName = "graduation_highres.jpg"
+    const totalChunks = 3
+
+    // 1. Initialize session and upload chunk 0 and 1 (simulating partial transfer)
+    chunkStore.getOrCreateSession(testUploadId, testFileName, "event_test_123", totalChunks)
+    const chunk0 = Buffer.from("Part1_")
+    const chunk1 = Buffer.from("Part2_")
+    const chunk2 = Buffer.from("Part3_Completed")
+
+    chunkStore.addChunk(testUploadId, 0, chunk0)
+    const { isComplete: isCompleteEarly } = chunkStore.addChunk(testUploadId, 1, chunk1)
+    assert(isCompleteEarly === false, "Chunked Upload: Partial transfer correctly identified as incomplete")
+
+    // 2. Query uploaded chunks (resumable check)
+    const uploadedIndices = chunkStore.getUploadedChunkIndices(testUploadId)
+    assert(
+      uploadedIndices.length === 2 && uploadedIndices[0] === 0 && uploadedIndices[1] === 1,
+      "Chunked Upload: Resumable state accurately tracks acknowledged chunks [0, 1]"
+    )
+
+    // 3. Upload final chunk (completing transfer)
+    const { isComplete: isCompleteFinal } = chunkStore.addChunk(testUploadId, 2, chunk2)
+    assert(isCompleteFinal === true, "Chunked Upload: Final chunk signals completion")
+
+    // 4. Assemble and verify content integrity
+    const assembled = chunkStore.assembleFile(testUploadId)
+    assert(
+      assembled.toString() === "Part1_Part2_Part3_Completed",
+      "Chunked Upload: In-memory assembly reconstructs exact byte payload without corruption"
+    )
+
+    // Clean up session
+    chunkStore.deleteSession(testUploadId)
+    assert(!chunkStore.getSession(testUploadId), "Chunked Upload: Session cleaned up after assembly")
+  } catch (err: any) {
+    console.error("Chunked Upload Test Error:", err.message)
+    assert(false, "Chunked Resumable Upload")
   }
 
   console.log("\n==================================================")

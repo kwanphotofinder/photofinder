@@ -106,6 +106,11 @@ export const apiClient = {
     apiCall(`/photos/${photoId}`, {
       method: "DELETE",
     }),
+  bulkDeletePhotos: (photoIds: string[]) =>
+    apiCall("/photos/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ photoIds }),
+    }),
   requestPhotoRemoval: (
     photoId: string,
     requestType: string,

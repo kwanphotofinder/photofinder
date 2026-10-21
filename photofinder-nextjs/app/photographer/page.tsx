@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { optimizeImageOnClient } from "@/lib/client-image-optimizer"
+import { uploadFileInChunks } from "@/lib/chunked-uploader"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +32,8 @@ import {
   Search,
   RefreshCw,
   Sparkles,
+  Check,
+  CheckSquare,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -445,9 +448,12 @@ export default function PhotographerPage() {
   const clearAllFiles = () => {
     setSelectedFiles([])
     setUploadProgress({})
+    setUploadChunkStatuses({})
   }
 
-  const handleBatchUpload = async () => {
+  const [uploadChunkStatuses, setUploadChunkStatuses] = useState<Record<string, string>>({})
+
+  const handleBatchUpload = async (onlyRetryFailed = false) => {
     if (!selectedEvent) {
       alert("Please select an event first")
       return
@@ -458,78 +464,87 @@ export default function PhotographerPage() {
     }
 
     setIsUploading(true)
-    
-    // Upload files sequentially to avoid overwhelming Vercel's concurrent functions limit (10 limit on Hobby)
+
+    // Upload files sequentially with resumable chunk support
     for (let i = 0; i < selectedFiles.length; i++) {
-      const rawFile = selectedFiles[i];
-      
+      const rawFile = selectedFiles[i]
+
+      // Resumable Skip: If already completed successfully, skip!
+      if (uploadProgress[rawFile.name] === 100) {
+        continue
+      }
+
+      // If only retrying failed files, skip others
+      if (onlyRetryFailed && uploadProgress[rawFile.name] !== -1) {
+        continue
+      }
+
       try {
         setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 0 }))
-        setUploadErrors((prev) => { const next = {...prev}; delete next[rawFile.name]; return next; })
-
-        // Client-side optimization: Convert HEIC, resize to max 2048px, compress to WebP
-        const file = await optimizeImageOnClient(rawFile, { maxDimension: 2048, quality: 0.85 });
-
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("eventId", selectedEvent)
-        // Attach the photographer's user ID so ownership is tracked
-        if (photographerUser?.id) {
-          formData.append("uploaderId", photographerUser.id)
-        }
-
-        const progressInterval = setInterval(() => {
-          setUploadProgress((prev) => {
-            const current = prev[rawFile.name] || 0
-            if (current >= 90) {
-              clearInterval(progressInterval)
-              return prev
-            }
-            return { ...prev, [rawFile.name]: current + 10 }
-          })
-        }, 200)
-
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
-        
-        // Add auth header since the route is now protected
-        const headers: HeadersInit = {}
-        const token = localStorage.getItem('auth_token')
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`
-        }
-
-        const response = await fetch(`${apiUrl}/photos/upload`, {
-          method: "POST",
-          headers,
-          body: formData,
+        setUploadErrors((prev) => {
+          const next = { ...prev }
+          delete next[rawFile.name]
+          return next
         })
 
-        clearInterval(progressInterval)
+        // Client-side optimization: Convert HEIC, resize to max 2048px, compress to WebP
+        setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Optimizing image..." }))
+        const file = await optimizeImageOnClient(rawFile, { maxDimension: 2048, quality: 0.85 })
 
-        if (response.ok) {
+        // Resumable Chunked Upload (1MB chunks with auto-resume and auto-retry per chunk)
+        const result = await uploadFileInChunks(file, {
+          eventId: selectedEvent,
+          chunkSize: 1024 * 1024, // 1MB chunks
+          maxRetries: 3,
+          onProgress: (percent, currentChunk, totalChunks) => {
+            setUploadProgress((prev) => ({ ...prev, [rawFile.name]: percent }))
+            setUploadChunkStatuses((prev) => ({
+              ...prev,
+              [rawFile.name]: `Chunk ${currentChunk}/${totalChunks} (${percent}%)`,
+            }))
+          },
+          onStatusChange: (status) => {
+            setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: status }))
+          },
+        })
+
+        if (result.success) {
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 100 }))
+          setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Completed & Enqueued" }))
         } else {
-          const errorData = await response.json().catch(() => ({ error: 'Upload failed' }))
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
-          setUploadErrors((prev) => ({ ...prev, [rawFile.name]: errorData.error || 'Failed' }))
+          setUploadErrors((prev) => ({
+            ...prev,
+            [rawFile.name]: result.error || "Upload failed",
+          }))
+          setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Failed" }))
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("[v0] Upload error:", error)
         setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
-        setUploadErrors((prev) => ({ ...prev, [rawFile.name]: 'Network error' }))
+        setUploadErrors((prev) => ({
+          ...prev,
+          [rawFile.name]: error?.message || "Network error",
+        }))
+        setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Network error" }))
       }
     }
 
     setIsUploading(false)
 
-    // After all uploads, reload only this photographer's photos
-    await loadData(photographerUser?.id);
-    await loadPhotographerAnalytics();
+    // After uploads, reload this photographer's photos
+    await loadData(photographerUser?.id)
+    await loadPhotographerAnalytics()
 
-    setTimeout(() => {
-      clearAllFiles()
-    }, 2000)
+    // Smart cleanup: remove only successfully completed files (100%), keeping failed files for Retry
+    setSelectedFiles((prev) =>
+      prev.filter((f) => uploadProgress[f.name] !== 100)
+    )
   }
+
+  const failedUploadCount = selectedFiles.filter(
+    (f) => uploadProgress[f.name] === -1
+  ).length
 
   const handleNotifyMatches = async () => {
     if (!selectedEvent) return
@@ -583,6 +598,52 @@ export default function PhotographerPage() {
       alert("Failed to delete photo. Please try again.")
     } finally {
       setIsDeletingPhoto(false)
+    }
+  }
+
+  // Bulk Delete States & Handlers
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
+
+  const toggleSelectPhoto = (id: string) => {
+    setSelectedPhotoIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAllPhotos = () => {
+    const allFilteredIds = filteredUploadedPhotos.map((p) => p.id)
+    const isAllSelected =
+      allFilteredIds.length > 0 &&
+      allFilteredIds.every((id) => selectedPhotoIds.includes(id))
+
+    if (isAllSelected) {
+      setSelectedPhotoIds([])
+    } else {
+      setSelectedPhotoIds(allFilteredIds)
+    }
+  }
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedPhotoIds.length === 0) return
+
+    setIsBulkDeleting(true)
+    try {
+      const response = await apiClient.bulkDeletePhotos(selectedPhotoIds)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+
+      setSelectedPhotoIds([])
+      setIsBulkDeleteModalOpen(false)
+      await loadData(photographerUser?.id)
+      await loadPhotographerAnalytics()
+    } catch (err: any) {
+      console.error("[v0] Bulk delete error:", err)
+      alert(err?.message || "Failed to delete selected photos. Please try again.")
+    } finally {
+      setIsBulkDeleting(false)
     }
   }
 
@@ -995,7 +1056,14 @@ export default function PhotographerPage() {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-slate-800 truncate">{file.name}</p>
-                                <p className="text-[11px] text-slate-400">{formatFileSize(file.size)}</p>
+                                <p className="text-[11px] text-slate-400">
+                                  {formatFileSize(file.size)}
+                                  {uploadChunkStatuses[file.name] && (
+                                    <span className="ml-2 text-slate-500 font-medium italic">
+                                      • {uploadChunkStatuses[file.name]}
+                                    </span>
+                                  )}
+                                </p>
                                 {progress !== undefined && (
                                   <Progress value={hasError ? 100 : progress} className={`h-1.5 mt-1.5 ${hasError ? "bg-red-100 [&>div]:bg-red-500" : "[&>div]:bg-[#82181a]"}`} />
                                 )}
@@ -1027,28 +1095,47 @@ export default function PhotographerPage() {
                     </div>
                   )}
 
-                  {/* Primary Batch Upload Button */}
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+                  {/* Primary Batch Upload Button with Resumable & Retry Controls */}
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                     <span className="text-xs text-slate-500">
                       {selectedEvent ? `${t("photo.upload.event_label")} ${selectedEventName}` : t("photo.upload.no_event_selected")}
                     </span>
-                    <Button
-                      onClick={handleBatchUpload}
-                      disabled={isUploading || selectedFiles.length === 0 || !selectedEvent}
-                      className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs sm:text-sm font-semibold rounded h-10 px-6 shadow-2xs"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          {t("photo.upload.uploading")} ({completedUploads}/{selectedFiles.length})
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          {t("photo.upload.btn_upload")} ({selectedFiles.length})
-                        </>
+
+                    <div className="flex items-center gap-2">
+                      {/* Retry Failed Files Button */}
+                      {failedUploadCount > 0 && !isUploading && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleBatchUpload(true)}
+                          className="border-amber-400 text-amber-800 bg-amber-50 hover:bg-amber-100 h-10 px-4 text-xs font-semibold gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Retry {failedUploadCount} Failed File{failedUploadCount > 1 ? "s" : ""}
+                        </Button>
                       )}
-                    </Button>
+
+                      <Button
+                        onClick={() => handleBatchUpload(false)}
+                        disabled={isUploading || selectedFiles.length === 0 || !selectedEvent}
+                        className="bg-[#82181a] hover:bg-[#9c1f22] text-white text-xs sm:text-sm font-semibold rounded h-10 px-6 shadow-2xs"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {t("photo.upload.uploading")} ({completedUploads}/{selectedFiles.length})
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            {completedUploads > 0 && completedUploads < selectedFiles.length
+                              ? `Resume Upload (${selectedFiles.length - completedUploads} left)`
+                              : `${t("photo.upload.btn_upload")} (${selectedFiles.length})`}
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1101,8 +1188,37 @@ export default function PhotographerPage() {
                   <h3 className="text-base font-bold text-slate-900">{t("photo.manage.title")}</h3>
                   <p className="text-xs text-slate-500 mt-0.5">{t("photo.manage.desc")}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-64">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {filteredUploadedPhotos.length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={toggleSelectAllPhotos}
+                      className="h-8 text-xs gap-1.5 border-slate-300 hover:bg-slate-50 font-medium"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-slate-600" />
+                      {filteredUploadedPhotos.length > 0 &&
+                      filteredUploadedPhotos.every((p) => selectedPhotoIds.includes(p.id))
+                        ? "Deselect All"
+                        : "Select All"}
+                    </Button>
+                  )}
+
+                  {selectedPhotoIds.length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setIsBulkDeleteModalOpen(true)}
+                      className="h-8 text-xs gap-1.5 bg-red-600 hover:bg-red-700 text-white shadow-xs font-semibold"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Selected ({selectedPhotoIds.length})
+                    </Button>
+                  )}
+
+                  <div className="relative w-52 sm:w-64">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -1112,7 +1228,7 @@ export default function PhotographerPage() {
                       className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:border-[#82181a]"
                     />
                   </div>
-                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded">
+                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded">
                     {filteredUploadedPhotos.length} {t("photo.manage.total_photos")}
                   </span>
                 </div>
@@ -1126,26 +1242,60 @@ export default function PhotographerPage() {
                 </div>
               ) : (
                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {filteredUploadedPhotos.map((photo) => (
-                    <div key={photo.id} className="border border-slate-200 rounded bg-white overflow-hidden shadow-2xs hover:border-[#82181a]/50 transition-colors flex flex-col">
-                      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden border-b border-slate-100">
-                        <img
-                          src={photo.thumbnail}
-                          alt={photo.filename}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs px-2 py-1 rounded text-white">
-                          <button
-                            type="button"
-                            onClick={() => setPhotoToDelete(photo.id)}
-                            className="text-white hover:text-red-400 p-0.5"
-                            title={t("photo.manage.delete")}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                  {filteredUploadedPhotos.map((photo) => {
+                    const isSelected = selectedPhotoIds.includes(photo.id)
+                    return (
+                      <div
+                        key={photo.id}
+                        className={`border rounded bg-white overflow-hidden shadow-2xs transition-all flex flex-col relative ${
+                          isSelected
+                            ? "border-[#82181a] ring-2 ring-[#82181a]/25 shadow-sm"
+                            : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden border-b border-slate-100 group">
+                          <img
+                            src={photo.thumbnail}
+                            alt={photo.filename}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+
+                          {/* Multi-select Checkbox (Top-Left) */}
+                          <div className="absolute top-2 left-2 z-10">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleSelectPhoto(photo.id)
+                              }}
+                              className={`w-6 h-6 rounded flex items-center justify-center transition-colors shadow-xs ${
+                                isSelected
+                                  ? "bg-[#82181a] text-white border-2 border-white"
+                                  : "bg-black/50 hover:bg-black/70 text-white/90 border border-white/60"
+                              }`}
+                              title={isSelected ? "Deselect photo" : "Select photo"}
+                            >
+                              {isSelected ? (
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              ) : (
+                                <div className="w-2.5 h-2.5 rounded-xs" />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Single Delete Button (Top-Right) */}
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs px-2 py-1 rounded text-white z-10">
+                            <button
+                              type="button"
+                              onClick={() => setPhotoToDelete(photo.id)}
+                              className="text-white hover:text-red-400 p-0.5"
+                              title={t("photo.manage.delete")}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
                       <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
                         <div>
@@ -1335,6 +1485,18 @@ export default function PhotographerPage() {
         variant="destructive"
         isLoading={isDeletingPhoto}
         onConfirm={confirmDeletePhoto}
+      />
+
+      <ConfirmationModal
+        open={isBulkDeleteModalOpen}
+        onOpenChange={(open) => !open && setIsBulkDeleteModalOpen(false)}
+        title={`Delete ${selectedPhotoIds.length} Selected Photo${selectedPhotoIds.length > 1 ? "s" : ""}`}
+        description={`Are you sure you want to permanently delete these ${selectedPhotoIds.length} photos? This action cannot be undone and will remove all facial recognition matches associated with them.`}
+        confirmText={`Delete ${selectedPhotoIds.length} Photos`}
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isBulkDeleting}
+        onConfirm={handleBulkDeleteConfirm}
       />
     </>
   )
