@@ -40,6 +40,7 @@ interface PhotoGridProps {
   compact?: boolean
   showConfidence?: boolean
   showShare?: boolean
+  showStats?: boolean
 }
 
 function formatDayMonthYear(dateValue?: string) {
@@ -49,7 +50,15 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoGrid({ photos, onRemove, showRank = false, compact = false, showConfidence = true, showShare = true }: PhotoGridProps) {
+export function PhotoGrid({
+  photos,
+  onRemove,
+  showRank = false,
+  compact = false,
+  showConfidence = true,
+  showShare = true,
+  showStats = true,
+}: PhotoGridProps) {
   const { t } = useLanguage()
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
@@ -468,30 +477,32 @@ export function PhotoGrid({ photos, onRemove, showRank = false, compact = false,
             <div className="p-3.5 space-y-1">
               <p className={`font-semibold text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{photo.eventName}</p>
               <p className="text-xs text-muted-foreground">{formatDayMonthYear(photo.uploadDate || photo.eventDate)}</p>
-              <div
-                className="mt-2.5 flex items-center justify-between border-t border-border/40 pt-2 px-0.5 text-[11px] text-muted-foreground"
-                aria-label={`${t("photo.stats.views")}: ${stats.views}, ${t("photo.stats.downloads")}: ${stats.downloads}, ${t("photo.stats.shares")}: ${stats.shares}, ${t("photo.stats.likes")}: ${stats.likes}`}
-              >
-                <span className="inline-flex items-center gap-1" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
-                  <Eye className="h-3.5 w-3.5 text-slate-400" />
-                  <strong className="font-semibold text-foreground/80">{stats.views}</strong>
-                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
-                </span>
-                <span className="inline-flex items-center gap-1" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
-                  <Download className="h-3.5 w-3.5 text-slate-400" />
-                  <strong className="font-semibold text-foreground/80">{stats.downloads}</strong>
-                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
-                </span>
-                <span className="inline-flex items-center gap-1" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
-                  <Share2 className="h-3.5 w-3.5 text-slate-400" />
-                  <strong className="font-semibold text-foreground/80">{stats.shares}</strong>
-                  <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
-                </span>
-                <span className={`inline-flex items-center gap-1 ${stats.likes > 0 ? "text-primary" : ""}`} title={`${stats.likes} ${t("photo.stats.likes")}`}>
-                  <Heart className={`h-3.5 w-3.5 ${stats.likes > 0 ? "fill-current text-primary" : "text-slate-400"}`} />
-                  <strong className="font-semibold">{stats.likes}</strong>
-                </span>
-              </div>
+              {showStats && (
+                <div
+                  className="mt-2.5 flex items-center justify-between border-t border-border/40 pt-2 px-0.5 text-[11px] text-muted-foreground"
+                  aria-label={`${t("photo.stats.views")}: ${stats.views}, ${t("photo.stats.downloads")}: ${stats.downloads}, ${t("photo.stats.shares")}: ${stats.shares}, ${t("photo.stats.likes")}: ${stats.likes}`}
+                >
+                  <span className="inline-flex items-center gap-1" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
+                    <Eye className="h-3.5 w-3.5 text-slate-400" />
+                    <strong className="font-semibold text-foreground/80">{stats.views}</strong>
+                    <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
+                    <Download className="h-3.5 w-3.5 text-slate-400" />
+                    <strong className="font-semibold text-foreground/80">{stats.downloads}</strong>
+                    <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
+                    <Share2 className="h-3.5 w-3.5 text-slate-400" />
+                    <strong className="font-semibold text-foreground/80">{stats.shares}</strong>
+                    <span className="text-[10px] text-muted-foreground/70">{t("photo.stats.unit")}</span>
+                  </span>
+                  <span className={`inline-flex items-center gap-1 ${stats.likes > 0 ? "text-primary" : ""}`} title={`${stats.likes} ${t("photo.stats.likes")}`}>
+                    <Heart className={`h-3.5 w-3.5 ${stats.likes > 0 ? "fill-current text-primary" : "text-slate-400"}`} />
+                    <strong className="font-semibold">{stats.likes}</strong>
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="px-3.5 pb-3.5 lg:hidden">

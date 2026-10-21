@@ -516,7 +516,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground mt-1">Fetching your matched photos</p>
               </div>
             ) : hasReferenceFace && autoMatches.length > 0 ? (
-              <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={true} />
+              <PhotoGrid photos={autoMatches} showRank={true} compact={true} showShare={true} showStats={false} />
             ) : (
               <div className="relative flex flex-col items-center justify-center rounded border border-slate-200 bg-white overflow-hidden p-14">
                 <div className="relative z-10 flex flex-col items-center text-center space-y-4 max-w-md">

@@ -315,42 +315,34 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
               </DialogDescription>
 
               {/* Engagement stats bar */}
-              <div className="mt-3 grid grid-cols-4 divide-x divide-[#ece6df] rounded-xl border border-[#ece6df] bg-[#faf9f7]">
-                <div className="flex flex-col items-center py-2 px-1" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
-                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    <Eye className="h-3 w-3" />
-                    {t("detail.stats.views")}
+              <div className="mt-4 grid grid-cols-4 overflow-hidden bg-transparent">
+                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Eye className="h-4 w-4" />
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">
-                    {stats.views} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
-                  </span>
+                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.views}</span>
+                  <span className="sr-only">{t("detail.stats.views")}</span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
-                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    <Download className="h-3 w-3" />
-                    {t("detail.stats.downloads")}
+                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Download className="h-4 w-4" />
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">
-                    {stats.downloads} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
-                  </span>
+                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.downloads}</span>
+                  <span className="sr-only">{t("detail.stats.downloads")}</span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
-                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    <Share2 className="h-3 w-3" />
-                    {t("detail.stats.shares")}
+                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Share2 className="h-4 w-4" />
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#421012]">
-                    {stats.shares} <span className="text-[10px] font-medium text-slate-400">{t("photo.stats.unit")}</span>
-                  </span>
+                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.shares}</span>
+                  <span className="sr-only">{t("detail.stats.shares")}</span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1" title={`${stats.likes} ${t("photo.stats.likes")}`}>
-                  <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    <Heart className="h-3 w-3" />
-                    {t("detail.stats.likes")}
+                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.likes} ${t("photo.stats.likes")}`}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#82181a]/10 text-[#82181a]">
+                    <Heart className="h-4 w-4" />
                   </div>
-                  <span className="mt-0.5 text-sm font-black text-[#82181a]">
-                    {stats.likes} <span className="text-[10px] font-medium text-[#82181a]/70">{t("photo.stats.unit")}</span>
-                  </span>
+                  <span className="shrink-0 text-sm font-black tabular-nums text-[#82181a]">{stats.likes}</span>
+                  <span className="sr-only">{t("detail.stats.likes")}</span>
                 </div>
               </div>
             </DialogHeader>
