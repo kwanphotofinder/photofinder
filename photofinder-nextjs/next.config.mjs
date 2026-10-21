@@ -8,9 +8,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  turbopack: {
-    root: __dirname,
-  },
   output: 'standalone',
   images: {
     unoptimized: true,
