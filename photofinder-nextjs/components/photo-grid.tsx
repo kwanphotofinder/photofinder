@@ -578,6 +578,20 @@ export function PhotoGrid({
             setOpenShareSheet(false)
           }}
           initialShareOpen={openShareSheet}
+          onFavoriteChange={(photoId, isFavorite) => {
+            setSavedPhotoIds((current) => isFavorite
+              ? current.includes(photoId) ? current : [...current, photoId]
+              : current.filter((id) => id !== photoId))
+            setPhotoStats((current) => ({
+              ...current,
+              [photoId]: {
+                ...(current[photoId] ?? { views: 0, shares: 0, likes: 0, downloads: 0 }),
+                likes: isFavorite
+                  ? (current[photoId]?.likes ?? 0) + 1
+                  : Math.max(0, (current[photoId]?.likes ?? 0) - 1),
+              },
+            }))
+          }}
           onEngagement={(action) => {
             if (action === "DOWNLOAD" || action === "SHARE") {
               updatePhotoStat(selectedPhoto.id, action)

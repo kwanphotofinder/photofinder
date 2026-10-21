@@ -88,10 +88,10 @@ export async function getPhotoEngagementSummaries(photoIds: string[]) {
     `
       SELECT
         p."id" AS "photoId",
-        COUNT(DISTINCT CASE WHEN pe."action" = 'VIEW' THEN COALESCE(pe."viewerId", 'anon_' || pe."id"::text) END) AS "views",
-        COUNT(DISTINCT CASE WHEN pe."action" = 'SHARE' THEN COALESCE(pe."viewerId", 'anon_' || pe."id"::text) END) AS "shares",
+        COUNT(CASE WHEN pe."action" = 'VIEW' THEN 1 END) AS "views",
+        COUNT(CASE WHEN pe."action" = 'SHARE' THEN 1 END) AS "shares",
         COUNT(DISTINCT sp."userId") AS "likes",
-        COUNT(DISTINCT CASE WHEN pe."action" = 'DOWNLOAD' THEN COALESCE(pe."viewerId", 'anon_' || pe."id"::text) END) AS "downloads"
+        COUNT(CASE WHEN pe."action" = 'DOWNLOAD' THEN 1 END) AS "downloads"
       FROM "photos" p
       LEFT JOIN "photo_engagements" pe ON pe."photoId" = p."id"
       LEFT JOIN "saved_photos" sp ON sp."photoId" = p."id"

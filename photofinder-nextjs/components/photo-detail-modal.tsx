@@ -39,6 +39,7 @@ interface PhotoDetailModalProps {
   onClose: () => void
   initialShareOpen?: boolean
   onEngagement?: (action: "VIEW" | "DOWNLOAD" | "SHARE") => void
+  onFavoriteChange?: (photoId: string, isFavorite: boolean) => void
 }
 
 function formatDayMonthYear(dateValue?: string) {
@@ -48,7 +49,7 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onEngagement }: PhotoDetailModalProps) {
+export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onEngagement, onFavoriteChange }: PhotoDetailModalProps) {
   const { t } = useLanguage()
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
@@ -180,6 +181,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
 
         if (response.status === 200) {
           setIsFavorite(false)
+          setStats((current) => ({ ...current, likes: Math.max(0, current.likes - 1) }))
+          onFavoriteChange?.(photo.id, false)
         } else {
           alert(t("detail.favorite_remove_error"))
         }
@@ -188,6 +191,8 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
 
         if (response.status === 201) {
           setIsFavorite(true)
+          setStats((current) => ({ ...current, likes: current.likes + 1 }))
+          onFavoriteChange?.(photo.id, true)
         } else {
           alert(t("detail.favorite_add_error"))
         }
