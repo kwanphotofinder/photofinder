@@ -5,14 +5,8 @@ import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
 export async function GET(req: NextRequest) {
   try {
-    const DEFAULT_CONFIDENCE = 0.50;
-    const ABSOLUTE_MIN = 0.30; // hard floor – lower threshold lets users discover more photos
-
-    const thresholdParam = req.nextUrl.searchParams.get("threshold");
-    const parsedThreshold = thresholdParam ? parseFloat(thresholdParam) : NaN;
-    const MIN_MATCH_CONFIDENCE = Number.isFinite(parsedThreshold)
-      ? Math.max(ABSOLUTE_MIN, Math.min(1.0, parsedThreshold))
-      : DEFAULT_CONFIDENCE;
+    // Fixed system confidence threshold locked at 50% (0.50)
+    const MIN_MATCH_CONFIDENCE = 0.50;
     
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
