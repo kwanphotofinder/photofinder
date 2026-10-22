@@ -224,6 +224,13 @@ export const apiClient = {
     }),
   getLowConfidencePhotos: (threshold = 0.65) =>
     apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`),
+  getBiometricConfidence: () =>
+    apiCall<{ percentage: number }>("/admin/system-settings/confidence"),
+  updateBiometricConfidence: (percentage: number) =>
+    apiCall<{ percentage: number }>("/admin/system-settings/confidence", {
+      method: "PATCH",
+      body: JSON.stringify({ percentage }),
+    }),
   dismissLowConfidencePhoto: (photoId: string) =>
     apiCall<any>("/admin/low-confidence", {
       method: "PATCH",

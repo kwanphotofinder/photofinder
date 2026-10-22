@@ -46,6 +46,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const isRunningRef = useRef(false)
   const frameInFlightRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   const [videoMounted, setVideoMounted] = useState(false)
   
@@ -76,12 +77,54 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
   // Cleanup on unmount
   useEffect(() => {
-    return stopCamera
+    return () => {
+      stopCamera()
+      audioContextRef.current?.close()
+      audioContextRef.current = null
+    }
   }, [stopCamera])
+
+  const prepareCompletionSound = async () => {
+    if (typeof window === "undefined") return
+
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext()
+      }
+
+      if (audioContextRef.current.state === "suspended") {
+        await audioContextRef.current.resume()
+      }
+    } catch (error) {
+      console.warn("Unable to prepare verification completion sound:", error)
+    }
+  }
+
+  const playStepCompletionSound = useCallback(() => {
+    const audioContext = audioContextRef.current
+    if (!audioContext || audioContext.state !== "running") return
+
+    const now = audioContext.currentTime
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = "sine"
+    oscillator.frequency.setValueAtTime(880, now)
+    oscillator.frequency.exponentialRampToValueAtTime(1320, now + 0.12)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.015)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24)
+
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start(now)
+    oscillator.stop(now + 0.24)
+  }, [])
 
   const startCamera = async () => {
     try {
       setError(null)
+      await prepareCompletionSound()
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 1280 } },
       })
@@ -234,6 +277,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     }
 
     if (challengePassed) {
+      playStepCompletionSound()
       const nextCompleted = [...completedChallenges, activeChallenge.key]
       setCompletedChallenges(nextCompleted)
       
@@ -260,7 +304,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         }
       }
     }
-  }, [livenessData, step, completedChallenges, challengeSteps])
+  }, [livenessData, step, completedChallenges, challengeSteps, playStepCompletionSound])
 
   const captureFinalSelfie = async () => {
     if (!anchorImage || !videoRef.current || !canvasRef.current) return

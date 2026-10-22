@@ -303,3 +303,11 @@ model ErrorTrackLog {
   @@index([route], name: "error_track_route_idx")
   @@map("error_track_logs")
 }
+
+model SystemSetting {
+  key       String   @id
+  value     Float
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

@@ -221,6 +221,11 @@ const translations: Record<Language, Record<string, string>> = {
     // Events Tab
     "events.title": "รายการกิจกรรมทั้งหมด (Events List)",
     "events.desc": "จัดการกิจกรรม ค้นหา และตรวจสอบสถานะการเผยแพร่",
+    "settings.confidence_title": "เกณฑ์จับคู่ใบหน้า (Biometric Match Confidence)",
+    "settings.confidence_desc": "กำหนดความมั่นใจขั้นต่ำของภาพที่จะส่งคืนให้ผู้ใช้จากการค้นหาด้วยใบหน้า",
+    "settings.confidence_save": "บันทึก",
+    "settings.confidence_saved": "บันทึกเกณฑ์ความมั่นใจแล้ว",
+    "settings.confidence_save_error": "ไม่สามารถบันทึกเกณฑ์ความมั่นใจได้",
     "events.search_placeholder": "ค้นหาชื่อกิจกรรม...",
     "events.create_btn": "สร้าง",
     "events.loading": "กำลังโหลดข้อมูลกิจกรรม...",
@@ -887,6 +892,11 @@ const translations: Record<Language, Record<string, string>> = {
     // Events Tab
     "events.title": "Events List",
     "events.desc": "Manage campus events, filter by keywords, and update publication status",
+    "settings.confidence_title": "Biometric match confidence",
+    "settings.confidence_desc": "Set the minimum confidence required before a photo is returned from biometric search.",
+    "settings.confidence_save": "Save",
+    "settings.confidence_saved": "Confidence threshold saved.",
+    "settings.confidence_save_error": "Unable to save the confidence threshold.",
     "events.search_placeholder": "Search event by name...",
     "events.create_btn": "Create",
     "events.loading": "Loading campus events...",

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
@@ -33,6 +33,10 @@ export default function AdminDashboardPage() {
   const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
   const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
   const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
+  const [biometricConfidence, setBiometricConfidence] = useState(50)
+  const [biometricConfidenceDraft, setBiometricConfidenceDraft] = useState("50")
+  const [isSavingBiometricConfidence, setIsSavingBiometricConfidence] = useState(false)
+  const [biometricConfidenceMessage, setBiometricConfidenceMessage] = useState<string | null>(null)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -131,6 +135,15 @@ export default function AdminDashboardPage() {
           apiClient.getLowConfidencePhotos(lowConfidenceThreshold),
         ])
 
+        if (userRole === "super_admin") {
+          const confidenceRes = await apiClient.getBiometricConfidence()
+          if (confidenceRes.data) {
+            const percentage = confidenceRes.data.percentage
+            setBiometricConfidence(percentage)
+            setBiometricConfidenceDraft(String(percentage))
+          }
+        }
+
         if (eventsRes.data && Array.isArray(eventsRes.data)) {
           setEvents(eventsRes.data)
         }
@@ -170,6 +183,26 @@ export default function AdminDashboardPage() {
 
     fetchData()
   }, [router, lowConfidenceThreshold])
+
+  const saveBiometricConfidence = async () => {
+    const percentage = Number(biometricConfidenceDraft)
+    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
+      setBiometricConfidenceMessage(t("settings.confidence_save_error"))
+      return
+    }
+
+    setIsSavingBiometricConfidence(true)
+    setBiometricConfidenceMessage(null)
+    const response = await apiClient.updateBiometricConfidence(percentage)
+    if (response.data) {
+      setBiometricConfidence(response.data.percentage)
+      setBiometricConfidenceDraft(String(response.data.percentage))
+      setBiometricConfidenceMessage(t("settings.confidence_saved"))
+    } else {
+      setBiometricConfidenceMessage(response.error || t("settings.confidence_save_error"))
+    }
+    setIsSavingBiometricConfidence(false)
+  }
 
   const fetchAuditLogs = async (cat = auditCategoryFilter, search = auditSearchQuery, page = auditPage) => {
     setAuditLogsLoading(true)
@@ -712,6 +745,45 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </CardHeader>
+                  {callerRole === "SUPER_ADMIN" && (
+                    <CardContent className="border-b border-slate-200 bg-white p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{t("settings.confidence_title")}</p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.confidence_desc")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 sm:min-w-80">
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            step="1"
+                            value={biometricConfidenceDraft}
+                            onChange={(event) => setBiometricConfidenceDraft(event.target.value.replace(/\D/g, "").slice(0, 3))}
+                            className="h-8 w-20 rounded border border-slate-300 px-2 text-center text-sm"
+                            aria-label={t("settings.confidence_title")}
+                          />
+                          <span className="w-12 text-right text-sm font-bold text-[#82181a]">{biometricConfidenceDraft || "-"}%</span>
+                          <Button
+                            size="sm"
+                            disabled={isSavingBiometricConfidence || Number(biometricConfidenceDraft) === biometricConfidence}
+                            onClick={saveBiometricConfidence}
+                            className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
+                          >
+                            {isSavingBiometricConfidence ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("settings.confidence_save")}
+                          </Button>
+                        </div>
+                      </div>
+                      {biometricConfidenceMessage && (
+                        <p className={`mt-2 text-[11px] ${biometricConfidenceMessage === t("settings.confidence_saved") ? "text-emerald-600" : "text-destructive"}`}>
+                          {biometricConfidenceMessage}
+                        </p>
+                      )}
+                    </CardContent>
+                  )}
                   <CardContent className="p-0">
                     {isLoading ? (
                       <div className="text-center py-12 text-slate-500 text-xs">{t("events.loading")}</div>

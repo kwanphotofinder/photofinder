@@ -3,11 +3,10 @@ import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
 
+const DEFAULT_MIN_MATCH_CONFIDENCE = 0.50;
+
 export async function GET(req: NextRequest) {
   try {
-    // Fixed system confidence threshold locked at 50% (0.50)
-    const MIN_MATCH_CONFIDENCE = 0.50;
-    
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
@@ -29,6 +28,13 @@ export async function GET(req: NextRequest) {
     }
 
     const vectorString = referenceFaceQuery[0].embedding_str;
+    const confidenceSettings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
+      `SELECT "value" FROM "system_settings" WHERE "key" = $1 LIMIT 1`,
+      'biometric_match_confidence',
+    );
+    const minMatchConfidence = confidenceSettings.length > 0
+      ? Number(confidenceSettings[0].value)
+      : DEFAULT_MIN_MATCH_CONFIDENCE;
 
     // 2. Search Postgres using pgvector's Cosine Distance (<=>)
     //    Filter by confidence threshold directly in SQL to avoid over-fetching,
@@ -56,7 +62,7 @@ export async function GET(req: NextRequest) {
         AND e."status" = 'PUBLISHED'
       ORDER BY f.embedding <=> $1::vector ASC
       LIMIT 300
-    `, vectorString, MIN_MATCH_CONFIDENCE);
+    `, vectorString, minMatchConfidence);
 
     // 3. Filter out duplicates by photo ID
     const finalResults = Array.from(
