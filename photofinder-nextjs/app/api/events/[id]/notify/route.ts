@@ -33,8 +33,20 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // SIMILARITY_THRESHOLD should match the one used in the upload route
-    const SIMILARITY_THRESHOLD = 0.55;
+    // Read dynamic biometric confidence threshold from system settings (defaults to 0.50)
+    // to match /api/me/matches exactly (Cosine distance <= threshold is confidence >= threshold)
+    let similarityThreshold = 0.50;
+    try {
+      const confidenceSettings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
+        `SELECT "value" FROM "system_settings" WHERE "key" = $1 LIMIT 1`,
+        'biometric_match_confidence',
+      );
+      if (confidenceSettings.length > 0 && confidenceSettings[0]?.value) {
+        similarityThreshold = Number(confidenceSettings[0].value);
+      }
+    } catch {
+      similarityThreshold = 0.50;
+    }
 
     // 1. Get all face embeddings from this event's photos
     const allFaces = event.photos.flatMap(p => p.faces);
@@ -66,7 +78,7 @@ export async function POST(
         SELECT "userId"
         FROM "user_faces"
         WHERE "embedding" IS NOT NULL
-          AND ("embedding" <=> ${vectorString}::vector) < ${SIMILARITY_THRESHOLD}
+          AND ("embedding" <=> ${vectorString}::vector) <= ${similarityThreshold}
       `;
 
       for (const match of matches) {
