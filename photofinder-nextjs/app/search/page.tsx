@@ -81,26 +81,26 @@ export default function SearchPage() {
   return (
     <>
       <Header showLogout />
-      <main className="min-h-screen bg-[#faf9f7] text-slate-950">
-        <div className="border-b border-[#d8d2ca] bg-[#f5f3ef]">
-          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-            <div className="border-t-4 border-[#82181a] bg-white px-5 py-6 shadow-sm sm:px-8 sm:py-7">
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="border-b border-slate-200 bg-slate-50">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="rounded border border-slate-200 bg-white p-6 sm:p-8 shadow-none">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
                 <div>
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">
-                    <Search className="h-4 w-4" /> {t("search.space")}
+                  <div className="inline-flex items-center gap-2 rounded bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/15">
+                    <Search className="h-3.5 w-3.5" /> {t("search.space")}
                   </div>
-                  <h1 className="mt-4 text-3xl font-black tracking-[-0.03em] text-[#421012] sm:text-4xl">
+                  <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                     {t("search.title")}
                   </h1>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
                     {t("search.description")}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="hidden text-right sm:block">
-                    <p className="text-4xl font-black tracking-[-0.04em] text-[#82181a]">{photos.length}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    <p className="text-4xl font-bold tracking-tight text-primary">{photos.length}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       {t("search.count")}
                     </p>
                   </div>
@@ -108,14 +108,14 @@ export default function SearchPage() {
               </div>
 
               {/* Match Sensitivity / Confidence Threshold Slider */}
-              <div className="mt-6 pt-5 border-t border-[#e8e4dc]">
+              <div className="mt-6 pt-5 border-t border-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4 text-[#82181a]" />
-                    <span className="text-sm font-bold text-foreground">
+                    <SlidersHorizontal className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">
                       เกณฑ์ความแม่นยำในการจับคู่ (Match Sensitivity):
                     </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-[#82181a]/10 text-[#82181a]">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
                       {Math.round(confidenceThreshold * 100)}% Match
                     </span>
                   </div>
@@ -125,9 +125,7 @@ export default function SearchPage() {
                     <Button
                       size="sm"
                       variant={confidenceThreshold === 0.45 ? "default" : "outline"}
-                      className={`h-7 px-2.5 text-xs ${
-                        confidenceThreshold === 0.45 ? "bg-[#82181a] text-white" : ""
-                      }`}
+                      className="h-7 px-2.5 text-xs font-medium"
                       onClick={() => handlePreset(0.45)}
                     >
                       กว้าง (45%) ได้ภาพเยอะ
@@ -135,9 +133,7 @@ export default function SearchPage() {
                     <Button
                       size="sm"
                       variant={confidenceThreshold === 0.60 ? "default" : "outline"}
-                      className={`h-7 px-2.5 text-xs ${
-                        confidenceThreshold === 0.60 ? "bg-[#82181a] text-white" : ""
-                      }`}
+                      className="h-7 px-2.5 text-xs font-medium"
                       onClick={() => handlePreset(0.60)}
                     >
                       มาตรฐาน (60%)
@@ -145,9 +141,7 @@ export default function SearchPage() {
                     <Button
                       size="sm"
                       variant={confidenceThreshold === 0.75 ? "default" : "outline"}
-                      className={`h-7 px-2.5 text-xs ${
-                        confidenceThreshold === 0.75 ? "bg-[#82181a] text-white" : ""
-                      }`}
+                      className="h-7 px-2.5 text-xs font-medium"
                       onClick={() => handlePreset(0.75)}
                     >
                       แม่นยำสูง (75%)

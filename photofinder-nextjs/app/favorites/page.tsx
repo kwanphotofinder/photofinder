@@ -101,35 +101,48 @@ export default function FavoritesPage() {
   return (
     <>
       <Header showLogout />
-      <main className="min-h-screen bg-[#faf9f7] text-slate-950">
-        <div className="border-b border-[#d8d2ca] bg-[#f5f3ef]">
-          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-            <div className="border-t-4 border-[#82181a] bg-white px-5 py-6 shadow-sm sm:px-8 sm:py-7">
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="border-b border-slate-200 bg-slate-50">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="rounded border border-slate-200 bg-white p-6 sm:p-8 shadow-none">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="max-w-2xl">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]"><Heart className="h-4 w-4 fill-current" /> {t("favorites.space")}</div>
-                  <h1 className="mt-4 text-3xl font-black tracking-[-0.03em] text-[#421012] sm:text-4xl">{t("favorites.title")}</h1>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">{t("favorites.description")}</p>
+                  <div className="inline-flex items-center gap-2 rounded bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/15">
+                    <Heart className="h-3.5 w-3.5 fill-current" /> {t("favorites.space")}
+                  </div>
+                  <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{t("favorites.title")}</h1>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">{t("favorites.description")}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 border-l-2 border-[#f4c66a] pl-4 sm:min-w-40">
-                  <p className="text-4xl font-black tracking-[-0.04em] text-[#82181a]">{savedPhotos.length}</p>
-                  <p className="max-w-20 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-slate-500">{t("favorites.count")}</p>
+                <div className="flex shrink-0 items-center gap-3 border-l-2 border-primary/20 pl-4 sm:min-w-40">
+                  <p className="text-4xl font-bold tracking-tight text-primary">{savedPhotos.length}</p>
+                  <p className="max-w-20 text-[10px] font-bold uppercase leading-4 tracking-wider text-muted-foreground">{t("favorites.count")}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8 lg:py-11">
           <section>
-            <div className="mb-7 flex items-end justify-between gap-4 border-b border-[#d8d2ca] pb-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#82181a]">{t("favorites.collection")}</p><h2 className="mt-2 text-2xl font-black tracking-[-0.02em] sm:text-3xl">{t("favorites.saved_collection")}</h2></div><span className="hidden text-xs font-semibold text-slate-500 sm:block">{savedPhotos.length} / {t("favorites.count")}</span></div>
+            <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{t("favorites.saved_collection")}</h2>
+              </div>
+              <span className="hidden text-xs font-semibold text-muted-foreground sm:block">{savedPhotos.length} / {t("favorites.count")}</span>
+            </div>
             {isLoading ? (
-              <div className="flex min-h-36 items-center justify-center py-10 text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />{t("favorites.loading")}</div>
+              <div className="flex min-h-36 items-center justify-center py-10 text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />{t("favorites.loading")}</div>
             ) : error ? (
-              <div className="flex min-h-36 items-center justify-center py-10 text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
+              <div className="flex min-h-36 items-center justify-center py-10 text-sm font-medium text-destructive"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
             ) : savedPhotos.length > 0 ? (
               <PhotoGrid photos={savedPhotos} compact={true} showConfidence={false} showShare={true} enableBatchDownload={true} showEngagement={true} />
             ) : (
-              <div className="relative flex min-h-36 items-center justify-center overflow-hidden py-10"><Sparkles className="absolute h-28 w-28 text-[#82181a] opacity-[0.035]" /><p className="select-none text-center text-3xl font-black uppercase tracking-[0.12em] text-[#82181a] opacity-[0.08] sm:text-4xl">{t("favorites.empty")}</p></div>
+              <div className="relative flex flex-col items-center justify-center rounded border border-slate-200 bg-white overflow-hidden p-14 text-center">
+                <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-inset ring-primary/10 mb-4">
+                  <Heart className="h-10 w-10 text-primary" strokeWidth={1.8} />
+                </div>
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">{t("favorites.empty")}</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">คุณยังไม่มีภาพที่บันทึกไว้ สามารถกดรูปหัวใจบนรูปภาพที่คุณชื่นชอบเพื่อเก็บไว้ที่นี่ได้</p>
+              </div>
             )}
           </section>
         </div>
