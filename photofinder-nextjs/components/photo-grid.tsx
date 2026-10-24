@@ -64,6 +64,7 @@ export function PhotoGrid({
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set())
   const [isZipping, setIsZipping] = useState(false)
   const [zipProgress, setZipProgress] = useState<{ percent: number; current: number; total: number } | null>(null)
+  const [failedPhotoIds, setFailedPhotoIds] = useState<Set<string>>(new Set())
 
   // Local engagement cache if not provided in props
   const [engagements, setEngagements] = useState<Record<string, { views: number; downloads: number; shares: number }>>({})
@@ -171,7 +172,7 @@ export function PhotoGrid({
     try {
       const userId = localStorage.getItem("user_id") || "guest"
       const authToken = localStorage.getItem("auth_token")
-      const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 
       if (savedPhotoIds.includes(photoId)) {
         const response = await fetch(`/api/saved-photos/${userId}/${photoId}`, {
@@ -319,12 +320,23 @@ export function PhotoGrid({
                   }
                 }}
               >
-                <Image
-                  src={photo.url || "/placeholder.svg"}
-                  alt={photo.eventName}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+                {failedPhotoIds.has(photo.id) ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-muted/60 text-muted-foreground text-center">
+                    <span className="text-2xl mb-1">🖼️</span>
+                    <span className="text-[11px] font-medium text-muted-foreground/80">ภาพไม่พร้อมใช้งาน</span>
+                    <span className="text-[9px] text-muted-foreground/60">(404 Not Found)</span>
+                  </div>
+                ) : (
+                  <Image
+                    src={photo.url || "/placeholder.svg"}
+                    alt={photo.eventName}
+                    fill
+                    onError={() => {
+                      setFailedPhotoIds((prev) => new Set(prev).add(photo.id))
+                    }}
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                )}
 
                 {/* Checkbox overlay when in select mode */}
                 {isSelectMode && (

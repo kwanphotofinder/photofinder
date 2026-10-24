@@ -52,6 +52,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
   const [isZoomed, setIsZoomed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [engagementStats, setEngagementStats] = useState<{ views: number; downloads: number; shares: number }>({ views: 0, downloads: 0, shares: 0 })
+  const [imageError, setImageError] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
@@ -64,9 +65,14 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
       setIsZoomed(false)
       setIsFullscreen(false)
       setEngagementStats({ views: 0, downloads: 0, shares: 0 })
+      setImageError(false)
       trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
+
+  useEffect(() => {
+    setImageError(false)
+  }, [photo?.id])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -161,7 +167,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
       setIsFavoriteLoading(true)
       const userId = localStorage.getItem("user_id") || "guest"
       const authToken = localStorage.getItem("auth_token")
-      const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 
       if (isFavorite) {
         const response = await fetch(`/api/saved-photos/${userId}/${photo.id}`, {
@@ -265,16 +271,29 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
               isFullscreen ? "h-screen" : "h-[400px]"
             }`}
           >
-            <Image
-              src={photo.url || "/placeholder.svg"}
-              alt={photo.eventName}
-              width={800}
-              height={600}
-              onClick={handleToggleZoom}
-              className={`w-auto object-contain transition-transform duration-300 ${
-                isFullscreen ? "max-h-screen" : "max-h-[400px]"
-              } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
-            />
+            {imageError ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-3">
+                <AlertCircle className="w-12 h-12 text-amber-500/80 stroke-[1.5]" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">ไม่สามารถโหลดรูปภาพได้</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    ไฟล์ภาพต้นฉบับบน Cloudinary อาจถูกลบ ย้าย หรือลิงก์หมดอายุ (HTTP 404)
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Image
+                src={photo.url || "/placeholder.svg"}
+                alt={photo.eventName}
+                width={800}
+                height={600}
+                onError={() => setImageError(true)}
+                onClick={handleToggleZoom}
+                className={`w-auto object-contain transition-transform duration-300 ${
+                  isFullscreen ? "max-h-screen" : "max-h-[400px]"
+                } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
+              />
+            )}
 
             <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
               <Button
