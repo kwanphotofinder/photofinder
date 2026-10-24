@@ -2,13 +2,6 @@ import prisma from "@/lib/prisma"
 
 type EngagementAction = "VIEW" | "DOWNLOAD" | "SHARE"
 
-export interface PhotoEngagementSummary {
-  views: number
-  shares: number
-  likes: number
-  downloads: number
-}
-
 let tableReady = false
 
 export async function ensurePhotoEngagementTable() {
@@ -70,6 +63,55 @@ export async function recordPhotoEngagement(params: {
   return { ok: true as const }
 }
 
+export async function getPhotosEngagementMap(photoIds: string[]): Promise<Record<string, { views: number; downloads: number; shares: number }>> {
+  if (!photoIds || photoIds.length === 0) return {}
+  await ensurePhotoEngagementTable()
+
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      photoId: string
+      views: bigint | number
+      downloads: bigint | number
+      shares: bigint | number
+    }>>(
+      `
+        SELECT
+          "photoId",
+          COALESCE(SUM(CASE WHEN "action" = 'VIEW' THEN 1 ELSE 0 END), 0) AS "views",
+          COALESCE(SUM(CASE WHEN "action" = 'DOWNLOAD' THEN 1 ELSE 0 END), 0) AS "downloads",
+          COALESCE(SUM(CASE WHEN "action" = 'SHARE' THEN 1 ELSE 0 END), 0) AS "shares"
+        FROM "photo_engagements"
+        WHERE "photoId" = ANY($1::text[])
+        GROUP BY "photoId"
+      `,
+      photoIds,
+    )
+
+    const map: Record<string, { views: number; downloads: number; shares: number }> = {}
+    for (const id of photoIds) {
+      map[id] = { views: 0, downloads: 0, shares: 0 }
+    }
+    for (const row of rows) {
+      map[row.photoId] = {
+        views: Number(row.views || 0),
+        downloads: Number(row.downloads || 0),
+        shares: Number(row.shares || 0),
+      }
+    }
+    return map
+  } catch (error) {
+    console.error("Failed to query photo engagements map:", error)
+    return {}
+  }
+}
+
+export interface PhotoEngagementSummary {
+  views: number
+  shares: number
+  likes: number
+  downloads: number
+}
+
 export async function getPhotoEngagementSummaries(photoIds: string[]) {
   const summaries = new Map<string, PhotoEngagementSummary>()
 
@@ -78,40 +120,53 @@ export async function getPhotoEngagementSummaries(photoIds: string[]) {
   await ensurePhotoEngagementTable()
 
   const placeholders = photoIds.map((_, index) => `$${index + 1}`).join(", ")
-  const rows = await prisma.$queryRawUnsafe<Array<{
-    photoId: string
-    views: bigint | number
-    shares: bigint | number
-    likes: bigint | number
-    downloads: bigint | number
-  }>>(
-    `
-      SELECT
-        p."id" AS "photoId",
-        COUNT(CASE WHEN pe."action" = 'VIEW' THEN 1 END) AS "views",
-        COUNT(CASE WHEN pe."action" = 'SHARE' THEN 1 END) AS "shares",
-        COUNT(DISTINCT sp."userId") AS "likes",
-        COUNT(CASE WHEN pe."action" = 'DOWNLOAD' THEN 1 END) AS "downloads"
-      FROM "photos" p
-      LEFT JOIN "photo_engagements" pe ON pe."photoId" = p."id"
-      LEFT JOIN "saved_photos" sp ON sp."photoId" = p."id"
-      WHERE p."id" IN (${placeholders})
-      GROUP BY p."id"
-    `,
-    ...photoIds,
-  )
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      photoId: string
+      views: bigint | number
+      shares: bigint | number
+      likes: bigint | number
+      downloads: bigint | number
+    }>>(
+      `
+        SELECT
+          p."id" AS "photoId",
+          COUNT(CASE WHEN pe."action" = 'VIEW' THEN 1 END) AS "views",
+          COUNT(CASE WHEN pe."action" = 'SHARE' THEN 1 END) AS "shares",
+          COUNT(DISTINCT sp."userId") AS "likes",
+          COUNT(CASE WHEN pe."action" = 'DOWNLOAD' THEN 1 END) AS "downloads"
+        FROM "photos" p
+        LEFT JOIN "photo_engagements" pe ON pe."photoId" = p."id"
+        LEFT JOIN "saved_photos" sp ON sp."photoId" = p."id"
+        WHERE p."id" IN (${placeholders})
+        GROUP BY p."id"
+      `,
+      ...photoIds,
+    )
 
-  for (const row of rows) {
-    summaries.set(row.photoId, {
-      views: Number(row.views || 0),
-      shares: Number(row.shares || 0),
-      likes: Number(row.likes || 0),
-      downloads: Number(row.downloads || 0),
-    })
+    for (const row of rows) {
+      summaries.set(row.photoId, {
+        views: Number(row.views || 0),
+        shares: Number(row.shares || 0),
+        likes: Number(row.likes || 0),
+        downloads: Number(row.downloads || 0),
+      })
+    }
+  } catch (err) {
+    console.error("Failed to query getPhotoEngagementSummaries:", err)
   }
 
   return summaries
 }
+
+export const getPhotosEngagementBatch = getPhotosEngagementMap
+
+export async function getPhotoEngagement(photoId: string) {
+  const map = await getPhotosEngagementMap([photoId])
+  return map[photoId] || { views: 0, downloads: 0, shares: 0 }
+}
+
+
 
 export async function getPhotographerAnalytics(uploaderId: string) {
   await ensurePhotoEngagementTable()

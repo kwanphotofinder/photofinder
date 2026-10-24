@@ -3,21 +3,15 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Download, CalendarDays, X, Eye } from "lucide-react"
-import { downloadOriginalPhoto } from "@/lib/download"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Eye, Download } from "lucide-react"
+import { format } from 'date-fns'
+import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
-import { useLanguage } from "@/lib/language-context"
-
-interface PhotoStats {
-  views: number
-  shares: number
-  likes: number
-  downloads: number
-}
 
 interface Photo {
   id: string
@@ -30,7 +24,6 @@ interface Photo {
   y?: number
   w?: number
   h?: number
-  stats?: PhotoStats
 }
 
 interface PhotoDetailModalProps {
@@ -38,8 +31,6 @@ interface PhotoDetailModalProps {
   isOpen: boolean
   onClose: () => void
   initialShareOpen?: boolean
-  onEngagement?: (action: "VIEW" | "DOWNLOAD" | "SHARE") => void
-  onFavoriteChange?: (photoId: string, isFavorite: boolean) => void
 }
 
 function formatDayMonthYear(dateValue?: string) {
@@ -49,9 +40,9 @@ function formatDayMonthYear(dateValue?: string) {
   return new Intl.DateTimeFormat("en-GB").format(date)
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onEngagement, onFavoriteChange }: PhotoDetailModalProps) {
-  const { t } = useLanguage()
+export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = false }: PhotoDetailModalProps) {
   const imageContainerRef = useRef<HTMLDivElement>(null)
+  const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
   const [reason, setReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,7 +51,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
   const [activeShareChannel, setActiveShareChannel] = useState<ShareChannel | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [stats, setStats] = useState<PhotoStats>(photo?.stats ?? { views: 0, shares: 0, likes: 0, downloads: 0 })
+  const [engagementStats, setEngagementStats] = useState<{ views: number; downloads: number; shares: number }>({ views: 0, downloads: 0, shares: 0 })
 
   // Reset state when modal closes
   useEffect(() => {
@@ -72,31 +63,10 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
       setActiveShareChannel(null)
       setIsZoomed(false)
       setIsFullscreen(false)
+      setEngagementStats({ views: 0, downloads: 0, shares: 0 })
+      trackedViewPhotoIdRef.current = null
     }
   }, [isOpen])
-
-  // Load live engagement stats from API
-  useEffect(() => {
-    if (!isOpen || !photo) return
-    setStats(photo.stats ?? { views: 0, shares: 0, likes: 0, downloads: 0 })
-
-    const fetchStats = async () => {
-      try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
-        const res = await fetch(`/api/photos/${photo.id}/stats`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        if (res.ok) {
-          const data = await res.json() as PhotoStats
-          setStats(data)
-        }
-      } catch {
-        // silently ignore – we already have initial stats from props
-      }
-    }
-
-    void fetchStats()
-  }, [isOpen, photo])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -116,10 +86,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
       try {
         setIsFavoriteLoading(true)
         const userId = localStorage.getItem("user_id") || "guest"
-        const response = await apiClient.getSavedPhotos(userId)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
 
-        if (response.status === 200 && response.data) {
-          setIsFavorite((response.data as any[]).some((item) => item.photo.id === photo.id))
+        if (response.ok) {
+          const savedPhotos = await response.json()
+          setIsFavorite(savedPhotos.some((item: any) => item.photo.id === photo.id))
         }
       } catch (error) {
         console.error("Failed to load favorite state:", error)
@@ -128,45 +100,55 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
       }
     }
 
+    const loadEngagementStats = async () => {
+      try {
+        const res = await fetch(`/api/photos/${photo.id}/engagement`)
+        if (res.ok) {
+          const data = await res.json()
+          setEngagementStats(data)
+        }
+      } catch (err) {
+        console.warn("Could not load engagement stats", err)
+      }
+    }
+
     loadFavoriteState()
+    loadEngagementStats()
+  }, [isOpen, photo])
+
+  useEffect(() => {
+    if (!isOpen || !photo) return
+    if (trackedViewPhotoIdRef.current === photo.id) return
+
+    trackedViewPhotoIdRef.current = photo.id
+    trackPhotoEngagement(photo.id, "VIEW")
   }, [isOpen, photo])
 
   if (!photo) return null
 
-  const photoDate = formatDayMonthYear(photo.uploadDate || photo.eventDate)
-  const matchPercent = photo.confidence !== undefined && photo.confidence > 0
-    ? Math.round(photo.confidence * 100)
-    : null
-
   const handleDownload = async () => {
-    await trackPhotoEngagement(photo.id, "DOWNLOAD")
-    onEngagement?.("DOWNLOAD")
-    setStats((s) => ({ ...s, downloads: s.downloads + 1 }))
-    await downloadOriginalPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
+    trackPhotoEngagement(photo.id, "DOWNLOAD")
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
   const handleNativeShare = async () => {
     try {
-      await trackPhotoEngagement(photo.id, "SHARE")
-      onEngagement?.("SHARE")
-      setStats((s) => ({ ...s, shares: s.shares + 1 }))
       await sharePhotoOriginal(photo)
+      trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error("Failed to share photo:", error)
-      alert(t("detail.share_error"))
+      alert("Unable to open share right now. Please try again.")
     }
   }
 
   const handleQuickShare = async (channel: "line" | "facebook") => {
     try {
       setActiveShareChannel(channel)
-      await trackPhotoEngagement(photo.id, "SHARE")
-      onEngagement?.("SHARE")
-      setStats((s) => ({ ...s, shares: s.shares + 1 }))
       await sharePhotoToChannel(photo, "original", channel)
+      trackPhotoEngagement(photo.id, "SHARE")
     } catch (error) {
       console.error(`Failed to share photo to ${channel}:`, error)
-      alert(t("detail.share_error"))
+      alert("Unable to open share right now. Please try again.")
     } finally {
       setActiveShareChannel(null)
     }
@@ -176,30 +158,40 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
     try {
       setIsFavoriteLoading(true)
       const userId = localStorage.getItem("user_id") || "guest"
-      if (isFavorite) {
-        const response = await apiClient.removeSavedPhoto(userId, photo.id)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
-        if (response.status === 200) {
+      if (isFavorite) {
+        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photo.id}`, {
+          method: "DELETE",
+          headers: {
+            "user-id": userId,
+          },
+        })
+
+        if (response.ok) {
           setIsFavorite(false)
-          setStats((current) => ({ ...current, likes: Math.max(0, current.likes - 1) }))
-          onFavoriteChange?.(photo.id, false)
         } else {
-          alert(t("detail.favorite_remove_error"))
+          alert("Unable to remove this photo from Favorites right now.")
         }
       } else {
-        const response = await apiClient.savePhoto(userId, photo.id)
+        const response = await fetch(`${apiUrl}/saved-photos`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "user-id": userId,
+          },
+          body: JSON.stringify({ photoId: photo.id }),
+        })
 
-        if (response.status === 201) {
+        if (response.ok) {
           setIsFavorite(true)
-          setStats((current) => ({ ...current, likes: current.likes + 1 }))
-          onFavoriteChange?.(photo.id, true)
         } else {
-          alert(t("detail.favorite_add_error"))
+          alert("Unable to add this photo to Favorites right now.")
         }
       }
     } catch (error) {
       console.error("Failed to update favorite state:", error)
-      alert(t("detail.favorite_update_error"))
+      alert("Unable to update Favorites right now.")
     } finally {
       setIsFavoriteLoading(false)
     }
@@ -218,262 +210,267 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen, onE
       }
     } catch (error) {
       console.error("Failed to toggle fullscreen:", error)
-      alert(t("detail.fullscreen_error"))
+      alert("Fullscreen is not available on this browser.")
     }
   }
 
   const handleSubmitRemovalRequest = async () => {
+    // Validate required fields
     if (!reason.trim()) {
-      alert(t("detail.reason_required"))
+      alert("Please provide a reason for removal")
       return
     }
 
     setIsSubmitting(true)
     try {
+      // Create a bounding box string if coordinates exist
       const faceCoordinates = (photo.x !== undefined && photo.y !== undefined && photo.w !== undefined && photo.h !== undefined)
         ? `${Math.round(photo.x)},${Math.round(photo.y)},${Math.round(photo.w)},${Math.round(photo.h)}`
-        : undefined
+        : undefined;
 
       const response = await apiClient.requestPhotoRemoval(photo.id, "DELETE", reason, faceCoordinates)
 
       if (response.error) {
-        alert(t("detail.removal_failed"))
+        alert("Failed to submit removal request. Please try again.")
       } else {
-        alert(t("detail.removal_success"))
+        alert("Removal request submitted successfully. Our team will review it within 24 hours.")
         setShowRemovalRequest(false)
         setReason("")
         onClose()
       }
     } catch (error) {
-      alert(t("detail.error_generic"))
+      alert("An error occurred. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const viewerButtonClass =
-    "h-9 w-9 rounded-full border-0 bg-black/45 text-white shadow-none backdrop-blur-md hover:bg-black/70"
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        aria-describedby={undefined}
-        showCloseButton={false}
-        overlayClassName="bg-black/70 backdrop-blur-[2px]"
-        className="max-h-[92vh] gap-0 overflow-y-auto rounded-2xl border-0 bg-white p-0 text-slate-950 shadow-[0_24px_80px_rgba(66,16,18,0.28)] sm:max-w-5xl lg:overflow-hidden"
-      >
-        <div className="grid lg:max-h-[92vh] lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)]">
+      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{photo.eventName}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Photo Display */}
           <div
             ref={imageContainerRef}
-            className={`relative flex items-center justify-center overflow-hidden bg-[#171514] ${
-              isFullscreen ? "h-screen w-screen p-4 sm:p-10" : "h-[min(52vh,440px)] min-h-[260px] lg:h-auto lg:min-h-[72vh]"
+            className={`relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center ${
+              isFullscreen ? "h-screen" : "h-[400px]"
             }`}
           >
             <Image
               src={photo.url || "/placeholder.svg"}
               alt={photo.eventName}
-              width={1200}
-              height={900}
+              width={800}
+              height={600}
               onClick={handleToggleZoom}
-              className={`h-auto max-h-full max-w-full object-contain transition-transform duration-300 ${
-                isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"
-              }`}
+              className={`w-auto object-contain transition-transform duration-300 ${
+                isFullscreen ? "max-h-screen" : "max-h-[400px]"
+              } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
             />
 
-            {!isFullscreen && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-28 bg-gradient-to-t from-black/55 to-transparent lg:block" />
-            )}
-
-            <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
-              {matchPercent !== null && (
-                <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-                  {matchPercent}% {t("detail.match")}
-                </span>
-              )}
-            </div>
-
-            <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleDownload} title={t("detail.download_original")}>
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleZoom} title={isZoomed ? t("detail.zoom_out") : t("detail.zoom_in")}>
+            <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                onClick={handleToggleZoom}
+                title={isZoomed ? "Zoom out" : "Zoom in"}
+              >
                 {isZoomed ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant="secondary" className={viewerButtonClass} onClick={handleToggleFullscreen} title={isFullscreen ? t("detail.exit_fullscreen") : t("detail.enter_fullscreen")}>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-full bg-black/55 text-white shadow hover:bg-black/70"
+                onClick={handleToggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              >
                 {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
-              <DialogClose className={`${viewerButtonClass} inline-flex items-center justify-center`} aria-label={t("detail.close")}>
-                <X className="h-4 w-4" />
-              </DialogClose>
             </div>
           </div>
 
-          <div className="flex flex-col bg-[#faf9f7] lg:max-h-[92vh] lg:overflow-y-auto">
-            <DialogHeader className="gap-0 border-b border-[#ece6df] bg-white px-5 py-5 text-left sm:px-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#82181a]">{t("detail.photo_moment")}</p>
-              <DialogTitle className="mt-1.5 text-xl font-black tracking-[-0.03em] text-[#421012]">
-                {photo.eventName}
-              </DialogTitle>
-              <DialogDescription className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {photoDate}
-              </DialogDescription>
+          {/* Photo Info */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-card border border-border rounded-lg">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Event</p>
+              <p className="font-semibold text-foreground">{photo.eventName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Date</p>
+              <p className="font-semibold text-foreground">
+                {formatDayMonthYear(photo.uploadDate || photo.eventDate)}
+              </p>
+            </div>
+          </div>
 
-              {/* Engagement stats bar */}
-              <div className="mt-4 grid grid-cols-4 overflow-hidden bg-transparent">
-                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.views} ${t("photo.stats.people_viewed")}`}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <Eye className="h-4 w-4" />
-                  </div>
-                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.views}</span>
-                  <span className="sr-only">{t("detail.stats.views")}</span>
-                </div>
-                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.downloads} ${t("photo.stats.people_downloaded")}`}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <Download className="h-4 w-4" />
-                  </div>
-                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.downloads}</span>
-                  <span className="sr-only">{t("detail.stats.downloads")}</span>
-                </div>
-                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.shares} ${t("photo.stats.people_shared")}`}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <Share2 className="h-4 w-4" />
-                  </div>
-                  <span className="shrink-0 text-sm font-black tabular-nums text-[#421012]">{stats.shares}</span>
-                  <span className="sr-only">{t("detail.stats.shares")}</span>
-                </div>
-                <div className="flex min-w-0 items-center justify-center gap-2.5 px-3 py-3 sm:px-2.5 sm:py-3.5" title={`${stats.likes} ${t("photo.stats.likes")}`}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#82181a]/10 text-[#82181a]">
-                    <Heart className="h-4 w-4" />
-                  </div>
-                  <span className="shrink-0 text-sm font-black tabular-nums text-[#82181a]">{stats.likes}</span>
-                  <span className="sr-only">{t("detail.stats.likes")}</span>
-                </div>
+          {/* Engagement Metrics Row */}
+          <div className="grid grid-cols-3 gap-2.5 p-3 bg-muted/40 border border-border/80 rounded-lg text-center">
+            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Eye className="w-3.5 h-3.5 text-primary" />
+                เข้าชม
+              </span>
+              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.views}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Download className="w-3.5 h-3.5 text-emerald-600" />
+                ดาวน์โหลด
+              </span>
+              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.downloads}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Share2 className="w-3.5 h-3.5 text-sky-600" />
+                แชร์
+              </span>
+              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.shares}</span>
+            </div>
+          </div>
+
+          {/* Primary Quick Actions: Download & Favorite */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={handleDownload}
+              variant="default"
+              className="h-11 font-semibold flex items-center justify-center gap-2 bg-primary text-primary-foreground"
+            >
+              <Download className="h-4 w-4" />
+              ดาวน์โหลดภาพ (Download)
+            </Button>
+            <Button
+              onClick={handleToggleFavorite}
+              disabled={isFavoriteLoading}
+              variant={isFavorite ? "secondary" : "outline"}
+              className={`h-11 font-semibold flex items-center justify-center gap-2 ${
+                isFavorite ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300" : ""
+              }`}
+            >
+              <Heart className={`h-4 w-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
+              {isFavorite ? "บันทึกแล้ว (Favorited)" : "บันทึกภาพ (Favorite)"}
+            </Button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Share your moment</span>
+                <div className="h-px flex-1 bg-border" />
               </div>
-            </DialogHeader>
-
-            <div className="flex flex-1 flex-col gap-5 p-5 sm:p-6">
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleToggleFavorite}
-                  disabled={isFavoriteLoading}
-                  variant="outline"
-                  className={`h-11 flex-1 rounded-xl font-semibold ${
-                    isFavorite
-                      ? "border-[#82181a] bg-[#82181a] text-white hover:bg-[#641416]"
-                      : "border-[#e2d9d0] bg-white text-[#82181a] hover:bg-[#f2e8e3]"
-                  }`}
-                >
-                  {isFavoriteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />}
-                  {isFavorite ? t("detail.saved") : t("detail.favorite")}
-                </Button>
+              
+              <div className="flex justify-center">
                 <Button
                   onClick={handleNativeShare}
                   disabled={isSubmitting || activeShareChannel !== null}
-                  variant="outline"
-                  className="h-11 flex-1 rounded-xl border-[#e2d9d0] bg-white font-semibold text-[#421012] hover:bg-[#f2e8e3]"
+                  className="group relative h-20 w-full max-w-sm justify-start gap-4 rounded-3xl border border-border bg-transparent px-5 text-left text-foreground shadow-none backdrop-blur-0 transition-all hover:border-red-900 hover:bg-red-800 hover:text-white active:border-red-950 active:bg-red-900 active:text-white"
                 >
-                  {activeShareChannel === "native" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-                  {t("detail.share")}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-transparent transition-transform group-hover:scale-105 group-hover:border-red-200/60 group-hover:bg-white/15 group-active:border-red-100/70 group-active:bg-white/20">
+                    {activeShareChannel === "native" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover:text-white/85 group-active:text-white/85">
+                      Share original photo
+                    </span>
+                    <span className="text-sm font-bold tracking-tight">Original</span>
+                  </div>
                 </Button>
               </div>
 
-              <Button
-                onClick={handleDownload}
-                className="h-12 rounded-xl bg-[#82181a] text-sm font-bold text-white hover:bg-[#641416]"
-              >
-                <Download className="h-4 w-4" />
-                {t("detail.download_original")}
-              </Button>
-
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{t("detail.share_to")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={() => handleQuickShare("line")}
-                    disabled={isSubmitting || activeShareChannel !== null}
-                    variant="outline"
-                    className="h-11 rounded-xl border-[#d8efe0] bg-[#f3fbf6] font-semibold text-[#0d8a45] hover:bg-[#e5f6ec]"
-                  >
-                    {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-                    LINE
-                  </Button>
-                  <Button
-                    onClick={() => handleQuickShare("facebook")}
-                    disabled={isSubmitting || activeShareChannel !== null}
-                    variant="outline"
-                    className="h-11 rounded-xl border-[#d7e4f6] bg-[#f4f8fd] font-semibold text-[#1877F2] hover:bg-[#e8f1fb]"
-                  >
-                    {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
-                    Facebook
-                  </Button>
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => handleQuickShare("line")}
+                  disabled={isSubmitting || activeShareChannel !== null}
+                  variant="outline"
+                  className="justify-center gap-2"
+                >
+                  {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                  LINE
+                </Button>
+                <Button
+                  onClick={() => handleQuickShare("facebook")}
+                  disabled={isSubmitting || activeShareChannel !== null}
+                  variant="outline"
+                  className="justify-center gap-2"
+                >
+                  {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
+                  Facebook
+                </Button>
               </div>
+            </div>
 
-              {!showRemovalRequest ? (
+            {!showRemovalRequest ? (
+              <div className="flex flex-col gap-2">
                 <Button
                   variant="ghost"
-                  className="mt-auto h-10 w-full text-xs font-medium text-muted-foreground/70 hover:bg-destructive/5 hover:text-destructive"
+                  className="h-10 w-full text-xs font-medium text-muted-foreground/60 hover:bg-destructive/5 hover:text-destructive"
                   onClick={() => setShowRemovalRequest(true)}
                 >
                   <Trash2 className="mr-2 h-3 w-3" />
-                  {t("detail.request_removal")}
+                  Request Removal
                 </Button>
-              ) : (
-                <div className="space-y-3 rounded-2xl border border-destructive/20 bg-destructive/8 p-4">
-                  <div className="flex gap-3">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-                    <div className="space-y-2 text-sm">
-                      <p className="font-semibold text-foreground">{t("detail.removal_title")}</p>
-                      <p className="text-muted-foreground">
-                        {t("detail.removal_desc")}
+              </div>
+            ) : (
+              <div className="space-y-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="text-sm space-y-2">
+                    <p className="font-semibold text-foreground">Request Photo Removal</p>
+                    <p className="text-muted-foreground">
+                      Our team will review your request within 24 hours. You'll receive an email confirmation.
+                    </p>
+                    <div className="bg-primary/5 border border-primary/20 rounded-md p-3 mt-3 flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-foreground/80 leading-relaxed">
+                        <strong className="text-primary font-semibold">Group Photos:</strong> If this photo contains multiple people, our team may choose to apply a mosaic pixelation to your face instead of deleting the entire photo. This ensures your privacy is protected while preserving the memory for others.
                       </p>
-                      <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 p-3">
-                        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <p className="text-xs leading-relaxed text-foreground/80">
-                          <strong className="font-semibold text-primary">{t("detail.group_photos_label")}</strong>{" "}
-                          {t("detail.group_photos_desc")}
-                        </p>
-                      </div>
                     </div>
                   </div>
+                </div>
+                <div className="space-y-3">
+
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-foreground">
-                      {t("detail.reason_label")} <span className="text-destructive">*</span>
+                    <label className="text-sm font-medium text-foreground mb-1 block">
+                      Reason for Removal <span className="text-destructive">*</span>
                     </label>
                     <Textarea
-                      placeholder={t("detail.reason_placeholder")}
+                      placeholder="Please explain why you want this photo removed"
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      className="min-h-[80px] rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-primary focus-visible:ring-primary/25"
+                      className="min-h-[80px]"
                       disabled={isSubmitting}
                     />
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleSubmitRemovalRequest}
-                      disabled={isSubmitting}
-                      className="flex-1 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isSubmitting ? t("detail.submitting") : t("detail.submit_request")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setShowRemovalRequest(false)
-                        setReason("")
-                      }}
-                      disabled={isSubmitting}
-                      className="flex-1 rounded-xl border-border"
-                    >
-                      {t("detail.cancel")}
-                    </Button>
-                  </div>
                 </div>
-              )}
-            </div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitRemovalRequest}
+                    disabled={isSubmitting}
+                    className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  >
+                    {isSubmitting ? "Submitting..." : "Submit Request"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowRemovalRequest(false)
+                      setReason("")
+                    }}
+                    disabled={isSubmitting}
+                    className="flex-1 border-border"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
