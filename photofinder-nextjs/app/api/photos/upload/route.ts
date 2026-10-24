@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const eventId = formData.get('eventId') as string | null;
-    const uploaderId = user?.sub || (formData.get('uploaderId') as string | undefined);
+    const uploaderId = user.sub;
 
     if (!file) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
