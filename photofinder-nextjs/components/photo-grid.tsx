@@ -73,8 +73,10 @@ export function PhotoGrid({
     const loadSavedPhotos = async () => {
       try {
         const userId = localStorage.getItem("user_id") || "guest"
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        const authToken = localStorage.getItem("auth_token")
+        const response = await fetch(`/api/saved-photos/${userId}`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        })
         if (response.ok) {
           const savedPhotos = await response.json()
           setSavedPhotoIds(savedPhotos.map((item: any) => item.photo.id))
@@ -168,23 +170,24 @@ export function PhotoGrid({
     e.stopPropagation()
     try {
       const userId = localStorage.getItem("user_id") || "guest"
+      const authToken = localStorage.getItem("auth_token")
+      const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 
       if (savedPhotoIds.includes(photoId)) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photoId}`, {
+        const response = await fetch(`/api/saved-photos/${userId}/${photoId}`, {
           method: "DELETE",
-          headers: { "user-id": userId },
+          headers: { "user-id": userId, ...authHeaders },
         })
         if (response.ok) {
           setSavedPhotoIds(savedPhotoIds.filter((id) => id !== photoId))
         }
       } else {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos`, {
+        const response = await fetch(`/api/saved-photos`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "user-id": userId,
+            ...authHeaders,
           },
           body: JSON.stringify({ photoId }),
         })

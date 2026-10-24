@@ -86,8 +86,10 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
       try {
         setIsFavoriteLoading(true)
         const userId = localStorage.getItem("user_id") || "guest"
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        const authToken = localStorage.getItem("auth_token")
+        const response = await fetch(`/api/saved-photos/${userId}`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        })
 
         if (response.ok) {
           const savedPhotos = await response.json()
@@ -158,13 +160,15 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
     try {
       setIsFavoriteLoading(true)
       const userId = localStorage.getItem("user_id") || "guest"
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+      const authToken = localStorage.getItem("auth_token")
+      const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 
       if (isFavorite) {
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}/${photo.id}`, {
+        const response = await fetch(`/api/saved-photos/${userId}/${photo.id}`, {
           method: "DELETE",
           headers: {
             "user-id": userId,
+            ...authHeaders,
           },
         })
 
@@ -174,11 +178,12 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
           alert("Unable to remove this photo from Favorites right now.")
         }
       } else {
-        const response = await fetch(`${apiUrl}/saved-photos`, {
+        const response = await fetch(`/api/saved-photos`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "user-id": userId,
+            ...authHeaders,
           },
           body: JSON.stringify({ photoId: photo.id }),
         })

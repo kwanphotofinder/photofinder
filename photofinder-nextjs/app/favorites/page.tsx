@@ -56,10 +56,13 @@ export default function FavoritesPage() {
       }
 
       setIsAuthChecking(false)
-
+ 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-        const response = await fetch(`${apiUrl}/saved-photos/${userId}`)
+        const response = await fetch(`/api/saved-photos/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        })
 
         if (!response.ok) {
           throw new Error("Failed to fetch favorites")
