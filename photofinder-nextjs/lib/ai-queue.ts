@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma"
 import { extractFaces } from "@/lib/ai"
 import { deleteFromCloudinary } from "@/lib/cloudinary"
 
+export type QueuePriority = "HIGH" | "NORMAL" | "LOW"
+
 export interface QueueJob {
   photoId: string
   storageUrl: string
@@ -9,10 +11,14 @@ export interface QueueJob {
   fileName?: string
   retries?: number
   enqueuedAt: number
+  priority?: QueuePriority
 }
 
 interface QueueStats {
   queued: number
+  highPriorityQueued: number
+  normalPriorityQueued: number
+  lowPriorityQueued: number
   processing: number
   completed: number
   failed: number
@@ -20,7 +26,9 @@ interface QueueStats {
 }
 
 class AiProcessingQueue {
-  private queue: QueueJob[] = []
+  private highQueue: QueueJob[] = []
+  private normalQueue: QueueJob[] = []
+  private lowQueue: QueueJob[] = []
   private activeWorkers = 0
   private concurrencyLimit = 2 // Process up to 2 photos concurrently to avoid CPU throttling
   private isDraining = false
@@ -39,26 +47,50 @@ class AiProcessingQueue {
   }
 
   /**
-   * Enqueue a photo for asynchronous face recognition processing
+   * Enqueue a photo with priority
+   * - HIGH: Urgent / VIP / User re-try
+   * - NORMAL: Single photo uploads (default)
+   * - LOW: Batch uploads / Photographer bulk albums / DB recovery
    */
-  public async enqueue(job: Omit<QueueJob, "enqueuedAt">) {
+  public async enqueue(job: Omit<QueueJob, "enqueuedAt">, priority: QueuePriority = "NORMAL") {
+    const jobPriority = job.priority ?? priority
     const fullJob: QueueJob = {
       ...job,
+      priority: jobPriority,
       retries: job.retries ?? 0,
       enqueuedAt: Date.now(),
     }
 
-    this.queue.push(fullJob)
+    if (jobPriority === "HIGH") {
+      this.highQueue.push(fullJob)
+      console.log(`[AI Queue] Enqueued HIGH priority job: ${fullJob.photoId}`)
+    } else if (jobPriority === "LOW") {
+      this.lowQueue.push(fullJob)
+    } else {
+      this.normalQueue.push(fullJob)
+    }
+
     this.processNext()
   }
 
   /**
-   * Enqueue multiple photos in batch
+   * Enqueue multiple photos in batch (defaults to LOW priority)
    */
-  public async enqueueBatch(jobs: Array<Omit<QueueJob, "enqueuedAt">>) {
+  public async enqueueBatch(jobs: Array<Omit<QueueJob, "enqueuedAt">>, priority: QueuePriority = "LOW") {
     for (const job of jobs) {
-      await this.enqueue(job)
+      await this.enqueue(job, priority)
     }
+  }
+
+  /**
+   * Check if a photo is currently waiting in any priority queue
+   */
+  public isQueued(photoId: string): boolean {
+    return (
+      this.highQueue.some((j) => j.photoId === photoId) ||
+      this.normalQueue.some((j) => j.photoId === photoId) ||
+      this.lowQueue.some((j) => j.photoId === photoId)
+    )
   }
 
   /**
@@ -78,14 +110,15 @@ class AiProcessingQueue {
       })
 
       if (pendingPhotos.length > 0) {
-        console.log(`[AI Queue] Recovering ${pendingPhotos.length} pending photos from database...`)
+        console.log(`[AI Queue] Recovering ${pendingPhotos.length} pending photos from database (LOW priority)...`)
         for (const p of pendingPhotos) {
           // Avoid duplicate enqueuing
-          if (!this.queue.some((j) => j.photoId === p.id)) {
-            this.queue.push({
+          if (!this.isQueued(p.id)) {
+            this.lowQueue.push({
               photoId: p.id,
               storageUrl: p.storageUrl,
               retries: 0,
+              priority: "LOW",
               enqueuedAt: Date.now(),
             })
           }
@@ -119,7 +152,10 @@ class AiProcessingQueue {
     }
 
     return {
-      queued: this.queue.length,
+      queued: this.highQueue.length + this.normalQueue.length + this.lowQueue.length,
+      highPriorityQueued: this.highQueue.length,
+      normalPriorityQueued: this.normalQueue.length,
+      lowPriorityQueued: this.lowQueue.length,
       processing: this.activeWorkers,
       completed,
       failed,
@@ -128,13 +164,24 @@ class AiProcessingQueue {
   }
 
   /**
+   * Pull the next highest priority job:
+   * 1. HIGH priority (User action / retry / VIP)
+   * 2. NORMAL priority (Single photo upload)
+   * 3. LOW priority (Batch upload / DB recovery)
+   */
+  private getNextJob(): QueueJob | undefined {
+    if (this.highQueue.length > 0) return this.highQueue.shift()
+    if (this.normalQueue.length > 0) return this.normalQueue.shift()
+    return this.lowQueue.shift()
+  }
+
+  /**
    * Main dispatch loop
    */
   private async processNext() {
     if (this.activeWorkers >= this.concurrencyLimit) return
-    if (this.queue.length === 0) return
 
-    const job = this.queue.shift()
+    const job = this.getNextJob()
     if (!job) return
 
     this.activeWorkers++
@@ -146,7 +193,7 @@ class AiProcessingQueue {
       })
       .finally(() => {
         this.activeWorkers--
-        // Trigger next job in queue
+        // Trigger next job in queue (will prioritize HIGH jobs if any arrived)
         this.processNext()
       })
   }
@@ -155,7 +202,7 @@ class AiProcessingQueue {
    * Process a single photo job: extract faces, insert embeddings into pgvector
    */
   private async executeJob(job: QueueJob) {
-    const { photoId, storageUrl } = job
+    const { photoId, storageUrl, priority = "NORMAL" } = job
 
     try {
       // Mark as PROCESSING in database
@@ -224,19 +271,21 @@ class AiProcessingQueue {
         data: { processingStatus: "COMPLETED" },
       })
 
-      console.log(`[AI Queue] Successfully processed photo ${photoId} (${faces.length} faces indexed)`)
+      console.log(`[AI Queue] Successfully processed [${priority}] photo ${photoId} (${faces.length} faces indexed)`)
     } catch (error: any) {
       console.warn(`[AI Queue] AI processing failed for photo ${photoId}:`, error?.message || error)
 
       // Retry logic: retry up to 2 times with a slight delay
       if ((job.retries ?? 0) < 2) {
-        console.log(`[AI Queue] Re-enqueuing photo ${photoId} (attempt ${(job.retries ?? 0) + 2}/3)...`)
+        console.log(`[AI Queue] Re-enqueuing photo ${photoId} (attempt ${(job.retries ?? 0) + 2}/3, priority: ${priority})...`)
         setTimeout(() => {
-          this.queue.push({
-            ...job,
-            retries: (job.retries ?? 0) + 1,
-          })
-          this.processNext()
+          this.enqueue(
+            {
+              ...job,
+              retries: (job.retries ?? 0) + 1,
+            },
+            priority
+          )
         }, 3000)
       } else {
         // Exceeded retries, mark FAILED

@@ -94,13 +94,13 @@ export async function POST(
         },
       })
 
-      // 5. Enqueue into background AI Processing Queue (non-blocking)
+      // 5. Enqueue into background AI Processing Queue (LOW priority for batch uploads)
       await aiQueue.enqueue({
         photoId: photo.id,
         storageUrl: storageUrl || file.name,
         imageBuffer: optimized.buffer,
         fileName: file.name,
-      })
+      }, "LOW")
 
       results.push({ photoId: photo.id, filename: file.name, status: "queued" })
     }

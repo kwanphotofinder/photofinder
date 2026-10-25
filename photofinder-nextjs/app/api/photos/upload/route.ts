@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       durationMs: Date.now() - startTime,
       ipAddress: ip,
       userAgent,
-      userId: user?.id,
+      userId: user?.sub,
       userEmail: user?.email,
       outputSummary: { photoId: photo.id, status: 'queued' },
     });

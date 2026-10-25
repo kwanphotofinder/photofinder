@@ -135,13 +135,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // 5. Enqueue into background AI Processing Queue
+    // 5. Enqueue into background AI Processing Queue (LOW priority for batch uploads)
     await aiQueue.enqueue({
       photoId: photo.id,
       storageUrl,
       imageBuffer: optimized.buffer,
       fileName,
-    })
+    }, "LOW")
 
     // 6. Clean up chunk session
     chunkStore.deleteSession(uploadId)
