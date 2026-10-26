@@ -35,35 +35,50 @@ let isWebpSupported: boolean | null = null
  * - Compresses to WebP (or JPEG fallback) at quality 0.85
  * - Drastically reduces upload bandwidth and prevents 413 "File too large" errors
  */
-export async function optimizeImageOnClient(
+/**
+ * Optimizes an image file on the client side before upload and returns detailed compression statistics.
+ * - Automatically converts HEIC/HEIF to JPEG
+ * - Preserves EXIF orientation via imageOrientation: "from-image"
+ * - Resizes dimensions to maxDimension (default: 2048px) maintaining aspect ratio
+ * - Compresses to WebP (or JPEG fallback) at quality 0.85
+ * - Drastically reduces upload bandwidth and prevents 413 "File too large" errors
+ */
+export async function optimizeImageWithStats(
   inputFile: File,
   options: ClientOptimizationOptions = {}
-): Promise<File> {
+): Promise<OptimizationResult> {
   const {
     maxDimension = 2048,
     quality = 0.85,
     format = "image/webp",
   } = options
 
-  // 1. If running outside the browser or not an image, return original
-  if (typeof window === "undefined" || !inputFile.type.startsWith("image/") && !inputFile.name.match(/\.(heic|heif)$/i)) {
-    return inputFile
-  }
-
   const originalSize = inputFile.size
+
+  // 1. If running outside the browser or not an image, return original
+  if (typeof window === "undefined" || (!inputFile.type.startsWith("image/") && !inputFile.name.match(/\.(heic|heif)$/i))) {
+    return {
+      file: inputFile,
+      originalSize,
+      optimizedSize: originalSize,
+      width: 0,
+      height: 0,
+      savingsPercent: 0,
+    }
+  }
 
   try {
     // 2. Convert HEIC to JPEG if needed
     const file = await convertHeicToJpeg(inputFile)
 
-    // 3. Load image into memory to read dimensions
+    // 3. Load image into memory to read dimensions (preserving EXIF orientation)
     let width = 0
     let height = 0
     let imageSource: ImageBitmap | HTMLImageElement
 
     if (typeof createImageBitmap === "function") {
       try {
-        const bitmap = await createImageBitmap(file)
+        const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" as any })
         width = bitmap.width
         height = bitmap.height
         imageSource = bitmap
@@ -80,7 +95,14 @@ export async function optimizeImageOnClient(
     }
 
     if (!width || !height) {
-      return file
+      return {
+        file,
+        originalSize,
+        optimizedSize: file.size,
+        width,
+        height,
+        savingsPercent: 0,
+      }
     }
 
     // 4. Calculate target dimensions (never upscale)
@@ -93,7 +115,14 @@ export async function optimizeImageOnClient(
       targetHeight = Math.round(height * scale)
     } else if (file.size <= 1.5 * 1024 * 1024 && file.type === "image/webp") {
       // Already small enough WebP and within dimensions
-      return file
+      return {
+        file,
+        originalSize,
+        optimizedSize: file.size,
+        width,
+        height,
+        savingsPercent: 0,
+      }
     }
 
     // 5. Draw to canvas
@@ -103,7 +132,14 @@ export async function optimizeImageOnClient(
 
     const ctx = canvas.getContext("2d", { alpha: false })
     if (!ctx) {
-      return file
+      return {
+        file,
+        originalSize,
+        optimizedSize: file.size,
+        width,
+        height,
+        savingsPercent: 0,
+      }
     }
 
     // Enable high quality image smoothing
@@ -134,26 +170,70 @@ export async function optimizeImageOnClient(
     })
 
     if (!blob) {
-      return file
+      return {
+        file,
+        originalSize,
+        optimizedSize: file.size,
+        width: targetWidth,
+        height: targetHeight,
+        savingsPercent: 0,
+      }
     }
 
     // If compressed version is somehow larger (extremely rare), keep smaller original
     if (blob.size >= originalSize && width <= maxDimension && height <= maxDimension) {
-      return file
+      return {
+        file,
+        originalSize,
+        optimizedSize: file.size,
+        width: targetWidth,
+        height: targetHeight,
+        savingsPercent: 0,
+      }
     }
 
     // Replace extension
     const baseName = file.name.replace(/\.[^/.]+$/, "")
     const optimizedFileName = `${baseName}${extension}`
 
-    return new File([blob], optimizedFileName, {
+    const optimizedFile = new File([blob], optimizedFileName, {
       type: preferredFormat,
       lastModified: Date.now(),
     })
+
+    const savingsBytes = Math.max(0, originalSize - optimizedFile.size)
+    const savingsPercent = originalSize > 0 ? Math.round((savingsBytes / originalSize) * 100) : 0
+
+    return {
+      file: optimizedFile,
+      originalSize,
+      optimizedSize: optimizedFile.size,
+      width: targetWidth,
+      height: targetHeight,
+      savingsPercent,
+    }
   } catch (error) {
     console.warn(`[ClientImageOptimizer] Could not optimize ${inputFile.name}, using original:`, error)
-    return inputFile
+    return {
+      file: inputFile,
+      originalSize,
+      optimizedSize: originalSize,
+      width: 0,
+      height: 0,
+      savingsPercent: 0,
+    }
   }
+}
+
+/**
+ * Optimizes an image file on the client side before upload, returning the optimized File.
+ */
+export async function optimizeImageOnClient(
+  inputFile: File,
+  options: ClientOptimizationOptions = {}
+): Promise<File> {
+  const result = await optimizeImageWithStats(inputFile, options)
+  return result.file
 }
 
 /**
