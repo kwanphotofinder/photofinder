@@ -30,7 +30,7 @@ const challengeSteps = [
 export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificationProps) {
   const [step, setStep] = useState<VerificationStep>("start")
   const [error, setError] = useState<string | null>(null)
-  
+
   // Liveness state
   const [livenessData, setLivenessData] = useState<LivenessDetectionResult | null>(null)
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0)
@@ -49,7 +49,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const audioContextRef = useRef<AudioContext | null>(null)
 
   const [videoMounted, setVideoMounted] = useState(false)
-  
+
   const handleVideoRef = useCallback((node: HTMLVideoElement | null) => {
     videoRef.current = node
     setVideoMounted(!!node)
@@ -280,7 +280,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       playStepCompletionSound()
       const nextCompleted = [...completedChallenges, activeChallenge.key]
       setCompletedChallenges(nextCompleted)
-      
+
       const newNextIndex = challengeSteps.findIndex((s) => !nextCompleted.includes(s.key))
       setCurrentChallengeIndex(newNextIndex === -1 ? challengeSteps.length - 1 : newNextIndex)
 
@@ -326,7 +326,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       const authToken = localStorage.getItem("auth_token")
       const response = await fetch("/api/verify-identity", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${authToken}`
         },
@@ -350,7 +350,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     } catch (err: any) {
       const newRetryCount = retryCount + 1
       setRetryCount(newRetryCount)
-      
+
       if (newRetryCount >= 3) {
         setError("Too many failed attempts. Restarting liveness test...")
         setStep("error")
@@ -432,7 +432,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
                 playsInline
               />
               <div className="absolute inset-0 border-8 border-black/20 rounded-full pointer-events-none" />
-              
+
               {/* Liveness Overlay */}
               {step === "liveness" && livenessData && (
                 <div className="absolute bottom-5 left-0 right-0 z-20 flex justify-center">
@@ -495,7 +495,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
             Start Verification
           </Button>
         )}
-        
+
         {step === "capture-selfie" && (
           <Button onClick={captureFinalSelfie} className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700">
             <Camera className="mr-2 w-5 h-5" /> Capture Final Selfie

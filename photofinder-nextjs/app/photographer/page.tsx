@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { optimizeImageOnClient } from "@/lib/client-image-optimizer"
+import { optimizeImageWithStats } from "@/lib/client-image-optimizer"
 import { uploadFileInChunks } from "@/lib/chunked-uploader"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -449,9 +449,31 @@ export default function PhotographerPage() {
     setSelectedFiles([])
     setUploadProgress({})
     setUploadChunkStatuses({})
+    setCompressionStats({})
   }
 
   const [uploadChunkStatuses, setUploadChunkStatuses] = useState<Record<string, string>>({})
+  const [compressionPreset, setCompressionPreset] = useState<"fast" | "high" | "raw">("fast")
+  const [compressionStats, setCompressionStats] = useState<
+    Record<string, { originalSize: number; optimizedSize: number; savingsPercent: number }>
+  >({})
+
+  const { totalOriginalBytes, totalOptimizedBytes, totalSavingsBytes, totalSavingsPercent } = useMemo(() => {
+    let original = 0
+    let optimized = 0
+    Object.values(compressionStats).forEach((stat) => {
+      original += stat.originalSize
+      optimized += stat.optimizedSize
+    })
+    const savings = Math.max(0, original - optimized)
+    const percent = original > 0 ? Math.round((savings / original) * 100) : 0
+    return {
+      totalOriginalBytes: original,
+      totalOptimizedBytes: optimized,
+      totalSavingsBytes: savings,
+      totalSavingsPercent: percent,
+    }
+  }, [compressionStats])
 
   const handleBatchUpload = async (onlyRetryFailed = false) => {
     if (!selectedEvent) {
@@ -487,9 +509,34 @@ export default function PhotographerPage() {
           return next
         })
 
-        // Client-side optimization: Convert HEIC, resize to max 2048px, compress to WebP
-        setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Optimizing image..." }))
-        const file = await optimizeImageOnClient(rawFile, { maxDimension: 2048, quality: 0.85 })
+        // Client-side optimization: Convert HEIC, resize according to selected preset, compress to WebP
+        setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "⚡ Optimizing image on client..." }))
+        
+        let file = rawFile
+        if (compressionPreset !== "raw") {
+          const optOptions = compressionPreset === "high"
+            ? { maxDimension: 3840, quality: 0.92 }
+            : { maxDimension: 2048, quality: 0.85 }
+
+          const optResult = await optimizeImageWithStats(rawFile, optOptions)
+          file = optResult.file
+
+          setCompressionStats((prev) => ({
+            ...prev,
+            [rawFile.name]: {
+              originalSize: optResult.originalSize,
+              optimizedSize: optResult.optimizedSize,
+              savingsPercent: optResult.savingsPercent,
+            },
+          }))
+
+          if (optResult.savingsPercent > 0) {
+            setUploadChunkStatuses((prev) => ({
+              ...prev,
+              [rawFile.name]: `⚡ -${optResult.savingsPercent}% (${formatFileSize(optResult.originalSize)} ➔ ${formatFileSize(optResult.optimizedSize)})`,
+            }))
+          }
+        }
 
         // Resumable Chunked Upload (1MB chunks with auto-resume and auto-retry per chunk)
         const result = await uploadFileInChunks(file, {
@@ -975,6 +1022,44 @@ export default function PhotographerPage() {
                         <span>{t("photo.upload.client_optimized")}</span>
                       </div>
 
+                      {/* Client Compression Quality Presets */}
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
+                        <span className="text-slate-500 mr-1 font-medium">Mode:</span>
+                        <button
+                          type="button"
+                          onClick={() => setCompressionPreset("fast")}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                            compressionPreset === "fast"
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          ⚡ Fast (WebP 2048px, -85%)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCompressionPreset("high")}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                            compressionPreset === "high"
+                              ? "bg-blue-600 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          🎯 High-Res (4K 3840px)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCompressionPreset("raw")}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                            compressionPreset === "raw"
+                              ? "bg-slate-800 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          Original
+                        </button>
+                      </div>
+
                       <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
                         <input
                           type="file"
@@ -1043,10 +1128,23 @@ export default function PhotographerPage() {
 
                   {selectedFiles.length > 0 ? (
                     <div className="space-y-3 flex-1 overflow-y-auto max-h-[460px] pr-1">
+                      {totalSavingsBytes > 0 && (
+                        <div className="p-2.5 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-800 font-medium">
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            Client-side compression saved:
+                          </span>
+                          <span className="font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded">
+                            {formatFileSize(totalSavingsBytes)} (-{totalSavingsPercent}%)
+                          </span>
+                        </div>
+                      )}
+
                       {selectedFiles.map((file, index) => {
                         const progress = uploadProgress[file.name]
                         const hasError = progress === -1
                         const isComplete = progress === 100
+                        const stats = compressionStats[file.name]
 
                         return (
                           <div key={index} className="border border-slate-200 rounded p-3 bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
@@ -1055,9 +1153,18 @@ export default function PhotographerPage() {
                                 <ImageIcon className="w-4 h-4" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-slate-800 truncate">{file.name}</p>
+                                <p className="font-semibold text-slate-800 truncate flex items-center gap-1.5">
+                                  <span>{file.name}</span>
+                                  {stats?.savingsPercent > 0 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                      ⚡ -{stats.savingsPercent}%
+                                    </span>
+                                  )}
+                                </p>
                                 <p className="text-[11px] text-slate-400">
-                                  {formatFileSize(file.size)}
+                                  {stats
+                                    ? `${formatFileSize(stats.originalSize)} ➔ ${formatFileSize(stats.optimizedSize)}`
+                                    : formatFileSize(file.size)}
                                   {uploadChunkStatuses[file.name] && (
                                     <span className="ml-2 text-slate-500 font-medium italic">
                                       • {uploadChunkStatuses[file.name]}

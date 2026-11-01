@@ -6,14 +6,6 @@ import { Header } from "@/components/header"
 import { PhotoGrid } from "@/components/photo-grid"
 import { Heart, Loader2, AlertCircle, Sparkles } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
-import { apiClient } from "@/lib/api-client"
-
-interface PhotoStats {
-  views: number
-  shares: number
-  likes: number
-  downloads: number
-}
 
 interface Photo {
   id: string
@@ -22,11 +14,9 @@ interface Photo {
   eventDate: string
   uploadDate?: string
   confidence: number
-  stats?: PhotoStats
 }
 
 interface SavedPhotoResponse {
-  stats?: PhotoStats
   photo: {
     id: string
     storageUrl: string
@@ -66,15 +56,19 @@ export default function FavoritesPage() {
       }
 
       setIsAuthChecking(false)
-
+ 
       try {
-        const response = await apiClient.getSavedPhotos(userId)
+        const response = await fetch(`/api/saved-photos/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        })
 
-        if (response.status !== 200 || !response.data) {
+        if (!response.ok) {
           throw new Error("Failed to fetch favorites")
         }
 
-        const data = response.data as SavedPhotoResponse[]
+        const data: SavedPhotoResponse[] = await response.json()
         const photos = data.map((item) => ({
           id: item.photo.id,
           url: item.photo.storageUrl,
@@ -82,7 +76,6 @@ export default function FavoritesPage() {
           eventDate: item.photo.event?.date || item.photo.createdAt,
           uploadDate: item.photo.createdAt,
           confidence: 0.95,
-          stats: item.stats,
         }))
         setSavedPhotos(photos)
       } catch (err) {
@@ -99,7 +92,7 @@ export default function FavoritesPage() {
   // Prevent UI flash while checking auth
   if (isAuthChecking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(130,24,26,0.14),transparent_36%),radial-gradient(circle_at_top_right,rgba(130,24,26,0.10),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(248,250,252,1))]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -110,17 +103,19 @@ export default function FavoritesPage() {
       <Header showLogout />
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="border-b border-slate-200 bg-slate-50">
-          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-            <div className="rounded border border-slate-200 bg-white px-5 py-6 shadow-none sm:px-8 sm:py-7">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="rounded border border-slate-200 bg-white p-6 sm:p-8 shadow-none">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="max-w-2xl">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary"><Heart className="h-4 w-4 fill-current" /> {t("favorites.space")}</div>
-                  <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{t("favorites.title")}</h1>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">{t("favorites.description")}</p>
+                  <div className="inline-flex items-center gap-2 rounded bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary ring-1 ring-inset ring-primary/15">
+                    <Heart className="h-3.5 w-3.5 fill-current" /> {t("favorites.space")}
+                  </div>
+                  <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{t("favorites.title")}</h1>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">{t("favorites.description")}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 border-l border-slate-200 pl-4 sm:min-w-40">
+                <div className="flex shrink-0 items-center gap-3 border-l-2 border-primary/20 pl-4 sm:min-w-40">
                   <p className="text-4xl font-bold tracking-tight text-primary">{savedPhotos.length}</p>
-                  <p className="max-w-20 text-[10px] font-semibold uppercase leading-4 tracking-wider text-muted-foreground">{t("favorites.count")}</p>
+                  <p className="max-w-20 text-[10px] font-bold uppercase leading-4 tracking-wider text-muted-foreground">{t("favorites.count")}</p>
                 </div>
               </div>
             </div>
@@ -128,15 +123,26 @@ export default function FavoritesPage() {
         </div>
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8 lg:py-11">
           <section>
-            <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4"><div><p className="text-[11px] font-semibold uppercase tracking-wider text-primary">{t("favorites.collection")}</p><h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{t("favorites.saved_collection")}</h2></div><span className="hidden text-xs font-medium text-muted-foreground sm:block">{savedPhotos.length} / {t("favorites.count")}</span></div>
+            <div className="mb-6 flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{t("favorites.saved_collection")}</h2>
+              </div>
+              <span className="hidden text-xs font-semibold text-muted-foreground sm:block">{savedPhotos.length} / {t("favorites.count")}</span>
+            </div>
             {isLoading ? (
-              <div className="flex min-h-36 items-center justify-center rounded border border-dashed border-slate-300 bg-white py-10 text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />{t("favorites.loading")}</div>
+              <div className="flex min-h-36 items-center justify-center py-10 text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />{t("favorites.loading")}</div>
             ) : error ? (
-              <div className="flex min-h-36 items-center justify-center rounded border border-red-200 bg-red-50 py-10 text-sm font-medium text-red-600"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
+              <div className="flex min-h-36 items-center justify-center py-10 text-sm font-medium text-destructive"><AlertCircle className="mr-2 h-5 w-5" />{error}</div>
             ) : savedPhotos.length > 0 ? (
-              <PhotoGrid photos={savedPhotos} showRank={true} compact={true} showConfidence={false} showShare={true} showStats={false} />
+              <PhotoGrid photos={savedPhotos} compact={true} showConfidence={false} showShare={true} enableBatchDownload={true} showEngagement={true} />
             ) : (
-              <div className="flex min-h-52 flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-white p-10 text-center"><div className="mb-3 rounded bg-primary/10 p-3 text-primary"><Heart className="h-7 w-7" /></div><p className="text-lg font-semibold text-foreground">{t("favorites.empty")}</p><p className="mt-1 text-sm text-muted-foreground">{t("favorites.empty_description")}</p></div>
+              <div className="relative flex flex-col items-center justify-center rounded border border-slate-200 bg-white overflow-hidden p-14 text-center">
+                <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-inset ring-primary/10 mb-4">
+                  <Heart className="h-10 w-10 text-primary" strokeWidth={1.8} />
+                </div>
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">{t("favorites.empty")}</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">คุณยังไม่มีภาพที่บันทึกไว้ สามารถกดรูปหัวใจบนรูปภาพที่คุณชื่นชอบเพื่อเก็บไว้ที่นี่ได้</p>
+              </div>
             )}
           </section>
         </div>

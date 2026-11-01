@@ -1,15 +1,68 @@
-function getDownloadUrl(url: string, photoId?: string) {
-  return photoId ? `/api/photos/${encodeURIComponent(photoId)}/download` : url
+import JSZip from "jszip"
+
+export async function downloadPhotosAsZip(
+  photos: Array<{ url: string; eventName?: string; eventDate?: string; uploadDate?: string; id?: string }>,
+  zipFilename = "photofinder_selected_photos.zip",
+  onProgress?: (percent: number, current: number, total: number) => void
+) {
+  if (!photos.length) return
+
+  const zip = new JSZip()
+  const folder = zip.folder("photos") || zip
+  const total = photos.length
+
+  for (let i = 0; i < total; i++) {
+    const photo = photos[i]
+    try {
+      const response = await fetch(photo.url)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const blob = await response.blob()
+
+      const safeEvent = (photo.eventName || "photo")
+        .replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, "_")
+        .replace(/_+/g, "_")
+        .slice(0, 30)
+      const dateVal = photo.uploadDate || photo.eventDate
+      const dateStr = dateVal ? new Date(dateVal).toISOString().split("T")[0] : `photo`
+      const ext = blob.type === "image/png" ? "png" : "jpg"
+      const fileName = `${safeEvent || "photo"}_${dateStr}_${i + 1}.${ext}`
+
+      folder.file(fileName, blob)
+      if (onProgress) {
+        onProgress(Math.round(((i + 1) / total) * 80), i + 1, total)
+      }
+    } catch (err) {
+      console.warn(`Failed to fetch photo for zip: ${photo.url}`, err)
+    }
+  }
+
+  if (onProgress) {
+    onProgress(85, total, total)
+  }
+
+  const content = await zip.generateAsync({ type: "blob" }, (metadata) => {
+    if (onProgress) {
+      onProgress(85 + Math.round(metadata.percent * 0.15), total, total)
+    }
+  })
+
+  const link = document.createElement("a")
+  const url = URL.createObjectURL(content)
+  link.href = url
+  link.download = zipFilename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  if (onProgress) {
+    onProgress(100, total, total)
+  }
 }
 
-function getDownloadHeaders() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
-  return token ? { Authorization: `Bearer ${token}` } : undefined
-}
-
-export async function downloadPhoto(url: string, eventName: string, eventDate: string, photoId?: string) {
+export async function downloadPhoto(url: string, eventName: string, eventDate: string) {
   try {
-    const response = await fetch(getDownloadUrl(url, photoId), { headers: getDownloadHeaders() });
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch photo: ${response.status}`);
     }
@@ -33,108 +86,12 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(blobUrl);
-    if (a.parentNode) {
-      a.parentNode.removeChild(a);
-    }
+    document.body.removeChild(a);
   } catch (err) {
     console.error('Failed to download photo:', err);
     alert('Unable to download automatically. Opening photo in new tab...');
     // Fallback to opening in new tab
     window.open(url, '_blank');
-  }
-}
-
-export interface BatchDownloadPhoto {
-  id: string
-  url: string
-  eventName: string
-  eventDate?: string
-  uploadDate?: string
-}
-
-export async function downloadPhotosAsZip(
-  photos: BatchDownloadPhoto[],
-  onProgress?: (progress: { current: number; total: number; stage: "fetching" | "zipping" | "done" }) => void,
-) {
-  if (photos.length === 0) return
-
-  const JSZip = (await import("jszip")).default
-  const zip = new JSZip()
-  const total = photos.length
-  let successfulCount = 0
-
-  for (let i = 0; i < photos.length; i++) {
-    const photo = photos[i]
-    onProgress?.({ current: i + 1, total, stage: "fetching" })
-
-    try {
-      const response = await fetch(getDownloadUrl(photo.url, photo.id), {
-        headers: getDownloadHeaders(),
-      })
-      if (!response.ok) {
-        const fallbackRes = await fetch(photo.url)
-        if (!fallbackRes.ok) continue
-        const blob = await fallbackRes.blob()
-        const ext = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg"
-        const safeEventName = photo.eventName.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "photo"
-        const filename = `${safeEventName}_${i + 1}.${ext}`
-        zip.file(filename, blob)
-        successfulCount++
-        continue
-      }
-
-      const blob = await response.blob()
-      const ext = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg"
-      const date = new Date(photo.uploadDate || photo.eventDate || Date.now()).toISOString().split("T")[0]
-      const safeEventName = photo.eventName.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "photo"
-      const filename = `${safeEventName}_${date}_${i + 1}.${ext}`
-      zip.file(filename, blob)
-      successfulCount++
-    } catch (err) {
-      console.error(`Failed to download photo ${photo.id}:`, err)
-    }
-  }
-
-  if (successfulCount === 0) {
-    throw new Error("No photos could be downloaded")
-  }
-
-  onProgress?.({ current: total, total, stage: "zipping" })
-  const zipBlob = await zip.generateAsync({ type: "blob" })
-  const blobUrl = window.URL.createObjectURL(zipBlob)
-  const anchor = document.createElement("a")
-  anchor.href = blobUrl
-  const today = new Date().toISOString().split("T")[0]
-  anchor.download = `MFU_PhotoFinder_${today}.zip`
-  document.body.appendChild(anchor)
-  anchor.click()
-  window.URL.revokeObjectURL(blobUrl)
-  anchor.remove()
-
-  onProgress?.({ current: total, total, stage: "done" })
-}
-
-export async function downloadOriginalPhoto(url: string, eventName: string, eventDate: string, photoId?: string) {
-  try {
-    const response = await fetch(getDownloadUrl(url, photoId), { headers: getDownloadHeaders() })
-    if (!response.ok) throw new Error(`Failed to fetch photo: ${response.status}`)
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    const date = new Date(eventDate).toISOString().split('T')[0]
-    const safeEventName = eventName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
-    const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-
-    anchor.href = blobUrl
-    anchor.download = `${safeEventName || 'photo'}_${date}_original.${extension}`
-    document.body.appendChild(anchor)
-    anchor.click()
-    window.URL.revokeObjectURL(blobUrl)
-    anchor.remove()
-  } catch (error) {
-    console.error('Failed to download original photo:', error)
-    alert('Unable to download the original photo right now. Please try again.')
   }
 }
 

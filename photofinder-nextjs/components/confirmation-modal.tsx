@@ -75,24 +75,26 @@ export function ConfirmationModal({
             )}
             <span className="truncate">{title}</span>
           </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
-            {typeof description === "string" ? <p>{description}</p> : description}
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
+              {typeof description === "string" ? <p>{description}</p> : description}
 
-            {requireMatchText && (
-              <div className="space-y-1.5 pt-2">
-                <p className="text-xs font-semibold text-foreground">
-                  Type <span className="font-mono text-destructive font-bold">{requireMatchText}</span> to confirm:
-                </p>
-                <Input
-                  value={matchInput}
-                  onChange={(e) => setMatchInput(e.target.value)}
-                  placeholder={matchPlaceholder || `Type ${requireMatchText}`}
-                  className="h-9 sm:h-9 text-xs"
-                  disabled={isLoading}
-                  autoFocus
-                />
-              </div>
-            )}
+              {requireMatchText && (
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-xs font-semibold text-foreground">
+                    Type <span className="font-mono text-destructive font-bold">{requireMatchText}</span> to confirm:
+                  </p>
+                  <Input
+                    value={matchInput}
+                    onChange={(e) => setMatchInput(e.target.value)}
+                    placeholder={matchPlaceholder || `Type ${requireMatchText}`}
+                    className="h-9 sm:h-9 text-xs"
+                    disabled={isLoading}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
 

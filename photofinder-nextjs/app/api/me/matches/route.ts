@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { getPhotoEngagementSummaries } from '@/lib/photo-engagement';
-
-const DEFAULT_MIN_MATCH_CONFIDENCE = 0.50;
+import { getPhotosEngagementBatch } from '@/lib/photo-engagement';
 
 export async function GET(req: NextRequest) {
   try {
+    const searchParams = req.nextUrl.searchParams;
+    const thresholdQuery = searchParams.get('threshold') || searchParams.get('confidence');
+    const requestedThreshold = thresholdQuery ? parseFloat(thresholdQuery) : NaN;
+    // Default to 0.60, allow tuning from 0.35 (broad/more photos) to 0.95 (strict/precise)
+    const matchConfidence = Number.isFinite(requestedThreshold)
+      ? Math.max(0.35, Math.min(0.95, requestedThreshold))
+      : 0.60;
+
+    const limitParam = parseInt(searchParams.get('limit') || '60', 10);
+    const limit = Number.isFinite(limitParam) ? Math.min(100, Math.max(10, limitParam)) : 60;
+    
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
@@ -28,13 +37,6 @@ export async function GET(req: NextRequest) {
     }
 
     const vectorString = referenceFaceQuery[0].embedding_str;
-    const confidenceSettings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
-      `SELECT "value" FROM "system_settings" WHERE "key" = $1 LIMIT 1`,
-      'biometric_match_confidence',
-    );
-    const minMatchConfidence = confidenceSettings.length > 0
-      ? Number(confidenceSettings[0].value)
-      : DEFAULT_MIN_MATCH_CONFIDENCE;
 
     // 2. Search Postgres using pgvector's Cosine Distance (<=>)
     //    Filter by confidence threshold directly in SQL to avoid over-fetching,
@@ -46,6 +48,10 @@ export async function GET(req: NextRequest) {
       eventName: string;
       eventDate: Date;
       uploadDate: Date;
+      x?: number;
+      y?: number;
+      w?: number;
+      h?: number;
     }>>(`
       SELECT 
         f."photoId" as "id", 
@@ -61,28 +67,33 @@ export async function GET(req: NextRequest) {
       WHERE (1 - (f.embedding <=> $1::vector)) >= $2
         AND e."status" = 'PUBLISHED'
       ORDER BY f.embedding <=> $1::vector ASC
-      LIMIT 300
-    `, vectorString, minMatchConfidence);
+      LIMIT $3
+    `, vectorString, matchConfidence, limit);
 
-    // 3. Filter out duplicates by photo ID
-    const finalResults = Array.from(
-      new Map(rawResults.map(r => [r.id, r])).values()
-    );
+    // 3. Filter out duplicates by photo ID, keeping the one with highest confidence
+    const photoMap = new Map<string, typeof rawResults[0]>();
+    for (const item of rawResults) {
+      const existing = photoMap.get(item.id);
+      if (!existing || item.confidence > existing.confidence) {
+        photoMap.set(item.id, item);
+      }
+    }
+    const finalResults = Array.from(photoMap.values());
 
-    const engagementSummaries = await getPhotoEngagementSummaries(finalResults.map((photo) => photo.id));
-    const results = finalResults.map((photo) => ({
-      ...photo,
-      stats: engagementSummaries.get(photo.id) ?? {
-        views: 0,
-        shares: 0,
-        likes: 0,
-        downloads: 0,
-      },
+    // 4. Attach photo engagement stats (views, downloads, shares)
+    const photoIds = finalResults.map((r) => r.id);
+    const engagements = await getPhotosEngagementBatch(photoIds);
+    const resultsWithEngagement = finalResults.map((r) => ({
+      ...r,
+      views: engagements[r.id]?.views ?? 0,
+      downloads: engagements[r.id]?.downloads ?? 0,
+      shares: engagements[r.id]?.shares ?? 0,
     }));
 
     return NextResponse.json({
-      message: `Found ${results.length} background matches!`,
-      results,
+      message: `Found ${resultsWithEngagement.length} background matches!`,
+      threshold: matchConfidence,
+      results: resultsWithEngagement,
     });
 
   } catch (error) {

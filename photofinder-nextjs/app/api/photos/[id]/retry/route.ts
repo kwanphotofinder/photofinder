@@ -41,7 +41,7 @@ export async function POST(
       photoId: photo.id,
       storageUrl: photo.storageUrl,
       retries: 0,
-    });
+    }, "HIGH");
 
     return NextResponse.json({
       success: true,

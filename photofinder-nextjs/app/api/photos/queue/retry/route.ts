@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         photoId: p.id,
         storageUrl: p.storageUrl,
         retries: 0,
-      })
+      }, "HIGH")
     }
 
     return NextResponse.json({

@@ -321,21 +321,23 @@ export default function DashboardPage() {
               <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
               {t("student.consent_modal_title")}
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
-              <p>{t("student.consent_modal_desc")}</p>
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
-                  <div className="text-xs text-foreground space-y-0.5">
-                    <p className="font-semibold">{t("student.consent_modal_face_title")}</p>
-                    <p className="text-muted-foreground">{t("student.consent_modal_face_desc")}</p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground text-left">
+                <p>{t("student.consent_modal_desc")}</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                    <div className="text-xs text-foreground space-y-0.5">
+                      <p className="font-semibold">{t("student.consent_modal_face_title")}</p>
+                      <p className="text-muted-foreground">{t("student.consent_modal_face_desc")}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
-                  <div className="text-xs text-foreground space-y-0.5">
-                    <p className="font-semibold">{t("student.consent_modal_data_title")}</p>
-                    <p className="text-muted-foreground">{t("student.consent_modal_data_desc")}</p>
+                  <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 sm:p-3">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                    <div className="text-xs text-foreground space-y-0.5">
+                      <p className="font-semibold">{t("student.consent_modal_data_title")}</p>
+                      <p className="text-muted-foreground">{t("student.consent_modal_data_desc")}</p>
+                    </div>
                   </div>
                 </div>
               </div>
