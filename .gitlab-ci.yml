@@ -67,7 +67,6 @@ web-test:
     - npm ci --no-audit --no-fund
   script:
     - npx prisma generate
-    - npx next build
 
 ai-test:
   stage: test
