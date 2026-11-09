@@ -31,6 +31,7 @@ variables:
   DOCKER_HOST: "tcp://docker:2375"
   DOCKER_TLS_CERTDIR: ""
   DOCKER_BUILDKIT: "1"
+  NEXT_PUBLIC_GOOGLE_CLIENT_ID: "495253530403-argqajsjks764d73schnqa8483fl0dr5.apps.googleusercontent.com"
 
 .production_rules:
   rules:
