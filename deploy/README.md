@@ -2,6 +2,8 @@
 
 `production` is the only deployment branch. A merge or push to this protected branch builds immutable web and AI images tagged with the commit SHA, scans them, synchronizes the runtime secret, deploys with Helm, and verifies `https://photofinder.mfu.ac.th`.
 
+Merge request pipelines run validation and tests only.
+
 Required protected GitLab CI/CD variables:
 
 - `HARBOR_USERNAME`, `HARBOR_PASSWORD`
