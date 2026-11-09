@@ -78,6 +78,9 @@ ai-test:
 build-images:
   stage: build
   extends: .production_rules
+  environment:
+    name: production
+    action: prepare
   image: docker:27.5.1-cli
   services:
     - name: docker:27.5.1-dind
@@ -100,6 +103,9 @@ build-images:
 scan-images:
   stage: scan
   extends: .production_rules
+  environment:
+    name: production
+    action: prepare
   image:
     name: aquasec/trivy:0.54.1
     entrypoint: [""]
@@ -131,6 +137,9 @@ sync-production-env:
   extends:
     - .production_rules
     - .kube_config_prod
+  environment:
+    name: production
+    action: prepare
   image:
     name: alpine/helm:3.15.4
     entrypoint: [""]
