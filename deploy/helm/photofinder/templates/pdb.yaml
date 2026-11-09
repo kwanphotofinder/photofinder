@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: photofinder-web
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.webMinAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: photofinder-web
+

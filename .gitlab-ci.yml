@@ -1,0 +1,202 @@
+default:
+  tags:
+    - mfu-prod
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+stages:
+  - validate
+  - test
+  - build
+  - scan
+  - package
+  - configure
+  - deploy
+  - verify
+  - rollback
+
+variables:
+  HARBOR_HOST: "hub-registry.mfu.ac.th"
+  WEB_IMAGE_REPOSITORY: "$HARBOR_HOST/photofinder/web"
+  AI_IMAGE_REPOSITORY: "$HARBOR_HOST/photofinder/ai-service"
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+  HELM_RELEASE_PROD: "photofinder"
+  KUBE_NAMESPACE_PROD: "mfu-apps-prod"
+  INGRESS_HOST_PROD: "photofinder.mfu.ac.th"
+  K8S_RUNTIME_SECRET_PROD: "photofinder-runtime"
+  HARBOR_IMAGE_PULL_SECRET_PROD: "harbor-registry"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: "1"
+
+.production_rules:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+
+.kube_config_prod:
+  before_script:
+    - apk add --no-cache kubectl curl bash
+    - mkdir -p ~/.kube
+    - test -n "$KUBE_CONFIG_PROD" || (echo "KUBE_CONFIG_PROD is required." >&2 && exit 1)
+    - if [ -f "$KUBE_CONFIG_PROD" ]; then cp "$KUBE_CONFIG_PROD" ~/.kube/config; else printf '%s' "$KUBE_CONFIG_PROD" > ~/.kube/config; fi
+    - chmod 600 ~/.kube/config
+
+validate-production:
+  stage: validate
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  script:
+    - if [ "$CI_COMMIT_BRANCH" = "production" ]; then test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" || (echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID is required." >&2 && exit 1); fi
+    - helm lint deploy/helm/photofinder -f deploy/values/prod.yaml
+    - helm template "$HELM_RELEASE_PROD" deploy/helm/photofinder -n "$KUBE_NAMESPACE_PROD" -f deploy/values/prod.yaml --set-string web.image.repository="$WEB_IMAGE_REPOSITORY" --set-string web.image.tag="$IMAGE_TAG" --set-string ai.image.repository="$AI_IMAGE_REPOSITORY" --set-string ai.image.tag="$IMAGE_TAG" --set-string ingress.host="$INGRESS_HOST_PROD" --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD" --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD" > /tmp/photofinder-prod.yaml
+
+web-test:
+  stage: test
+  image: node:22-alpine
+  variables:
+    DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+    DIRECT_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+    JWT_SECRET: "ci-only-not-for-production-000000000000"
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: "ci-client-id"
+  before_script:
+    - cd photofinder-nextjs
+    - npm ci --no-audit --no-fund
+  script:
+    - npx prisma generate
+
+ai-test:
+  stage: test
+  image: python:3.10-slim
+  script:
+    - python -m compileall -q ai-service
+
+build-images:
+  stage: build
+  extends: .production_rules
+  image: docker:27.5.1-cli
+  services:
+    - name: docker:27.5.1-dind
+      alias: docker
+      command: ["--tls=false"]
+  before_script:
+    - test -n "$HARBOR_USERNAME" || (echo "HARBOR_USERNAME is required." >&2 && exit 1)
+    - test -n "$HARBOR_PASSWORD" || (echo "HARBOR_PASSWORD is required." >&2 && exit 1)
+    - echo "$HARBOR_PASSWORD" | docker login "$HARBOR_HOST" -u "$HARBOR_USERNAME" --password-stdin
+  script:
+    - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="$NEXT_PUBLIC_GOOGLE_CLIENT_ID" -t "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG" photofinder-nextjs
+    - docker build --pull -t "$AI_IMAGE_REPOSITORY:$IMAGE_TAG" ai-service
+    - docker push "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG"
+    - docker push "$AI_IMAGE_REPOSITORY:$IMAGE_TAG"
+    - docker tag "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG" "$WEB_IMAGE_REPOSITORY:production-latest"
+    - docker tag "$AI_IMAGE_REPOSITORY:$IMAGE_TAG" "$AI_IMAGE_REPOSITORY:production-latest"
+    - docker push "$WEB_IMAGE_REPOSITORY:production-latest"
+    - docker push "$AI_IMAGE_REPOSITORY:production-latest"
+
+scan-images:
+  stage: scan
+  extends: .production_rules
+  image:
+    name: aquasec/trivy:0.54.1
+    entrypoint: [""]
+  variables:
+    TRIVY_USERNAME: "$HARBOR_USERNAME"
+    TRIVY_PASSWORD: "$HARBOR_PASSWORD"
+    TRIVY_NO_PROGRESS: "true"
+  needs: [build-images]
+  script:
+    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG"
+    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY:$IMAGE_TAG"
+
+render-production:
+  stage: package
+  extends: .production_rules
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  needs: [build-images]
+  script:
+    - mkdir -p rendered
+    - helm template "$HELM_RELEASE_PROD" deploy/helm/photofinder -n "$KUBE_NAMESPACE_PROD" -f deploy/values/prod.yaml --set-string web.image.repository="$WEB_IMAGE_REPOSITORY" --set-string web.image.tag="$IMAGE_TAG" --set-string ai.image.repository="$AI_IMAGE_REPOSITORY" --set-string ai.image.tag="$IMAGE_TAG" --set-string ingress.host="$INGRESS_HOST_PROD" --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD" --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD" > rendered/photofinder-prod.yaml
+  artifacts:
+    paths: [rendered/photofinder-prod.yaml]
+    expire_in: 30 days
+
+sync-production-env:
+  stage: configure
+  extends:
+    - .production_rules
+    - .kube_config_prod
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  resource_group: photofinder-production
+  script:
+    - apk add --no-cache bash
+    - scripts/ci/sync-runtime-env.sh
+
+deploy-production:
+  stage: deploy
+  extends:
+    - .production_rules
+    - .kube_config_prod
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  needs: [scan-images, render-production, sync-production-env]
+  environment:
+    name: production
+    url: https://photofinder.mfu.ac.th
+  resource_group: photofinder-production
+  script:
+    - kubectl auth can-i create deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
+    - >-
+      helm upgrade --install "$HELM_RELEASE_PROD" deploy/helm/photofinder
+      --namespace "$KUBE_NAMESPACE_PROD"
+      --create-namespace
+      --atomic --wait --timeout 15m
+      -f deploy/values/prod.yaml
+      --set-string web.image.repository="$WEB_IMAGE_REPOSITORY"
+      --set-string web.image.tag="$IMAGE_TAG"
+      --set-string ai.image.repository="$AI_IMAGE_REPOSITORY"
+      --set-string ai.image.tag="$IMAGE_TAG"
+      --set-string ingress.host="$INGRESS_HOST_PROD"
+      --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD"
+      --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD"
+
+verify-production:
+  stage: verify
+  extends:
+    - .production_rules
+    - .kube_config_prod
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  needs: [deploy-production]
+  script:
+    - apk add --no-cache curl
+    - kubectl rollout status deployment/photofinder-web -n "$KUBE_NAMESPACE_PROD" --timeout=8m
+    - kubectl rollout status deployment/photofinder-ai -n "$KUBE_NAMESPACE_PROD" --timeout=8m
+    - test "$(kubectl get deployment photofinder-web -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG"
+    - test "$(kubectl get deployment photofinder-ai -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "$AI_IMAGE_REPOSITORY:$IMAGE_TAG"
+    - curl --fail --silent --show-error --retry 18 --retry-delay 5 --max-time 30 "https://$INGRESS_HOST_PROD/" >/dev/null
+    - curl --fail --silent --show-error --retry 6 --retry-delay 5 --max-time 30 "https://$INGRESS_HOST_PROD/api/ai-health" >/dev/null
+
+rollback-production:
+  stage: rollback
+  extends: .kube_config_prod
+  image:
+    name: alpine/helm:3.15.4
+    entrypoint: [""]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      when: manual
+  environment:
+    name: production
+  resource_group: photofinder-production
+  script:
+    - helm rollback "$HELM_RELEASE_PROD" 0 -n "$KUBE_NAMESPACE_PROD" --wait --timeout 15m
+
