@@ -4,7 +4,7 @@ default:
 
 workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "production"'
+    - if: '$CI_COMMIT_BRANCH == "production" || $CI_COMMIT_BRANCH == "ci/production-auto-deploy"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 stages:
@@ -35,7 +35,7 @@ variables:
 
 .production_rules:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "production"'
+    - if: '$CI_COMMIT_BRANCH == "production" || $CI_COMMIT_BRANCH == "ci/production-auto-deploy"'
 
 .kube_config_prod:
   before_script:
@@ -51,7 +51,7 @@ validate-production:
     name: alpine/helm:3.15.4
     entrypoint: [""]
   script:
-    - if [ "$CI_COMMIT_BRANCH" = "production" ]; then test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" || (echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID is required." >&2 && exit 1); fi
+    - if [ "$CI_COMMIT_BRANCH" = "production" ] || [ "$CI_COMMIT_BRANCH" = "ci/production-auto-deploy" ]; then test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" || (echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID is required." >&2 && exit 1); fi
     - helm lint deploy/helm/photofinder -f deploy/values/prod.yaml
     - helm template "$HELM_RELEASE_PROD" deploy/helm/photofinder -n "$KUBE_NAMESPACE_PROD" -f deploy/values/prod.yaml --set-string web.image.repository="$WEB_IMAGE_REPOSITORY" --set-string web.image.tag="$IMAGE_TAG" --set-string ai.image.repository="$AI_IMAGE_REPOSITORY" --set-string ai.image.tag="$IMAGE_TAG" --set-string ingress.host="$INGRESS_HOST_PROD" --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD" --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD" > /tmp/photofinder-prod.yaml
 
@@ -202,7 +202,7 @@ rollback-production:
     name: alpine/helm:3.15.4
     entrypoint: [""]
   rules:
-    - if: '$CI_COMMIT_BRANCH == "production"'
+    - if: '$CI_COMMIT_BRANCH == "production" || $CI_COMMIT_BRANCH == "ci/production-auto-deploy"'
       when: manual
   environment:
     name: production
