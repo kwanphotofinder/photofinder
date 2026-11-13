@@ -36,3 +36,5 @@ Kubernetes mapping:
 - image pull secret: `harbor-registry`
 
 Rollback is an explicit manual CI job and runs `helm rollback` for the production release.
+
+Any merge into `production` deploys the app, even if you only change docs.
