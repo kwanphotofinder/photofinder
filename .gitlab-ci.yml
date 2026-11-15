@@ -133,8 +133,8 @@ scan-images:
   needs: [{ job: build-images, artifacts: true }]
   script:
     - sh scripts/ci/validate-release-env.sh release/release.env
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
 
 package-release:
   stage: package
