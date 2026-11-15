@@ -126,6 +126,7 @@ preflight-images:
     - docker build --pull -t "photofinder-preflight-ai:$CI_COMMIT_SHA" ai-service
     - docker image inspect "photofinder-preflight-web:$CI_COMMIT_SHA" >/dev/null
     - docker image inspect "photofinder-preflight-ai:$CI_COMMIT_SHA" >/dev/null
+    - docker run --rm "photofinder-preflight-web:$CI_COMMIT_SHA" ./node_modules/.bin/prisma version
     - docker run -d --name "photofinder-preflight-ai-$CI_PIPELINE_ID" "photofinder-preflight-ai:$CI_COMMIT_SHA"
     - sleep 15
     - docker exec "photofinder-preflight-ai-$CI_PIPELINE_ID" python -c "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1:7860/', timeout=10); assert response.status == 200"
@@ -145,6 +146,7 @@ registry-preflight:
     - PREFLIGHT_TAG="preflight-$CI_COMMIT_SHA"
     - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="ci-client-id" -t "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" photofinder-nextjs
     - docker build --pull -t "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG" ai-service
+    - docker run --rm "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" ./node_modules/.bin/prisma version
     - docker push "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG"
     - docker push "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG"
     - docker pull "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" >/dev/null

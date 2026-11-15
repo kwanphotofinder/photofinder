@@ -1,0 +1,10 @@
+{
+  "name": "photofinder-prisma-runtime",
+  "private": true,
+  "dependencies": {
+    "@prisma/adapter-pg": "7.7.0",
+    "dotenv": "16.6.1",
+    "pg": "8.20.0",
+    "prisma": "7.7.0"
+  }
+}
