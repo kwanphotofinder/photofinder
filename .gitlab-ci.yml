@@ -58,10 +58,12 @@ variables:
       command:
         - |
           printf '%s %s\n' "$HARBOR_INTERNAL_IP" "$HARBOR_HOST" >> /etc/hosts
-          if [ -n "${HARBOR_CA_CERT:-}" ]; then
-            mkdir -p "/etc/docker/certs.d/$HARBOR_HOST"
-            printf '%s\n' "$HARBOR_CA_CERT" > "/etc/docker/certs.d/$HARBOR_HOST/ca.crt"
-          fi
+          apk add --no-cache openssl >/dev/null
+          mkdir -p "/etc/docker/certs.d/$HARBOR_HOST"
+          openssl s_client -connect "$HARBOR_INTERNAL_IP:443" -servername "$HARBOR_HOST" -showcerts </dev/null 2>/dev/null \
+            | awk '/BEGIN CERTIFICATE/{flag=1} flag{print} /END CERTIFICATE/{exit}' \
+            > "/etc/docker/certs.d/$HARBOR_HOST/ca.crt"
+          test "$(openssl x509 -in "/etc/docker/certs.d/$HARBOR_HOST/ca.crt" -noout -fingerprint -sha256 | cut -d= -f2)" = "5E:DE:35:7C:A9:9B:70:04:F5:61:2A:D7:ED:D9:C9:4B:6E:F9:11:04:E6:CE:1C:AB:F3:2B:F6:BC:84:A0:67:12"
           exec dockerd-entrypoint.sh --tls=false
 
 .docker_login:
