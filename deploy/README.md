@@ -13,6 +13,8 @@ Required protected GitLab CI/CD variables:
 
 - `HARBOR_USERNAME`, `HARBOR_PASSWORD`
 - `KUBE_CONFIG_PROD` as a file variable scoped to `production`
+- `PROD_SSH_HOST`, `PROD_KUBE_API_HOST`, and `PROD_SSH_USER`
+- `PROD_SSH_PASSWORD_B64` as a masked, protected base64-encoded SSH password
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` for the protected `develop` build
 - `RUNTIME_ENV_FILE_PROD` as a protected file variable containing the production environment, or `RUNTIME_ENV_BASE64_PROD` containing the same file encoded as base64
 
@@ -40,6 +42,17 @@ Kubernetes mapping:
 - runtime secret: `photofinder-runtime`
 - image pull secret: `harbor-registry`
 - deploy identity: namespace-scoped service account `photofinder-gitlab-deployer`, bootstrapped from `deploy/rbac/photofinder-gitlab-deployer.yaml`
+
+The GitLab runner reaches the private production Kubernetes API through an
+SSH tunnel to the production master. The pipeline rewrites only its temporary
+kubeconfig endpoint; certificate validation still uses the API server name and
+CA from `KUBE_CONFIG_PROD`.
+
+PostgreSQL is an external dependency of this Helm chart. The existing
+`photofinder-postgres` Service and StatefulSet and the Bound
+`pgdata-photofinder-postgres-0` PVC must remain in `mfu-apps-prod`; Helm must
+never delete or recreate them. Production preflight fails before deployment if
+any of those resources is missing or the database pod is not Ready.
 
 Rollback is an explicit manual CI job and runs `helm rollback` for the production release.
 

@@ -1,23 +1,13 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Thai, Outfit } from "next/font/google";
+import "@fontsource/noto-sans-thai/400.css";
+import "@fontsource/noto-sans-thai/500.css";
+import "@fontsource/noto-sans-thai/600.css";
+import "@fontsource/noto-sans-thai/700.css";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import { ChatWrapper } from "@/components/chat-wrapper";
 import "./globals.css";
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-const _notoSansThai = Noto_Sans_Thai({
-  subsets: ["thai", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-noto-sans-thai",
-});
-const _outfit = Outfit({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  variable: "--font-outfit",
-});
 
 export const metadata: Metadata = {
   title: "Campus Event & Photo Finder",
@@ -53,7 +43,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#82181a" />
       </head>
-      <body className={`${_notoSansThai.variable} ${_outfit.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <DOMErrorPatch />
         <Script strategy="afterInteractive" src="https://accounts.google.com/gsi/client?hl=en" />
         <LanguageProvider>
