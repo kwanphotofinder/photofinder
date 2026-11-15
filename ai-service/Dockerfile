@@ -23,7 +23,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade \
         "wheel>=0.46.2" \
         "jaraco.context>=6.1.0" \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip setuptools wheel jaraco.context
 
 # Copy application code
 COPY --chown=user:user . .
