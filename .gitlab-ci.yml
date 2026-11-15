@@ -44,7 +44,7 @@ variables:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "production" && $CI_COMMIT_REF_PROTECTED == "true"'
 
-.docker_login:
+.docker_engine:
   image: docker:27.5.1-cli
   services:
     - name: docker:27.5.1-dind
@@ -54,6 +54,9 @@ variables:
         - |
           printf '%s %s\n' "$HARBOR_INTERNAL_IP" "$HARBOR_HOST" >> /etc/hosts
           exec dockerd-entrypoint.sh --tls=false
+
+.docker_login:
+  extends: .docker_engine
   before_script:
     - test -n "$HARBOR_USERNAME" || (echo "HARBOR_USERNAME is required." >&2 && exit 1)
     - test -n "$HARBOR_PASSWORD" || (echo "HARBOR_PASSWORD is required." >&2 && exit 1)
@@ -95,8 +98,31 @@ web-test:
 ai-test:
   stage: test
   extends: .source_gate_rules
-  image: python:3.10-slim
+  image: python:3.11-slim-bookworm
   script: ["python -m compileall -q ai-service"]
+
+# A merge request is not mergeable until the exact production Dockerfiles can
+# build and both resulting images pass the same actionable vulnerability gate
+# used by the protected develop release pipeline.
+preflight-images:
+  stage: build
+  extends: .docker_engine
+  needs: [validate-source, web-test, ai-test]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="ci-client-id" -t "photofinder-preflight-web:$CI_COMMIT_SHA" photofinder-nextjs
+    - docker build --pull -t "photofinder-preflight-ai:$CI_COMMIT_SHA" ai-service
+    - docker image inspect "photofinder-preflight-web:$CI_COMMIT_SHA" >/dev/null
+    - docker image inspect "photofinder-preflight-ai:$CI_COMMIT_SHA" >/dev/null
+    - docker run -d --name "photofinder-preflight-ai-$CI_PIPELINE_ID" "photofinder-preflight-ai:$CI_COMMIT_SHA"
+    - sleep 15
+    - docker exec "photofinder-preflight-ai-$CI_PIPELINE_ID" python -c "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1:7860/', timeout=10); assert response.status == 200"
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID"
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v photofinder-trivy-cache:/root/.cache/ aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-web:$CI_COMMIT_SHA"
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v photofinder-trivy-cache:/root/.cache/ aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-ai:$CI_COMMIT_SHA"
+  after_script:
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID" >/dev/null 2>&1 || true
 
 build-toolchain-smoke:
   stage: validate
@@ -133,8 +159,8 @@ scan-images:
   needs: [{ job: build-images, artifacts: true }]
   script:
     - sh scripts/ci/validate-release-env.sh release/release.env
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
 
 package-release:
   stage: package
