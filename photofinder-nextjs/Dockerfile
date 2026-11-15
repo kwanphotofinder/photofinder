@@ -28,7 +28,9 @@ ENV DIRECT_URL="postgresql://postgres:postgres@localhost:5432/facesearch"
 ENV JWT_SECRET="build-placeholder-jwt-secret-not-for-production"
 
 RUN npx prisma generate
-RUN npx next build
+# Next 16 defaults to Turbopack, whose font import mapper currently fails on
+# this app's multi-weight Google fonts. Use the stable production Webpack path.
+RUN npx next build --webpack
 
 # Stage 3: Production runner
 FROM base AS runner
