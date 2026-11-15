@@ -68,7 +68,7 @@ validate-source:
   extends: .all_flow_rules
   image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
   script:
-    - apk add --no-cache git
+    - apk add --no-cache bash git
     - sh scripts/ci/check-release-contract.sh
     - sh scripts/ci/test-release-contract.sh
     - helm lint deploy/helm/photofinder -f deploy/values/prod.yaml
@@ -97,7 +97,7 @@ build-toolchain-smoke:
   stage: validate
   extends: [.develop_release_rules, .docker_login]
   script:
-    - apk add --no-cache curl git
+    - apk add --no-cache bash curl git
     - git --version
     - docker version
     - curl --version

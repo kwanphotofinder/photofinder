@@ -13,4 +13,10 @@ grep -q 'replace-legacy-production, optional: true' "$ci"
 ! grep -R -n 'production-latest' deploy/helm/photofinder/values.yaml deploy/values/prod.yaml
 grep -q 'RepoDigests' scripts/ci/verify-image-digest.sh
 
-for script in scripts/ci/*.sh; do sh -n "$script"; done
+for script in scripts/ci/*.sh; do
+  if head -1 "$script" | grep -q 'bash'; then
+    bash -n "$script"
+  else
+    sh -n "$script"
+  fi
+done
