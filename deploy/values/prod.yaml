@@ -1,0 +1,26 @@
+imagePullSecret: harbor-registry
+runtimeSecret: photofinder-runtime
+
+web:
+  replicas: 2
+  image:
+    repository: hub-registry.mfu.ac.th/photofinder/web
+    tag: replace-with-full-develop-sha
+    digest: ""
+    pullPolicy: IfNotPresent
+
+ai:
+  replicas: 1
+  image:
+    repository: hub-registry.mfu.ac.th/photofinder/ai-service
+    tag: replace-with-full-develop-sha
+    digest: ""
+    pullPolicy: IfNotPresent
+
+ingress:
+  className: nginx
+  host: photofinder.mfu.ac.th
+  tls:
+    enabled: false
+    secretName: ""
+

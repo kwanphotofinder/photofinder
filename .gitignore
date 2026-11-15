@@ -61,3 +61,7 @@ models/
 *.log
 *.tmp
 .cache/
+
+# AI Agent skills & configurations
+.agents/
+

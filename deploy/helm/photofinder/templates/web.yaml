@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photofinder-web
+  labels:
+    app.kubernetes.io/name: photofinder-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: photofinder-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: photofinder-web
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret | quote }}
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.web.image.repository }}{{ if .Values.web.image.digest }}@{{ .Values.web.image.digest }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          command: ["./node_modules/.bin/prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.runtimeSecret | quote }}
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}{{ if .Values.web.image.digest }}@{{ .Values.web.image.digest }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.port }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.runtimeSecret | quote }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: AI_SERVICE_URL
+              value: "http://photofinder-ai:{{ .Values.ai.port }}"
+            - name: NEXT_PUBLIC_API_URL
+              value: "/api"
+            - name: APP_URL
+              value: "https://{{ .Values.ingress.host }}"
+            - name: NEXT_PUBLIC_APP_URL
+              value: "https://{{ .Values.ingress.host }}"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.web.resources | indent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photofinder-web
+spec:
+  selector:
+    app.kubernetes.io/name: photofinder-web
+  ports:
+    - name: http
+      port: {{ .Values.web.port }}
+      targetPort: http
+

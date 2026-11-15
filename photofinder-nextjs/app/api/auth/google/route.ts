@@ -4,7 +4,18 @@ import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '';
+const DEFAULT_SUPER_ADMIN_EMAILS = ['kwanphotofinder@gmail.com'];
+
+function checkIsSuperAdmin(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const envAdmins = (process.env.SUPER_ADMIN_EMAIL || '')
+    .toLowerCase()
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const allSuperAdmins = new Set([...DEFAULT_SUPER_ADMIN_EMAILS, ...envAdmins]);
+  return allSuperAdmins.has(normalized);
+}
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const googleClient = new OAuth2Client(
@@ -50,7 +61,7 @@ export async function POST(req: NextRequest) {
     // We remove the allowedEmails array as it was redundant. 
     // The super admin will be allowed if their email matches SUPER_ADMIN_EMAIL.
     const isAllowedDomain = allowedDomains.includes(normalizedHostedDomain) || allowedDomains.some((domain) => normalizedEmail.endsWith(`@${domain}`));
-    const isSuperAdminEmail = SUPER_ADMIN_EMAIL && normalizedEmail === SUPER_ADMIN_EMAIL;
+    const isSuperAdminEmail = checkIsSuperAdmin(normalizedEmail);
 
     // Also allow any email that is already pre-registered in the database
     const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, RefreshCw, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Eye } from "lucide-react"
+import { Camera, RefreshCw, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Eye, StopCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UploadLoader } from "@/components/upload-loader"
 
@@ -43,6 +43,8 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const frameTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const livenessRunIdRef = useRef(0)
   const isRunningRef = useRef(false)
   const frameInFlightRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -59,11 +61,17 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
   const stopLivenessDetection = useCallback(() => {
     isRunningRef.current = false
+    livenessRunIdRef.current += 1
     frameInFlightRef.current = false
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    if (frameTimeoutRef.current) {
+      clearTimeout(frameTimeoutRef.current)
+      frameTimeoutRef.current = null
     }
   }, [])
 
@@ -123,6 +131,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
   const startCamera = async () => {
     try {
+      stopCamera()
       setError(null)
       await prepareCompletionSound()
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -181,9 +190,10 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const startLivenessDetection = () => {
     if (isRunningRef.current) return
     isRunningRef.current = true
+    const runId = ++livenessRunIdRef.current
 
     const processFrame = async () => {
-      if (!isRunningRef.current || !videoRef.current || !canvasRef.current) return
+      if (runId !== livenessRunIdRef.current || !isRunningRef.current || !videoRef.current || !canvasRef.current) return
 
       const video = videoRef.current
       const canvas = canvasRef.current
@@ -194,12 +204,16 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         canvas.width === 0 ||
         canvas.height === 0
       ) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
+        if (runId === livenessRunIdRef.current && isRunningRef.current) {
+          animationFrameRef.current = requestAnimationFrame(processFrame)
+        }
         return
       }
 
       if (frameInFlightRef.current) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
+        if (runId === livenessRunIdRef.current && isRunningRef.current) {
+          animationFrameRef.current = requestAnimationFrame(processFrame)
+        }
         return
       }
 
@@ -215,7 +229,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
         })
 
-        if (!isRunningRef.current || !blob) {
+        if (runId !== livenessRunIdRef.current || !isRunningRef.current || !blob) {
           frameInFlightRef.current = false
           return
         }
@@ -237,18 +251,21 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           setLivenessData(data)
         }
       } catch (err: any) {
-        if (err.name !== "AbortError") {
+        if (runId === livenessRunIdRef.current && err.name !== "AbortError") {
           console.error("Liveness detection error:", err)
         }
       } finally {
+        if (runId !== livenessRunIdRef.current) return
+
         frameInFlightRef.current = false
         abortControllerRef.current = null
       }
 
-      if (isRunningRef.current) {
+      if (runId === livenessRunIdRef.current && isRunningRef.current) {
         // 120ms throttle keeps mobile CPU cool and network smooth (~8 FPS)
-        setTimeout(() => {
-          if (isRunningRef.current) {
+        frameTimeoutRef.current = setTimeout(() => {
+          frameTimeoutRef.current = null
+          if (runId === livenessRunIdRef.current && isRunningRef.current) {
             animationFrameRef.current = requestAnimationFrame(processFrame)
           }
         }, 120)
@@ -499,6 +516,12 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         {step === "capture-selfie" && (
           <Button onClick={captureFinalSelfie} className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700">
             <Camera className="mr-2 w-5 h-5" /> Capture Final Selfie
+          </Button>
+        )}
+
+        {step === "liveness" && (
+          <Button onClick={() => { stopCamera(); onCancel() }} variant="outline" className="w-full h-10">
+            <StopCircle className="mr-2 w-4 h-4" /> Stop Verification
           </Button>
         )}
       </div>

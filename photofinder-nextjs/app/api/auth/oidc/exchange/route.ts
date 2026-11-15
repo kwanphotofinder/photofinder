@@ -3,7 +3,18 @@ import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import jwt from "jsonwebtoken"
 
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || ""
+const DEFAULT_SUPER_ADMIN_EMAILS = ['kwanphotofinder@gmail.com'];
+
+function checkIsSuperAdmin(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const envAdmins = (process.env.SUPER_ADMIN_EMAIL || '')
+    .toLowerCase()
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const allSuperAdmins = new Set([...DEFAULT_SUPER_ADMIN_EMAILS, ...envAdmins]);
+  return allSuperAdmins.has(normalized);
+}
 const IS_PRODUCTION = process.env.NODE_ENV === "production"
 
 // POST /api/auth/oidc/exchange
@@ -33,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
 
       if ("isActive" in user && (user as any).isActive === false) {
-        const isSuperAdminEmail = SUPER_ADMIN_EMAIL && user.email.toLowerCase() === SUPER_ADMIN_EMAIL
+        const isSuperAdminEmail = checkIsSuperAdmin(user.email)
         const allowAutoReactivate = !IS_PRODUCTION || isSuperAdminEmail
 
         if (!allowAutoReactivate) {
