@@ -267,6 +267,10 @@ preflight-production:
     - kubectl --request-timeout=15s auth can-i delete deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
     - kubectl --request-timeout=15s get secret "$K8S_RUNTIME_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
     - kubectl --request-timeout=15s get secret "$HARBOR_IMAGE_PULL_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s get service photofinder-postgres -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s get statefulset photofinder-postgres -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - test "$(kubectl --request-timeout=15s get pvc pgdata-photofinder-postgres-0 -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.status.phase}')" = "Bound"
+    - kubectl wait --for=condition=Ready pod/photofinder-postgres-0 -n "$KUBE_NAMESPACE_PROD" --timeout=60s
     - helm list -n "$KUBE_NAMESPACE_PROD" --filter "^$HELM_RELEASE_PROD$"
 
 capture-production-baseline:
