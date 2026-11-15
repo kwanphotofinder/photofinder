@@ -23,7 +23,7 @@ spec:
         - name: {{ .Values.imagePullSecret | quote }}
       initContainers:
         - name: migrate
-          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          image: "{{ .Values.web.image.repository }}{{ if .Values.web.image.digest }}@{{ .Values.web.image.digest }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           command: ["./node_modules/.bin/prisma", "migrate", "deploy", "--schema=prisma/schema.prisma"]
           envFrom:
@@ -31,7 +31,7 @@ spec:
                 name: {{ .Values.runtimeSecret | quote }}
       containers:
         - name: web
-          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          image: "{{ .Values.web.image.repository }}{{ if .Values.web.image.digest }}@{{ .Values.web.image.digest }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           ports:
             - name: http

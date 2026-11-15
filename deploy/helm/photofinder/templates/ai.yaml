@@ -18,7 +18,7 @@ spec:
         - name: {{ .Values.imagePullSecret | quote }}
       containers:
         - name: ai-service
-          image: "{{ .Values.ai.image.repository }}:{{ .Values.ai.image.tag }}"
+          image: "{{ .Values.ai.image.repository }}{{ if .Values.ai.image.digest }}@{{ .Values.ai.image.digest }}{{ else }}:{{ .Values.ai.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.ai.image.pullPolicy }}
           ports:
             - name: http
