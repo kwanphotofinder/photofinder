@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 # Install only runtime libraries; Python wheels no longer require a compiler.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \

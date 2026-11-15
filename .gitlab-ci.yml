@@ -98,7 +98,7 @@ web-test:
 ai-test:
   stage: test
   extends: .source_gate_rules
-  image: python:3.10-slim
+  image: python:3.11-slim-bookworm
   script: ["python -m compileall -q ai-service"]
 
 # A merge request is not mergeable until the exact production Dockerfiles can
@@ -115,8 +115,14 @@ preflight-images:
     - docker build --pull -t "photofinder-preflight-ai:$CI_COMMIT_SHA" ai-service
     - docker image inspect "photofinder-preflight-web:$CI_COMMIT_SHA" >/dev/null
     - docker image inspect "photofinder-preflight-ai:$CI_COMMIT_SHA" >/dev/null
+    - docker run -d --name "photofinder-preflight-ai-$CI_PIPELINE_ID" "photofinder-preflight-ai:$CI_COMMIT_SHA"
+    - sleep 15
+    - docker exec "photofinder-preflight-ai-$CI_PIPELINE_ID" python -c "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1:7860/', timeout=10); assert response.status == 200"
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID"
     - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-web:$CI_COMMIT_SHA"
     - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-ai:$CI_COMMIT_SHA"
+  after_script:
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID" >/dev/null 2>&1 || true
 
 build-toolchain-smoke:
   stage: validate
