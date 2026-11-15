@@ -76,11 +76,21 @@ variables:
 .kube_config_prod:
   tags: [mfu-prod]
   before_script:
-    - apk add --no-cache kubectl curl bash
+    - apk add --no-cache kubectl curl bash openssh-client sshpass
     - mkdir -p ~/.kube
     - test -n "$KUBE_CONFIG_PROD" || (echo "KUBE_CONFIG_PROD is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_HOST" || (echo "PROD_SSH_HOST is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_USER" || (echo "PROD_SSH_USER is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_PASSWORD_B64" || (echo "PROD_SSH_PASSWORD_B64 is required." >&2 && exit 1)
+    - test -n "$PROD_KUBE_API_HOST" || (echo "PROD_KUBE_API_HOST is required." >&2 && exit 1)
     - if [ -f "$KUBE_CONFIG_PROD" ]; then cp "$KUBE_CONFIG_PROD" ~/.kube/config; else printf '%s' "$KUBE_CONFIG_PROD" > ~/.kube/config; fi
     - chmod 600 ~/.kube/config
+    - export SSHPASS="$(printf '%s' "$PROD_SSH_PASSWORD_B64" | base64 -d)"
+    - sshpass -e ssh -fNT -o BatchMode=no -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -L "127.0.0.1:16443:${PROD_KUBE_API_HOST}:6443" "${PROD_SSH_USER}@${PROD_SSH_HOST}"
+    - KUBE_CLUSTER_NAME="$(kubectl config view --minify -o jsonpath='{.contexts[0].context.cluster}')"
+    - test -n "$KUBE_CLUSTER_NAME" || (echo "Kubeconfig cluster name is missing." >&2 && exit 1)
+    - kubectl config set-cluster "$KUBE_CLUSTER_NAME" --server=https://127.0.0.1:16443 --tls-server-name="$PROD_KUBE_API_HOST" >/dev/null
+    - kubectl version --request-timeout=15s >/dev/null
 
 validate-source:
   stage: validate
