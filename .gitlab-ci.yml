@@ -300,7 +300,7 @@ sync-production-env:
   needs: [{ job: promotion-digest-guard, artifacts: true }, { job: preflight-production }]
   resource_group: photofinder-production
   environment: { name: production, action: prepare }
-  script: ["sh scripts/ci/validate-release-env.sh release/release.env", "sh scripts/ci/sync-runtime-env.sh"]
+  script: ["sh scripts/ci/validate-release-env.sh release/release.env", "bash scripts/ci/sync-runtime-env.sh"]
 
 replace-legacy-production:
   stage: cutover
