@@ -58,6 +58,10 @@ variables:
       command:
         - |
           printf '%s %s\n' "$HARBOR_INTERNAL_IP" "$HARBOR_HOST" >> /etc/hosts
+          if [ -n "${HARBOR_CA_CERT:-}" ]; then
+            mkdir -p "/etc/docker/certs.d/$HARBOR_HOST"
+            printf '%s\n' "$HARBOR_CA_CERT" > "/etc/docker/certs.d/$HARBOR_HOST/ca.crt"
+          fi
           exec dockerd-entrypoint.sh --tls=false
 
 .docker_login:
