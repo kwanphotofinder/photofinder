@@ -189,7 +189,7 @@ preflight-production:
   resource_group: photofinder-production
   script:
     - sh scripts/ci/validate-release-env.sh release/release.env
-    - kubectl --request-timeout=15s get namespace "$KUBE_NAMESPACE_PROD" >/dev/null
+    - kubectl --request-timeout=15s get serviceaccount photofinder-gitlab-deployer -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
     - kubectl --request-timeout=15s auth can-i get deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
     - kubectl --request-timeout=15s auth can-i create deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
     - kubectl --request-timeout=15s auth can-i patch deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes

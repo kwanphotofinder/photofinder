@@ -39,6 +39,7 @@ Kubernetes mapping:
 - ingress: `photofinder.mfu.ac.th`
 - runtime secret: `photofinder-runtime`
 - image pull secret: `harbor-registry`
+- deploy identity: namespace-scoped service account `photofinder-gitlab-deployer`, bootstrapped from `deploy/rbac/photofinder-gitlab-deployer.yaml`
 
 Rollback is an explicit manual CI job and runs `helm rollback` for the production release.
 
