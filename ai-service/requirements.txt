@@ -6,5 +6,5 @@ opencv-python-headless
 insightface
 onnxruntime
 mediapipe
-Pillow
+Pillow>=13.0.0
 prometheus-fastapi-instrumentator
