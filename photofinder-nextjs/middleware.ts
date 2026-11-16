@@ -4,6 +4,7 @@ import {
   createRateLimitExceededResponse,
   getRateLimitHeaders,
   RATE_LIMIT_TIERS,
+  type RateLimitConfig,
 } from "./lib/rate-limit"
 
 export function middleware(req: NextRequest) {
@@ -15,11 +16,12 @@ export function middleware(req: NextRequest) {
   }
 
   // Determine rate limit tier based on the API route sensitivity
-  let tier = RATE_LIMIT_TIERS.GENERAL
+  let tier: RateLimitConfig = RATE_LIMIT_TIERS.GENERAL
 
-  if (
+  if (pathname.startsWith("/api/student/liveness-detect")) {
+    tier = RATE_LIMIT_TIERS.LIVENESS
+  } else if (
     pathname.startsWith("/api/verify-identity") ||
-    pathname.startsWith("/api/student/liveness-detect") ||
     pathname.startsWith("/api/me/reference-face") ||
     pathname.startsWith("/api/me/matches")
   ) {

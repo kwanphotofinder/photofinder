@@ -18,6 +18,10 @@ export interface RateLimitResult {
 export const RATE_LIMIT_TIERS = {
   // Heavy AI GPU/CPU endpoints: Face matching, liveness, embedding extraction
   AI_SEARCH: { limit: 15, windowMs: 60 * 1000, name: "AI Search" },
+
+  // Live camera liveness frames: small, cheap landmark checks sent several times
+  // per second while a student blinks and turns their head.
+  LIVENESS: { limit: 480, windowMs: 60 * 1000, name: "Liveness" },
   
   // Media upload endpoints: Cloudinary storage & worker queue
   UPLOAD: { limit: 30, windowMs: 60 * 1000, name: "Photo Upload" },

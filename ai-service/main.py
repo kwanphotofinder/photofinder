@@ -6,6 +6,8 @@ from typing import List
 import io
 from PIL import Image
 import os
+import time
+from typing import Dict, Optional
 from services.face_blur import blur_faces
 from services.liveness import FaceMeshLiveness
 
@@ -37,12 +39,42 @@ if FaceAnalysis is not None:
 # Initialize FaceMeshLiveness for liveness detection
 try:
     liveness_detector = FaceMeshLiveness(model_path="face_landmarker.task")
-    # Track blink state for temporal detection
-    liveness_detector.prev_ear_open = True  # Track if eyes were open in previous frame
-    liveness_detector.blink_detected = False  # Flag for current blink state
 except Exception as e:
     print(f"Warning: Could not initialize FaceMeshLiveness: {e}")
     liveness_detector = None
+
+
+# Blink tracking is temporal (open -> closed -> open), so it needs state between
+# frames. Keep it per verification session so concurrent users, or a previous
+# attempt, cannot leave stale "eyes closed" state behind for the next one.
+EAR_CLOSED_THRESHOLD = 0.21  # Eye aspect ratio measured in pixel space
+EAR_RELATIVE_CLOSED_RATIO = 0.7  # Closed when EAR drops 30% below the user's open-eye baseline
+EAR_BASELINE_DECAY = 0.97
+BLINK_SESSION_TTL_SECONDS = 120
+MAX_BLINK_SESSIONS = 1000
+_blink_sessions: Dict[str, dict] = {}
+
+
+def _get_blink_session(session_id: Optional[str]) -> dict:
+    now = time.monotonic()
+    expired = [
+        key
+        for key, state in _blink_sessions.items()
+        if now - state["updated_at"] > BLINK_SESSION_TTL_SECONDS
+    ]
+    for key in expired:
+        del _blink_sessions[key]
+
+    key = (session_id or "default")[:64]
+    state = _blink_sessions.get(key)
+    if state is None:
+        if len(_blink_sessions) >= MAX_BLINK_SESSIONS:
+            oldest = min(_blink_sessions, key=lambda k: _blink_sessions[k]["updated_at"])
+            del _blink_sessions[oldest]
+        state = {"prev_open": True, "closed_seen": False, "baseline": None}
+        _blink_sessions[key] = state
+    state["updated_at"] = now
+    return state
 
 
 class FaceEmbedding(BaseModel):
@@ -255,7 +287,9 @@ async def test_face_landmarks(file: UploadFile = File(...)):
 
 
 @app.post("/liveness/detect")
-async def detect_liveness(file: UploadFile = File(...)):
+async def detect_liveness(
+    file: UploadFile = File(...), session_id: Optional[str] = Form(None)
+):
     """
     Detect liveness indicators (blink, head turn, head up/down) from a frame.
     Returns JSON with liveness detection results.
@@ -336,8 +370,10 @@ async def detect_liveness(file: UploadFile = File(...)):
 
         # Extract x,y coordinates only for liveness checks
         landmark_xy = landmark_points[:, :2]
+        # Landmarks are normalized separately by width and height. Measure eye
+        # shape in pixels so the EAR does not change with landscape/portrait frames.
+        landmark_px = landmark_xy * np.array([w, h])
 
-        # Perform liveness checks with proper blink state tracking
         # Calculate Eye Aspect Ratio (EAR) for blink detection
         def eye_aspect_ratio(eye_points):
             A = np.linalg.norm(eye_points[1] - eye_points[5])
@@ -345,41 +381,41 @@ async def detect_liveness(file: UploadFile = File(...)):
             C = np.linalg.norm(eye_points[0] - eye_points[3])
             return (A + B) / (2.0 * C) if C > 0 else 1.0
 
-        left_eye = np.array([landmark_xy[i] for i in LEFT_EYE_IDX])
-        right_eye = np.array([landmark_xy[i] for i in RIGHT_EYE_IDX])
+        left_eye = np.array([landmark_px[i] for i in LEFT_EYE_IDX])
+        right_eye = np.array([landmark_px[i] for i in RIGHT_EYE_IDX])
         left_ear = eye_aspect_ratio(left_eye)
         right_ear = eye_aspect_ratio(right_eye)
         current_ear = (left_ear + right_ear) / 2.0
 
-        EAR_THRESHOLD = 0.24
-        current_ear_open = current_ear >= EAR_THRESHOLD
+        # Adapt to the user's own open-eye EAR so narrow or wide eyes both work.
+        blink_state = _get_blink_session(session_id)
+        baseline = blink_state["baseline"]
+        baseline = (
+            current_ear
+            if baseline is None
+            else max(current_ear, baseline * EAR_BASELINE_DECAY)
+        )
+        blink_state["baseline"] = baseline
+        closed_threshold = min(
+            EAR_CLOSED_THRESHOLD, baseline * EAR_RELATIVE_CLOSED_RATIO
+        )
+        current_ear_open = current_ear >= closed_threshold
 
-        # Track blink: transition from open → closed → open
+        # Track blink: transition from open -> closed -> open
         blink = False
-        if hasattr(liveness_detector, "prev_ear_open"):
-            # If eyes were open and now closed, mark that we detected a closure
-            if liveness_detector.prev_ear_open and not current_ear_open:
-                liveness_detector.blink_detected = True
-                print(
-                    f"[BLINK] Eyes closing detected: EAR {current_ear:.3f} < {EAR_THRESHOLD}"
-                )
-            # If eyes were closed and now open again, that completes the blink
-            elif (
-                not liveness_detector.prev_ear_open
-                and current_ear_open
-                and liveness_detector.blink_detected
-            ):
-                blink = True
-                liveness_detector.blink_detected = False
-                print(
-                    f"[BLINK] Blink completed! EAR {current_ear:.3f} >= {EAR_THRESHOLD}"
-                )
-            liveness_detector.prev_ear_open = current_ear_open
-        else:
-            liveness_detector.prev_ear_open = current_ear_open
+        if blink_state["prev_open"] and not current_ear_open:
+            blink_state["closed_seen"] = True
+        elif (
+            not blink_state["prev_open"]
+            and current_ear_open
+            and blink_state["closed_seen"]
+        ):
+            blink = True
+            blink_state["closed_seen"] = False
+        blink_state["prev_open"] = current_ear_open
 
         print(
-            f"[DEBUG] EAR: {current_ear:.3f}, Open: {current_ear_open}, Blink: {blink}, State: {liveness_detector.blink_detected if hasattr(liveness_detector, 'blink_detected') else 'N/A'}"
+            f"[DEBUG] EAR: {current_ear:.3f}, Threshold: {closed_threshold:.3f}, Open: {current_ear_open}, Blink: {blink}"
         )
 
         # Other liveness checks
