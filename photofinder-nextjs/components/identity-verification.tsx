@@ -21,6 +21,15 @@ interface LivenessDetectionResult {
   confidence: number;
 }
 
+// Liveness frames only need enough pixels for landmark detection. Smaller
+// uploads make the first "Face Detected" response arrive much sooner.
+const LIVENESS_FRAME_MAX_WIDTH = 480
+
+const createLivenessSessionId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+
 const challengeSteps = [
   { key: "blink", label: "Blink both eyes slowly", icon: Eye },
   { key: "turn_left", label: "Turn head slowly left", icon: ArrowLeft },
@@ -41,6 +50,8 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   // Refs for video processing
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const livenessCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const livenessSessionIdRef = useRef<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const frameTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -191,18 +202,17 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     if (isRunningRef.current) return
     isRunningRef.current = true
     const runId = ++livenessRunIdRef.current
+    livenessSessionIdRef.current = createLivenessSessionId()
 
     const processFrame = async () => {
+      let nextFrameDelayMs = 120
       if (runId !== livenessRunIdRef.current || !isRunningRef.current || !videoRef.current || !canvasRef.current) return
 
       const video = videoRef.current
-      const canvas = canvasRef.current
       if (
         video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
         video.videoWidth === 0 ||
-        video.videoHeight === 0 ||
-        canvas.width === 0 ||
-        canvas.height === 0
+        video.videoHeight === 0
       ) {
         if (runId === livenessRunIdRef.current && isRunningRef.current) {
           animationFrameRef.current = requestAnimationFrame(processFrame)
@@ -217,10 +227,22 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         return
       }
 
+      if (!livenessCanvasRef.current) {
+        livenessCanvasRef.current = document.createElement("canvas")
+      }
+      const canvas = livenessCanvasRef.current
+      const scale = Math.min(1, LIVENESS_FRAME_MAX_WIDTH / video.videoWidth)
+      const frameWidth = Math.round(video.videoWidth * scale)
+      const frameHeight = Math.round(video.videoHeight * scale)
+      if (canvas.width !== frameWidth || canvas.height !== frameHeight) {
+        canvas.width = frameWidth
+        canvas.height = frameHeight
+      }
+
       const ctx = canvas.getContext("2d")
       if (!ctx) return
 
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(video, 0, 0, frameWidth, frameHeight)
 
       try {
         frameInFlightRef.current = true
@@ -236,12 +258,17 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
         const formData = new FormData()
         formData.append("frame", blob, "frame.jpg")
+        if (livenessSessionIdRef.current) {
+          formData.append("session_id", livenessSessionIdRef.current)
+        }
 
         const controller = new AbortController()
         abortControllerRef.current = controller
 
+        const authToken = localStorage.getItem("auth_token")
         const response = await fetch("/api/student/liveness-detect", {
           method: "POST",
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
           body: formData,
           signal: controller.signal,
         })
@@ -249,6 +276,10 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         if (response.ok && isRunningRef.current) {
           const data = await response.json()
           setLivenessData(data)
+        } else if (response.status === 429) {
+          // Respect the limiter instead of hammering it; resume after the window.
+          const retryAfter = Number(response.headers.get("Retry-After")) || 1
+          nextFrameDelayMs = Math.min(retryAfter, 10) * 1000
         }
       } catch (err: any) {
         if (runId === livenessRunIdRef.current && err.name !== "AbortError") {
@@ -268,7 +299,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           if (runId === livenessRunIdRef.current && isRunningRef.current) {
             animationFrameRef.current = requestAnimationFrame(processFrame)
           }
-        }, 120)
+        }, nextFrameDelayMs)
       }
     }
 
