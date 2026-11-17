@@ -6,8 +6,8 @@ export async function GET() {
   try {
     const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
     
-    // We just need to hit the root or /health to trigger the Hugging Face Space to wake up
-    // We don't await the response, we just fire and forget (with a short timeout to prevent Vercel hanging)
+    // We just need to hit the root or /health to warm up the AI service
+    // We don't await the response, we just fire and forget (with a short timeout so the request never hangs)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
     

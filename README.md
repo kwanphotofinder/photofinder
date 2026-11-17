@@ -55,11 +55,11 @@ The repository is organized around two deployable applications:
 
 ### Infrastructure & Services
 
-- **Database:** PostgreSQL hosted on [Neon](https://neon.tech/)
+- **Database:** PostgreSQL on the university server (Kubernetes)
 - **ORM:** [Prisma](https://www.prisma.io/)
 - **Vector Search:** `pgvector` PostgreSQL extension (for storing and querying AI facial embeddings)
 - **Image Storage:** [Cloudinary](https://cloudinary.com/) (optimized storage and delivery)
-- **AI Microservice:** A separate Python/FastAPI service hosted on Hugging Face Spaces that processes images and returns 512-dimensional facial embeddings.
+- **AI Microservice:** A separate Python/FastAPI service running on the university server (Kubernetes) that processes images and returns 512-dimensional facial embeddings.
 
 ## Quick start
 
@@ -174,7 +174,7 @@ The current full-delete flow removes the reference face, saved-photo list, remov
 ## Documentation
 
 - [Product requirements](./PRD.md) - Product scope, roles, and user flows
-- [Deployment guide](./DEPLOYMENT.md) - Production deployment with Vercel, Neon, and Cloudinary
+- [Deployment guide](./deploy/README.md) - Production deployment through GitLab CI to the university server
 - [Server specification](./SERVER_SPECIFICATION.md) - Infrastructure and runtime requirements
 - [Infrastructure limits](./infrastructure-limits-and-usage.md) - Resource and usage considerations
 - [User guide](./USER_GUIDE.md) - End-user workflows

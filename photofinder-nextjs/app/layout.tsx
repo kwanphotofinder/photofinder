@@ -4,7 +4,6 @@ import "@fontsource/noto-sans-thai/400.css";
 import "@fontsource/noto-sans-thai/500.css";
 import "@fontsource/noto-sans-thai/600.css";
 import "@fontsource/noto-sans-thai/700.css";
-import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import { ChatWrapper } from "@/components/chat-wrapper";
 import "./globals.css";
@@ -52,7 +51,6 @@ export default function RootLayout({
           </VerificationGuard>
         </LanguageProvider>
         <ChatWrapper />
-        <Analytics />
       </body>
     </html>
   );
