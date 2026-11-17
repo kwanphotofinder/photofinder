@@ -3,10 +3,7 @@ function normalizeBaseUrl(raw: string): string {
 }
 
 export function getAppBaseUrl(requestUrl?: string): string {
-  const configuredBaseUrl =
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
+  const configuredBaseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '';
 
   if (configuredBaseUrl) {
     return normalizeBaseUrl(configuredBaseUrl);

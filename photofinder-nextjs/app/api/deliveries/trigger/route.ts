@@ -25,9 +25,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`Sending photos for Event ${eventId} to User ${userId}...`);
 
-    // In a serverless environment like Vercel, you cannot use setTimeout()
-    // inside an API route to run a background task. 
-    // Thus, we simulate the delivery by updating it immediately.
+    // Delivery is simulated: it is marked as sent immediately.
     await prisma.delivery.update({
       where: { id: delivery.id },
       data: { status: 'SENT', sentAt: new Date() },

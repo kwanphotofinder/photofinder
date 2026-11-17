@@ -8,7 +8,7 @@ import { aiQueue } from "@/lib/ai-queue"
 // POST /api/events/:id/upload - Upload multiple photos to an event
 // This mirrors the photographer upload flow which sends files per event
 
-// Allow Vercel Hobby tier to wait up to 60 seconds for Hugging Face AI to wake up
+// Allow up to 60 seconds for the AI service to wake up
 export const maxDuration = 60;
 
 export async function POST(
