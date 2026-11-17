@@ -1,205 +1,137 @@
 # PhotoFinder — Infrastructure & Server Specification
 
-This document defines the complete infrastructure, hardware, network, and operational requirements for deploying and self-hosting the **PhotoFinder** application on an organization or institutional server.
+This document describes how **PhotoFinder** runs in production on the MFU university Kubernetes cluster: its components, resources, network, configuration, and day-to-day operations. For the release pipeline itself, see [`deploy/README.md`](./deploy/README.md). For capacity estimates, see [`infrastructure-limits-and-usage.md`](./infrastructure-limits-and-usage.md).
 
 ---
 
 ## 1. Executive Summary
 
 * **Application Name:** PhotoFinder (AI-Powered Event Photo Retrieval Platform)
-* **Architecture:** 3-tier containerized stack (Next.js Full-Stack App + Python AI Face Recognition Engine + PostgreSQL with `pgvector`)
-* **Deployment Model:** Docker Compose on Linux Host
-* **GPU Requirement:** **None (0 GPU required)** — All facial detection, embedding extraction, and cosine similarity searches are CPU-optimized.
+* **Architecture:** Next.js full-stack app + Python AI face recognition service + PostgreSQL with `pgvector`; photos stored on Cloudinary
+* **Deployment Model:** Kubernetes (Helm chart `deploy/helm/photofinder`), released by GitLab CI from the `production` branch
+* **Public URL:** `photofinder.mfu.ac.th`
+* **Namespace:** `mfu-apps-prod`
+* **GPU Requirement:** **None** — face detection, embedding extraction, and vector search all run on CPU (`onnxruntime` `CPUExecutionProvider`).
 
 ---
 
-## 2. Server Hardware Specifications
+## 2. Workloads & Resources
 
-| Resource | Minimum Requirement | Recommended Specification | Notes |
-| :--- | :--- | :--- | :--- |
-| **Architecture** | x86_64 or ARM64 | x86_64 (Intel Xeon / AMD EPYC) or ARM64 (Apple Silicon / AWS Graviton) | Modern 64-bit multi-core CPU. |
-| **CPU / vCPU** | **4 vCPUs** | **8 vCPUs** | Multi-threaded CPU for concurrent face vector calculations. |
-| **GPU** | **None (0)** | **None (0)** | InsightFace & MediaPipe use CPU ONNX Runtime with `CPUExecutionProvider`. |
-| **System Memory (RAM)** | **8 GB** | **16 GB** | AI microservice uses ~500 MB; PostgreSQL & Next.js consume ~1–2 GB. |
-| **Disk Storage** | **50 GB SSD** | **100 GB – 200 GB SSD/NVMe** | Container images take ~3 GB; remainder stores PostgreSQL vectors and cached assets. |
-| **Operating System** | Linux 64-bit | **Ubuntu 22.04 LTS / 24.04 LTS** or **Debian 12** | Standard enterprise Linux server. |
+| Workload | Kind | Replicas | Image | Port | CPU request / limit | Memory request / limit |
+| :--- | :--- | :---: | :--- | :---: | :--- | :--- |
+| **`photofinder-web`** | Deployment (Helm) | 2 | `hub-registry.mfu.ac.th/photofinder/web` (Node.js 22) | `3000` | 250m / 2 | 512Mi / 2Gi |
+| **`photofinder-ai`** | Deployment (Helm) | 1 | `hub-registry.mfu.ac.th/photofinder/ai-service` (Python 3.11, FastAPI, InsightFace) | `7860` | 500m / 2 | 1Gi / 4Gi |
+| **`photofinder-postgres`** | StatefulSet (**not** managed by Helm) | 1 | PostgreSQL + `pgvector` | `5432` | — | — |
 
-### Current CPU Allocation Breakdown by Component
-
-| Service / Container | Role | Current CPU Allocation | Usage Behavior |
-| :--- | :--- | :---: | :--- |
-| **`photofinder_ai`** | Face Detection & Vector Extraction | **2.0 vCPUs** | Active during photo uploads & selfie verification (0.5s–1.5s per image). |
-| **`photofinder_postgres`** | Database & Vector Cosine Matching | **0.25 – 2.0 vCPUs** | Scales to 0.25 vCPU when idle; scales up to 2.0 vCPUs during burst vector queries. |
-| **`photofinder_web`** | Next.js UI & Backend APIs | **1.0 – 2.0 vCPUs** | Serves web traffic and API routes on demand. |
-| **Total System Capacity** | — | **~4.25 – 6.0 vCPUs** | Total maximum capacity across all services. |
+* **Totals requested by the Helm chart:** 1.0 vCPU / 2 GiB; **limits:** 6 vCPU / 8 GiB (excluding PostgreSQL).
+* **Database storage:** PVC `pgdata-photofinder-postgres-0`. The Service, StatefulSet, and PVC must stay in `mfu-apps-prod`; Helm never deletes or recreates them, and the deploy preflight fails if any is missing or the database pod is not Ready.
+* **Images** are pulled from Harbor (`hub-registry.mfu.ac.th`) with the `harbor-registry` pull secret and deployed by digest.
+* **Availability:** web rolls out with `maxUnavailable: 0` and `maxSurge: 1`; a PodDisruptionBudget keeps at least 1 web pod available.
+* **Health checks:** both web and AI expose readiness and liveness probes on `GET /`.
 
 ---
 
-## 3. Network & Firewall Configuration
+## 3. Network
 
-### Inbound Firewall Rules
+### Ingress
+| Setting | Value |
+| :--- | :--- |
+| Host | `photofinder.mfu.ac.th` |
+| Ingress class | `nginx` |
+| Backend | `photofinder-web:3000` (the only public entry point) |
+| Max request body | `100m` |
+| Proxy read / send timeout | `300` seconds |
+| TLS | Disabled in the chart; HTTPS is terminated in front of the cluster |
 
-| Port | Protocol | Scope | Purpose |
-| :--- | :--- | :--- | :--- |
-| **443** | TCP (HTTPS) | **Public / Campus Intranet** | Main application traffic (Students, Photographers, Admins). |
-| **80** | TCP (HTTP) | **Public / Campus Intranet** | Automatic HTTP-to-HTTPS redirect via Nginx reverse proxy. |
-| **22** | TCP (SSH) | **Restricted / Admin VPN** | Secure remote server management. |
-| **3000, 7860, 5432** | TCP | **Internal Only (Block from Internet)** | Private container-to-container communication on Docker network. |
+### Internal Traffic
+* `photofinder-ai` and `photofinder-postgres` are reachable only inside the cluster.
+* The web pods reach the AI service at `http://photofinder-ai:7860` (set by Helm).
 
-### Domain & DNS
-* **Subdomain Requirement:** A standard DNS `A Record` pointing your domain (e.g., `photofinder.your-org.ac.th`) to the server's public IP.
-* **SSL/TLS Certificate:** Automated via Let's Encrypt / Certbot or an institutional wildcard certificate.
-
----
-
-## 4. Software Prerequisites on Host Server
-
-The host machine only requires standard container runtime software:
-
-1. **Docker Engine:** Version `24.0+`
-2. **Docker Compose:** Version `2.20+` (Compose V2)
-3. **Nginx:** For reverse proxying, SSL termination, and static asset caching
-4. **Certbot:** For automated SSL certificate renewal
+### Outbound Traffic Required
+| Destination | Purpose | Required? |
+| :--- | :--- | :--- |
+| Cloudinary API & CDN | Photo storage and delivery | Yes |
+| Google OAuth (`accounts.google.com`, `oauth2.googleapis.com`) | Sign-in | Yes |
+| Groq API (`api.groq.com`) | AI chatbot | Optional |
+| Gmail SMTP / LINE API | Notifications | Optional |
 
 ---
 
-## 5. Container Services & Data Flow
+## 4. Request Flow
 
-### The 3 Docker Containers
-
-| Container Name | Role | Technology | Internal Port |
-| :--- | :--- | :--- | :---: |
-| **`photofinder_web`** | **Frontend UI & Backend API:** Serves student gallery, handles Google login, photographer uploads, and API routing. | Next.js 16 / Node.js 20 | `3000` |
-| **`photofinder_ai`** | **Face Recognition Engine:** Detects faces, generates 512-d vector embeddings, checks live selfies, and blurs faces. | Python 3.10 / FastAPI / InsightFace | `7860` |
-| **`photofinder_postgres`** | **Vector Database:** Stores user accounts, events, and 512-d face vectors with HNSW indexing for <10ms searches. | PostgreSQL 16 + `pgvector` | `5432` |
+1. **User request:** users open `https://photofinder.mfu.ac.th`; the nginx ingress forwards traffic to a `photofinder-web` pod.
+2. **AI face extraction:** for uploads and selfies, the web pod sends the image to `photofinder-ai`, which detects faces and returns 512-dimensional embeddings. Photo uploads go through an in-memory queue in each web pod (up to 2 photos at a time per pod).
+3. **Storage:** the optimized image (max 2048px, WebP) is stored on Cloudinary; photo metadata and face embeddings are stored in PostgreSQL.
+4. **Vector matching:** face searches run in PostgreSQL using the HNSW index `faces_embedding_idx` (cosine distance).
+5. **Results:** matching photos are returned and shown in the user's private gallery, served directly from Cloudinary's CDN.
 
 ---
 
-### How Requests Flow (4-Step Pipeline)
+## 5. Runtime Configuration
 
-1. **User Request:** Users access the platform securely via HTTPS (`:443`). Nginx on the host terminates SSL and forwards requests internally to `photofinder_web` (`:3000`).
-2. **AI Face Extraction:** When a photo or selfie is uploaded, `photofinder_web` sends the image to `photofinder_ai` (`:7860`) to detect faces and extract 512-dimensional vector fingerprints.
-3. **Vector Similarity Matching:** `photofinder_web` queries `photofinder_postgres` (`:5432`) to find matching student face vectors using the HNSW index.
-4. **Display Results:** The matching photos are instantly returned and displayed in the user's private gallery.
-
----
-
-## 6. Environment Configuration Reference (`.env`)
+Production configuration lives in the Kubernetes secret **`photofinder-runtime`**, created or updated by the pipeline from the protected GitLab variable `RUNTIME_ENV_FILE_PROD` (or `RUNTIME_ENV_BASE64_PROD`). Values are never logged. See `deploy/README.md` for the full list of CI variables.
 
 ```env
-# --- 1. Database Configuration ---
-DATABASE_URL="postgresql://photofinder:your_strong_password@postgres:5432/photofinder_db"
-DIRECT_URL="postgresql://photofinder:your_strong_password@postgres:5432/photofinder_db"
+# --- Required ---
+DATABASE_URL="postgresql://<user>:<password>@photofinder-postgres:5432/<database>"
+DIRECT_URL="postgresql://<user>:<password>@photofinder-postgres:5432/<database>"
+JWT_SECRET="<long random secret>"
+SUPER_ADMIN_EMAIL="<super admin email>"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="<id>.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID="<id>.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="<secret>"
+CLOUDINARY_URL="cloudinary://<api_key>:<api_secret>@<cloud_name>"
 
-# --- 2. Security & Authentication ---
-JWT_SECRET="generate_a_long_random_64_char_secret_string"
-SUPER_ADMIN_EMAIL="admin.lead@your-org.ac.th"
-CRON_SECRET="generate_a_secure_cron_token"
-
-# --- 3. Google OAuth Credentials ---
-NEXT_PUBLIC_GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
-GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="your_google_client_secret"
-
-# --- 4. Cloud Image Storage ---
-CLOUDINARY_URL="cloudinary://api_key:api_secret@cloud_name"
-
-# --- 5. AI Face Microservice URL ---
-AI_SERVICE_URL="http://ai-service:7860"
-
-# --- 6. Application URLs ---
-NEXT_PUBLIC_API_URL="/api"
-APP_URL="https://photofinder.your-org.ac.th"
-NEXT_PUBLIC_APP_URL="https://photofinder.your-org.ac.th"
-
-# --- 7. AI Chatbot (Optional) ---
-GROQ_API_KEY="gsk_your_groq_api_key"
-
-# --- 8. Notifications (Optional) ---
-GMAIL_USER="notifications@your-org.ac.th"
-GMAIL_APP_PASSWORD="your_google_app_password"
-LINE_CHANNEL_ID="your_line_channel_id"
-LINE_CHANNEL_SECRET="your_line_channel_secret"
-LINE_CHANNEL_ACCESS_TOKEN="your_line_token"
-LINE_REDIRECT_URI="https://photofinder.your-org.ac.th/api/auth/line/callback"
+# --- Optional ---
+GROQ_API_KEY="gsk_..."                 # AI chatbot (disabled if empty)
+GROQ_MODEL=""                          # chatbot model override
+GMAIL_USER=""
+GMAIL_APP_PASSWORD=""                  # email notifications
+LINE_CHANNEL_ID=""
+LINE_CHANNEL_SECRET=""
+LINE_CHANNEL_ACCESS_TOKEN=""
+LINE_REDIRECT_URI="https://photofinder.mfu.ac.th/api/auth/line/callback"
+CRON_SECRET=""                         # only for running /api/cron/cleanup by hand
+CLEANUP_SCHEDULER_ENABLED=""           # set "false" to disable the in-app daily cleanup
 ```
+
+Set by Helm, **not** in the runtime file: `NODE_ENV=production`, `AI_SERVICE_URL`, `NEXT_PUBLIC_API_URL=/api`, `APP_URL`, `NEXT_PUBLIC_APP_URL`.
 
 ---
 
-## 7. Command Reference & Operational Procedures
+## 6. Operations
 
-### 📋 Quick Command Cheat Sheet
+### Releases
+1. Merge a feature branch into `develop` → the pipeline tests, builds both images once, and publishes a release manifest.
+2. Merge `develop` into `production` → the pipeline deploys those exact images with Helm (atomic) and verifies the rollout at `photofinder.mfu.ac.th`.
+3. **Database migrations** run automatically: an init container runs `prisma migrate deploy` before each web pod starts.
+4. **Rollback** is a manual job in the GitLab pipeline (`helm rollback`).
 
-| Task / Scenario | Command | Purpose / Description |
-| :--- | :--- | :--- |
-| **First-Time Setup** | `docker compose up --build -d` | Compiles images and starts all 3 containers in background. |
-| **First-Time DB Init** | `docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy` | Creates PostgreSQL tables & `pgvector` indexes. |
-| **Daily Start** | `docker compose up -d` | Instantly starts running containers without recompiling (~1s). |
-| **Daily Stop** | `docker compose down` | Safely stops containers. *(Database data is preserved).* |
-| **Check Health/Status**| `docker compose ps` | Displays container names, uptime, and exposed ports. |
-| **View Live Logs** | `docker compose logs -f` | Streams real-time logs across Next.js, AI, and Postgres. |
-| **View Service Logs** | `docker compose logs -f web` | Streams logs for Next.js web application specifically. |
-| **View AI Logs** | `docker compose logs -f ai-service` | Streams logs for Python Face AI engine specifically. |
-| **Code Update Only** | `git pull origin main && docker compose up --build -d` | Pulls latest code and recompiles changed containers. |
-| **Code + DB Update** | `git pull origin main && docker compose up --build -d && docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy` | Pulls code, rebuilds app, and applies new schema migrations. |
-| **Inspect DB & pgvector**| `docker compose exec postgres psql -U postgres -d facesearch -c "\dx"` | Connects to Postgres and verifies vector extension status. |
+Do not deploy by hand with `docker compose` or `kubectl apply` — production changes go through the pipeline.
+
+### Useful Read-Only Commands
+| Task | Command |
+| :--- | :--- |
+| Pod status | `kubectl -n mfu-apps-prod get pods` |
+| Web logs | `kubectl -n mfu-apps-prod logs deploy/photofinder-web -f` |
+| AI logs | `kubectl -n mfu-apps-prod logs deploy/photofinder-ai -f` |
+| Release history | `helm -n mfu-apps-prod history photofinder` |
+| Database volume | `kubectl -n mfu-apps-prod get pvc pgdata-photofinder-postgres-0` |
+| Check `pgvector` | `kubectl -n mfu-apps-prod exec -it photofinder-postgres-0 -- psql -U <user> -d <database> -c "\dx"` |
+
+### Automated Background Tasks
+**Daily maintenance needs no server setup.** The web app runs it itself (`lib/cleanup-scheduler.ts`, started from `instrumentation.ts`): expired event cleanup plus the 90-day PDPA audit log purge. It runs daily at 00:00 Asia/Bangkok by default, and the Super Admin can change the time in the admin dashboard. Only one web pod runs each day's cleanup, and a run missed during downtime is caught up when the app starts. `/api/cron/cleanup` (with `CRON_SECRET`) remains available for manual runs.
+
+### Backups
+Database backups are **not** part of the Helm chart or the pipeline. Confirm with the cluster administrator how the `pgdata-photofinder-postgres-0` volume is backed up.
+
+> ⚠️ **Data Safety Warning:** Never delete the `photofinder-postgres` StatefulSet or the `pgdata-photofinder-postgres-0` PVC. Deleting the PVC permanently erases all users, events, and face data.
 
 ---
 
-### Step-by-Step Scenario Guides
+## 7. Local Development
 
-#### Scenario A: First-Time Deployment on a Fresh Server
-```bash
-# 1. Clone repository
-git clone https://github.com/kwanphotofinder/photofinder.git
-cd photofinder
-
-# 2. Configure environment file
-cp .env.example .env
-# (Edit .env with production server domain, passwords, and Cloudinary keys)
-
-# 3. Build & start containers
-docker compose up --build -d
-
-# 4. Initialize database schema & pgvector index
-docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy
-```
-
-#### Scenario B: Regular Code Updates (UI, Bug Fixes, Features)
-```bash
-# 1. Fetch latest changes from Git
-git pull origin main
-
-# 2. Recompile and restart web & AI containers
-docker compose up --build -d
-```
-> **Data Safety Note:** Rebuilding containers **does NOT** erase database records or photos. All data is persisted in the `postgres_data` Docker volume.
-
-#### Scenario C: Database Schema Updates (New Tables or Fields)
-```bash
-# 1. Fetch latest changes
-git pull origin main
-
-# 2. Rebuild container
-docker compose up --build -d
-
-# 3. Apply the new Prisma migration
-docker compose exec web node ./node_modules/prisma/build/index.js migrate deploy
-```
-
-#### Scenario D: Automated Background Tasks (Crontab)
-Add these entries to the server's root crontab (`crontab -e`):
-
-```bash
-# 1. Automated Daily Maintenance (Expired Event Cleanup + 90-Day PDPA Audit Log Purge, runs daily at 17:15 UTC / 00:15 BKK):
-15 17 * * * curl -s http://localhost:3000/api/cron/cleanup -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
-
-# 2. Automated Daily Database Backup (Optional — Recommended for Production / University Server only):
-# Automatically creates a compressed safety snapshot nightly at 02:00 AM and retains only the last 7 days:
-0 2 * * * mkdir -p /backup && docker exec photofinder_postgres pg_dump -U postgres facesearch | gzip > /backup/photofinder_$(date +\%F).sql.gz && find /backup -type f -name "photofinder_*.sql.gz" -mtime +7 -delete
-```
-
-> ⚠️ **Data Safety Warning:** Never run `docker compose down -v` in production. The `-v` flag deletes named storage volumes (`postgres_data`). Always use standard `docker compose down`.
+`docker-compose.yml` runs the same three components on a developer machine (`photofinder_postgres`, `photofinder_ai`, `photofinder_web`). It is for local development only, not for production. See [`README.md`](./README.md) for local setup.
 
 ---
 
@@ -209,4 +141,4 @@ Add these entries to the server's root crontab (`crontab -e`):
 2. **Right to Erasure:** Students have self-service tools to immediately delete their reference selfie and all associated vector embeddings from the database.
 3. **Face Blurring:** Integrated OpenCV blurring allows event attendees to obscure their faces in public event albums without removing the entire photograph.
 4. **Event Data Retention Policy:** Events automatically expire after their `expiresAt` date, initiating a cascading wipe of all associated photos, faces, and vectors from Cloudinary and PostgreSQL.
-5. **Audit Log Retention Policy:** Administrative and biometric activity logs are retained for **90 days** in compliance with PDPA accountability principles and are automatically purged nightly by the daily maintenance cron job.
+5. **Audit Log Retention Policy:** Administrative and biometric activity logs are retained for **90 days** in compliance with PDPA accountability principles and are automatically purged by the daily cleanup.
