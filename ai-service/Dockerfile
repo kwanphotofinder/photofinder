@@ -1,17 +1,12 @@
-FROM python:3.10-slim
+FROM python:3.11-slim-bookworm
 
-# Install system dependencies for OpenCV, InsightFace, MediaPipe, and wget
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install only runtime libraries; Python wheels no longer require a compiler.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libgles2 \
     libegl1 \
     libdbus-1-3 \
-    build-essential \
-    python3-dev \
-    gcc \
-    g++ \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
@@ -25,7 +20,11 @@ WORKDIR $HOME/app
 
 # Install python dependencies system-wide for reliability
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade \
+        "wheel>=0.46.2" \
+        "jaraco.context>=6.1.0" \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip setuptools wheel jaraco.context
 
 # Copy application code
 COPY --chown=user:user . .
@@ -37,11 +36,12 @@ USER user
 
 # Ensure face_landmarker.task exists (fallback download only if missing from git)
 RUN if [ ! -s face_landmarker.task ]; then \
-        wget -q -O face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task || true; \
+        python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', 'face_landmarker.task')"; \
     fi
 
-# Attempt to pre-cache InsightFace model during build (CPU mode), but allow fallback to runtime if network is restricted
-RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']).prepare(ctx_id=-1)" || true
+# Pre-cache the InsightFace model so production startup does not depend on the
+# public model host.
+RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']).prepare(ctx_id=-1)"
 
 EXPOSE 7860
 

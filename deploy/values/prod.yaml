@@ -5,14 +5,16 @@ web:
   replicas: 2
   image:
     repository: hub-registry.mfu.ac.th/photofinder/web
-    tag: production-latest
+    tag: replace-with-full-develop-sha
+    digest: ""
     pullPolicy: IfNotPresent
 
 ai:
   replicas: 1
   image:
     repository: hub-registry.mfu.ac.th/photofinder/ai-service
-    tag: production-latest
+    tag: replace-with-full-develop-sha
+    digest: ""
     pullPolicy: IfNotPresent
 
 ingress:

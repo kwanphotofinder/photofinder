@@ -12,6 +12,14 @@ COPY prisma ./prisma/
 COPY prisma.config.ts ./
 RUN npm ci
 
+# Install the complete, locked Prisma CLI runtime separately. Next.js
+# standalone output intentionally contains only dependencies traced by the web
+# server and is not sufficient for the migration initContainer.
+FROM base AS prisma-runtime
+WORKDIR /runtime
+COPY prisma-runtime/package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
 # Stage 2: Build the Next.js standalone application
 FROM base AS builder
 WORKDIR /app
@@ -28,7 +36,9 @@ ENV DIRECT_URL="postgresql://postgres:postgres@localhost:5432/facesearch"
 ENV JWT_SECRET="build-placeholder-jwt-secret-not-for-production"
 
 RUN npx prisma generate
-RUN npx next build
+# Next 16 defaults to Turbopack, whose font import mapper currently fails on
+# this app's multi-weight Google fonts. Use the stable production Webpack path.
+RUN npx next build --webpack
 
 # Stage 3: Production runner
 FROM base AS runner
@@ -52,10 +62,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
-# Copy Prisma CLI and schema engine for Kubernetes migration initContainer
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+# Copy the complete Prisma CLI dependency closure for the Kubernetes migration
+# initContainer. Overlaying it on the standalone dependencies also preserves
+# the web server's traced runtime packages.
+COPY --from=prisma-runtime --chown=nextjs:nodejs /runtime/node_modules ./node_modules
+
+# The migration initContainer invokes the Prisma binary directly. npm/npx are
+# not needed at runtime, so omit their bundled dependency tree from the image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 USER nextjs
 EXPOSE 3000

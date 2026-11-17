@@ -5,7 +5,8 @@ web:
   replicas: 2
   image:
     repository: hub-registry.mfu.ac.th/photofinder/web
-    tag: production-latest
+    tag: replace-with-full-develop-sha
+    digest: ""
     pullPolicy: IfNotPresent
   port: 3000
   resources:
@@ -20,7 +21,8 @@ ai:
   replicas: 1
   image:
     repository: hub-registry.mfu.ac.th/photofinder/ai-service
-    tag: production-latest
+    tag: replace-with-full-develop-sha
+    digest: ""
     pullPolicy: IfNotPresent
   port: 7860
   resources:

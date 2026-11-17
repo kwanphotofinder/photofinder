@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const frameFile = formData.get('frame') as Blob;
 
@@ -21,6 +27,12 @@ export async function POST(req: NextRequest) {
     // Create form data for AI service
     const aiFormData = new FormData();
     aiFormData.append('file', frameFile, 'frame.jpg');
+
+    // Lets the AI service keep blink state per verification attempt.
+    const sessionId = formData.get('session_id');
+    if (typeof sessionId === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(sessionId)) {
+      aiFormData.append('session_id', sessionId);
+    }
 
     try {
       const aiResponse = await fetch(detectUrl, {
