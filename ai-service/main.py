@@ -7,6 +7,7 @@ import io
 from PIL import Image
 import os
 import time
+import json
 from typing import Dict, Optional
 from services.face_blur import blur_faces
 from services.liveness import FaceMeshLiveness
@@ -45,36 +46,34 @@ except Exception as e:
 
 
 # Blink tracking is temporal (open -> closed -> open), so it needs state between
-# frames. Keep it per verification session so concurrent users, or a previous
-# attempt, cannot leave stale "eyes closed" state behind for the next one.
+# frames. To stay correct when the AI service runs with multiple workers (where
+# consecutive frames of one attempt may land on different worker processes), the
+# state is NOT kept in server memory. Instead the client round-trips it: each
+# /liveness/detect response returns the updated blink_state, and the browser sends
+# it back with the next frame. The server still computes eyes-open from the real
+# image every frame, so the sequence decision cannot be faked by the client.
 EAR_CLOSED_THRESHOLD = 0.21  # Eye aspect ratio measured in pixel space
 EAR_RELATIVE_CLOSED_RATIO = 0.7  # Closed when EAR drops 30% below the user's open-eye baseline
 EAR_BASELINE_DECAY = 0.97
-BLINK_SESSION_TTL_SECONDS = 120
-MAX_BLINK_SESSIONS = 1000
-_blink_sessions: Dict[str, dict] = {}
 
 
-def _get_blink_session(session_id: Optional[str]) -> dict:
-    now = time.monotonic()
-    expired = [
-        key
-        for key, state in _blink_sessions.items()
-        if now - state["updated_at"] > BLINK_SESSION_TTL_SECONDS
-    ]
-    for key in expired:
-        del _blink_sessions[key]
-
-    key = (session_id or "default")[:64]
-    state = _blink_sessions.get(key)
-    if state is None:
-        if len(_blink_sessions) >= MAX_BLINK_SESSIONS:
-            oldest = min(_blink_sessions, key=lambda k: _blink_sessions[k]["updated_at"])
-            del _blink_sessions[oldest]
-        state = {"prev_open": True, "closed_seen": False, "baseline": None}
-        _blink_sessions[key] = state
-    state["updated_at"] = now
-    return state
+def _parse_blink_state(blink_state_json: Optional[str]) -> dict:
+    """Return the client-provided blink state, or a fresh default."""
+    default = {"prev_open": True, "closed_seen": False, "baseline": None}
+    if not blink_state_json:
+        return default
+    try:
+        parsed = json.loads(blink_state_json)
+        if not isinstance(parsed, dict):
+            return default
+        baseline = parsed.get("baseline")
+        return {
+            "prev_open": bool(parsed.get("prev_open", True)),
+            "closed_seen": bool(parsed.get("closed_seen", False)),
+            "baseline": float(baseline) if isinstance(baseline, (int, float)) else None,
+        }
+    except (ValueError, TypeError):
+        return default
 
 
 class FaceEmbedding(BaseModel):
@@ -288,7 +287,9 @@ async def test_face_landmarks(file: UploadFile = File(...)):
 
 @app.post("/liveness/detect")
 async def detect_liveness(
-    file: UploadFile = File(...), session_id: Optional[str] = Form(None)
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    blink_state: Optional[str] = Form(None),
 ):
     """
     Detect liveness indicators (blink, head turn, head up/down) from a frame.
@@ -388,7 +389,9 @@ async def detect_liveness(
         current_ear = (left_ear + right_ear) / 2.0
 
         # Adapt to the user's own open-eye EAR so narrow or wide eyes both work.
-        blink_state = _get_blink_session(session_id)
+        # State is round-tripped via the client (see _parse_blink_state) so this works
+        # correctly across multiple worker processes.
+        blink_state = _parse_blink_state(blink_state)
         baseline = blink_state["baseline"]
         baseline = (
             current_ear
@@ -433,6 +436,8 @@ async def detect_liveness(
             "head_turn": bool(head_turn),
             "head_turn_direction": head_turn_direction,
             "confidence": float(confidence),
+            # Updated temporal state for the client to send back with the next frame.
+            "blink_state": json.dumps(blink_state),
         }
 
         print(f"[LIVENESS] Response: {response}")
@@ -459,4 +464,9 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Multiple workers let interactive calls (selfie /extract, liveness) run in parallel
+    # with batch photo processing. Liveness is multi-worker-safe (state round-trips via
+    # the client). Override with AI_WORKERS; set to 1 to revert. Uses the "main:app"
+    # import string, required for multi-worker mode.
+    workers = int(os.getenv("AI_WORKERS", "2"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, workers=workers)
