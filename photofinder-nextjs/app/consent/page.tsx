@@ -7,11 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AlertCircle, Shield, Lock } from "lucide-react"
 import { PrivacyConsentForm, type ConsentData } from "@/components/privacy-consent-form"
 import { apiClient } from "@/lib/api-client"
+import { useLanguage } from "@/lib/language-context"
 
 export default function ConsentPage() {
   const router = useRouter()
+  const { lang, setLang, t } = useLanguage()
   
   useEffect(() => {
+    const isPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "true"
+    if (isPreview) return
+
     const authToken = localStorage.getItem("auth_token")
     const userRole = localStorage.getItem("user_role")
 
@@ -40,6 +45,19 @@ export default function ConsentPage() {
     setIsLoading(true)
     setError(null)
 
+    const isPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "true"
+    if (isPreview) {
+      setTimeout(() => {
+        setIsLoading(false)
+        if (accepted) {
+          router.push("/dashboard")
+        } else {
+          router.push("/consent/minimal")
+        }
+      }, 500)
+      return
+    }
+
     try {
       const consentRes = await apiClient.updateMyConsent(accepted)
       if (consentRes.error) {
@@ -61,7 +79,7 @@ export default function ConsentPage() {
         router.push("/consent/minimal")
       }
     } catch (err) {
-      setError("Failed to save consent preferences. Please try again.")
+      setError(t("consent.save_error"))
     } finally {
       setIsLoading(false)
     }
@@ -86,17 +104,49 @@ export default function ConsentPage() {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div className="w-full max-w-2xl relative z-10">
-        <Card className="border border-border/50 shadow-2xl bg-card/80 backdrop-blur-xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-500">
+        <Card className="border border-border/50 shadow-2xl bg-card/80 backdrop-blur-xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-500 relative">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
           
+          {/* Language Switcher */}
+          <div className="absolute top-4 right-4 z-20">
+            <div className="flex items-center overflow-hidden rounded-md border border-border/60 bg-background/80 shadow-xs backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => setLang("th")}
+                className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                  lang === "th"
+                    ? "bg-primary text-white shadow-inner"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                title="ภาษาไทย"
+              >
+                TH
+              </button>
+              <button
+                type="button"
+                onClick={() => setLang("en")}
+                className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                  lang === "en"
+                    ? "bg-primary text-white shadow-inner"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                title="English"
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
           <CardHeader className="space-y-4 pb-6 pt-10 text-center">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rounded-2xl rotate-3 shadow-sm border border-primary/20">
-              <Shield className="w-8 h-8 text-primary -rotate-3" />
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rounded-2xl shadow-sm border border-primary/20">
+              <Shield className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <CardTitle className="text-3xl font-bold tracking-tight">Your Privacy First</CardTitle>
-              <CardDescription className="text-base max-w-md mx-auto">
-                You are in control. Choose how your data is used for AI-powered photo discovery.
+              <CardTitle className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {t("consent.title")}
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base max-w-md mx-auto">
+                {t("consent.desc")}
               </CardDescription>
             </div>
           </CardHeader>
@@ -124,11 +174,13 @@ export default function ConsentPage() {
                   <Lock className="w-4 h-4 text-primary" />
                 </div>
                 <div className="text-sm space-y-2 text-muted-foreground">
-                  <p className="font-semibold text-foreground">Your Privacy Rights Guarantee</p>
+                  <p className="font-semibold text-foreground">
+                    {t("consent.guarantee_title")}
+                  </p>
                   <ul className="space-y-1.5 list-disc list-inside">
-                    <li>You can opt-out of face search at any time</li>
-                    <li>Request removal or blur of photos featuring you</li>
-                    <li>Download or delete your personal data instantly</li>
+                    <li>{t("consent.guarantee_item1")}</li>
+                    <li>{t("consent.guarantee_item2")}</li>
+                    <li>{t("consent.guarantee_item3")}</li>
                   </ul>
                 </div>
               </div>
@@ -139,22 +191,25 @@ export default function ConsentPage() {
               <Button
                 onClick={() => handleConsent(true)}
                 disabled={isLoading || !consent.globalFaceSearch || !consent.dataProcessing}
-                className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 py-6 text-lg font-semibold hover:scale-[1.01]"
+                className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 py-6 text-base sm:text-lg font-semibold hover:scale-[1.01]"
                 size="lg"
               >
-                {isLoading ? "Processing..." : "Accept & Continue"}
+                {isLoading ? t("consent.processing") : t("consent.accept_btn")}
               </Button>
               <Button
                 onClick={() => handleConsent(false)}
                 disabled={isLoading}
                 variant="outline"
-                className="w-full py-6 text-lg font-semibold border-2"
+                className="w-full py-6 text-base sm:text-lg font-semibold border-2"
                 size="lg"
               >
-                Decline & Browse Manually
+                {t("consent.decline_btn")}
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                By continuing, you agree to our Terms of Service and <a href="/privacy" className="text-primary hover:underline font-medium">Privacy Policy</a>
+                {t("consent.terms_prefix")}{" "}
+                <a href="/privacy" className="text-primary hover:underline font-medium">
+                  {t("consent.privacy_policy_link")}
+                </a>
               </p>
             </div>
           </CardContent>
