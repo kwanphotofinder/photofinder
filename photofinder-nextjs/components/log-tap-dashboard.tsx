@@ -230,15 +230,15 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
   }
 
   const handlePruneLogs = async () => {
-    if (!confirm("Are you sure you want to prune logs older than 14 days?")) return
+    if (!confirm(t("log_tap.prune_confirm"))) return
     try {
       const res = await apiClient.pruneLogTap(14)
-      alert(`Pruned ${res.data?.deletedCount ?? 0} old log entries.`)
+      alert(`${t("log_tap.prune_success")} (${res.data?.deletedCount ?? 0})`)
       fetchTapLogs()
       fetchStats()
     } catch (err) {
       console.error("Failed to prune logs:", err)
-      alert("Failed to prune logs")
+      alert(t("log_tap.prune_error"))
     }
   }
 
@@ -321,12 +321,12 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
           <CardContent className="p-3.5 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Traffic TAP (24h)
+                {t("log_tap.traffic_title")}
               </p>
               <h3 className="text-xl font-bold text-slate-800 mt-0.5">
                 {stats?.totalTaps24h?.toLocaleString() ?? 0}
               </h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Live request calls</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t("log_tap.traffic_desc")}</p>
             </div>
             <div className="h-9 w-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
               <Activity className="h-5 w-5" />
@@ -338,13 +338,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
           <CardContent className="p-3.5 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Error Rate (24h)
+                {t("log_tap.error_rate_title")}
               </p>
               <h3 className={`text-xl font-bold mt-0.5 ${(stats?.errorRatePercent ?? 0) > 3 ? "text-rose-600" : "text-slate-800"}`}>
                 {stats?.errorRatePercent ?? 0}%
               </h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {(stats?.statusCodeBreakdown.clientError4xx ?? 0) + (stats?.statusCodeBreakdown.serverError5xx ?? 0)} failed
+                {(stats?.statusCodeBreakdown.clientError4xx ?? 0) + (stats?.statusCodeBreakdown.serverError5xx ?? 0)} {t("log_tap.failed_count")}
               </p>
             </div>
             <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${(stats?.errorRatePercent ?? 0) > 3 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>
@@ -357,12 +357,12 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
           <CardContent className="p-3.5 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Avg Latency (ms)
+                {t("log_tap.latency_title")}
               </p>
               <h3 className="text-xl font-bold text-slate-800 mt-0.5">
                 {stats?.avgDurationMs ?? 0} <span className="text-xs font-normal text-slate-500">ms</span>
               </h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Recent 500 calls</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t("log_tap.latency_desc")}</p>
             </div>
             <div className="h-9 w-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Clock className="h-5 w-5" />
@@ -374,13 +374,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
           <CardContent className="p-3.5 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Open Incidents
+                {t("log_tap.incidents_title")}
               </p>
               <h3 className={`text-xl font-bold mt-0.5 ${(stats?.unresolvedErrorsCount ?? 0) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                 {stats?.unresolvedErrorsCount ?? 0}
               </h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {stats?.criticalErrorsCount ?? 0} critical
+                {stats?.criticalErrorsCount ?? 0} {t("log_tap.critical_count")}
               </p>
             </div>
             <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${(stats?.unresolvedErrorsCount ?? 0) > 0 ? "bg-rose-50 text-rose-600 animate-pulse" : "bg-slate-100 text-slate-500"}`}>
@@ -405,7 +405,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 }`}
               >
                 <Activity className="h-3.5 w-3.5" />
-                <span>Live Log TAP</span>
+                <span>{t("log_tap.tab_tap")}</span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700">
                   {tapTotal}
                 </span>
@@ -420,7 +420,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 }`}
               >
                 <Bug className="h-3.5 w-3.5" />
-                <span>Error Tracking & Reproduction</span>
+                <span>{t("log_tap.tab_errors")}</span>
                 {(stats?.unresolvedErrorsCount ?? 0) > 0 && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 font-bold">
                     {stats?.unresolvedErrorsCount}
@@ -437,7 +437,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 }`}
               >
                 <Layers className="h-3.5 w-3.5" />
-                <span>Traffic Analytics</span>
+                <span>{t("log_tap.tab_analytics")}</span>
               </button>
             </div>
 
@@ -452,7 +452,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 }`}
               >
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${autoRefresh ? "animate-spin" : ""}`} />
-                {autoRefresh ? "Auto: ON (10s)" : "Auto: OFF"}
+                {autoRefresh ? t("log_tap.auto_on") : t("log_tap.auto_off")}
               </Button>
 
               <Button
@@ -489,7 +489,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Prune {">"}14d
+                      {t("log_tap.prune_btn")}
                     </Button>
                   )}
                 </>
@@ -509,7 +509,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <Input
-                    placeholder="Search by route, trace ID, user email, or payload..."
+                    placeholder={t("log_tap.search_tap_placeholder")}
                     value={tapSearch}
                     onChange={(e) => {
                       setTapSearch(e.target.value)
@@ -527,10 +527,10 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   }}
                 >
                   <SelectTrigger className="h-8 w-28 text-xs border-slate-300 bg-white">
-                    <SelectValue placeholder="Method" />
+                    <SelectValue placeholder={t("log_tap.col_method")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">All Methods</SelectItem>
+                    <SelectItem value="ALL">{t("log_tap.method_all")}</SelectItem>
                     <SelectItem value="GET">GET</SelectItem>
                     <SelectItem value="POST">POST</SelectItem>
                     <SelectItem value="PUT">PUT</SelectItem>
@@ -547,13 +547,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   }}
                 >
                   <SelectTrigger className="h-8 w-28 text-xs border-slate-300 bg-white">
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t("log_tap.col_status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="2xx">2xx (OK)</SelectItem>
-                    <SelectItem value="4xx">4xx (Client)</SelectItem>
-                    <SelectItem value="5xx">5xx (Server)</SelectItem>
+                    <SelectItem value="ALL">{t("log_tap.status_all")}</SelectItem>
+                    <SelectItem value="2xx">{t("log_tap.status_2xx")}</SelectItem>
+                    <SelectItem value="4xx">{t("log_tap.status_4xx")}</SelectItem>
+                    <SelectItem value="5xx">{t("log_tap.status_5xx")}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -569,7 +569,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   }`}
                 >
                   <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-                  Only Errors
+                  {t("log_tap.only_errors")}
                 </Button>
               </div>
 
@@ -578,13 +578,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50 border-b border-slate-200">
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-20">Method</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-20">Status</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9">Path / Route</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-24">Latency</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9">Caller / IP</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-36">Time</TableHead>
-                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-16 text-right">Inspect</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-20">{t("log_tap.col_method")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-20">{t("log_tap.col_status")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9">{t("log_tap.col_path")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-24">{t("log_tap.col_latency")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9">{t("log_tap.col_caller")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-36">{t("log_tap.col_time")}</TableHead>
+                      <TableHead className="text-[11px] font-bold text-slate-700 uppercase h-9 w-16 text-right">{t("log_tap.col_inspect")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -592,13 +592,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       <TableRow>
                         <TableCell colSpan={7} className="h-32 text-center text-xs text-slate-500">
                           <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-slate-400" />
-                          Streaming live TAP logs...
+                          {t("log_tap.streaming")}
                         </TableCell>
                       </TableRow>
                     ) : tapLogs.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-32 text-center text-xs text-slate-500">
-                          No TAP logs recorded matching your filter.
+                          {t("log_tap.no_logs")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -652,7 +652,9 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {/* Pagination */}
               {tapTotalPages > 1 && (
                 <div className="p-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-                  <span>Page {tapPage} of {tapTotalPages} ({tapTotal} total)</span>
+                  <span>
+                    {t("log_tap.page_info_page")} {tapPage} {t("log_tap.page_info_of")} {tapTotalPages} ({tapTotal} {t("log_tap.page_info_total")})
+                  </span>
                   <div className="flex gap-1.5">
                     <Button
                       variant="outline"
@@ -661,7 +663,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       onClick={() => setTapPage((p) => Math.max(1, p - 1))}
                       className="h-7 text-xs border-slate-300"
                     >
-                      Prev
+                      {t("log_tap.prev")}
                     </Button>
                     <Button
                       variant="outline"
@@ -670,7 +672,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       onClick={() => setTapPage((p) => p + 1)}
                       className="h-7 text-xs border-slate-300"
                     >
-                      Next
+                      {t("log_tap.next")}
                     </Button>
                   </div>
                 </div>
@@ -688,7 +690,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <Input
-                    placeholder="Search errors by name, message, route..."
+                    placeholder={t("log_tap.search_error_placeholder")}
                     value={errorSearch}
                     onChange={(e) => {
                       setErrorSearch(e.target.value)
@@ -706,14 +708,14 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   }}
                 >
                   <SelectTrigger className="h-8 w-32 text-xs border-slate-300 bg-white">
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t("log_tap.col_status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="UNRESOLVED">Unresolved</SelectItem>
-                    <SelectItem value="INVESTIGATING">Investigating</SelectItem>
-                    <SelectItem value="RESOLVED">Resolved</SelectItem>
-                    <SelectItem value="IGNORED">Ignored</SelectItem>
+                    <SelectItem value="ALL">{t("log_tap.status_all")}</SelectItem>
+                    <SelectItem value="UNRESOLVED">{t("log_tap.status_unresolved")}</SelectItem>
+                    <SelectItem value="INVESTIGATING">{t("log_tap.status_investigating")}</SelectItem>
+                    <SelectItem value="RESOLVED">{t("log_tap.status_resolved")}</SelectItem>
+                    <SelectItem value="IGNORED">{t("log_tap.status_ignored")}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -725,13 +727,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   }}
                 >
                   <SelectTrigger className="h-8 w-32 text-xs border-slate-300 bg-white">
-                    <SelectValue placeholder="Severity" />
+                    <SelectValue placeholder={t("log_tap.severity_all")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">All Severities</SelectItem>
-                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                    <SelectItem value="ERROR">Error</SelectItem>
-                    <SelectItem value="WARNING">Warning</SelectItem>
+                    <SelectItem value="ALL">{t("log_tap.severity_all")}</SelectItem>
+                    <SelectItem value="CRITICAL">{t("log_tap.severity_critical")}</SelectItem>
+                    <SelectItem value="ERROR">{t("log_tap.severity_error")}</SelectItem>
+                    <SelectItem value="WARNING">{t("log_tap.severity_warning")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -741,14 +743,14 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 {errorLoading ? (
                   <div className="text-center py-12 text-slate-500 text-xs">
                     <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-slate-400" />
-                    Loading error incidents...
+                    {t("log_tap.loading_errors")}
                   </div>
                 ) : errorIncidents.length === 0 ? (
                   <div className="py-12 text-center text-slate-500">
                     <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-500" />
-                    <p className="text-sm font-semibold text-slate-700">No Error Incidents Found</p>
+                    <p className="text-sm font-semibold text-slate-700">{t("log_tap.no_errors_title")}</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      All systems are operating cleanly without unresolved exceptions.
+                      {t("log_tap.no_errors_desc")}
                     </p>
                   </div>
                 ) : (
@@ -770,7 +772,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                               {incident.method} {incident.route}
                             </span>
                             <span className="text-[11px] font-bold text-slate-500">
-                              {incident.occurrences} {incident.occurrences > 1 ? "events" : "event"}
+                              {incident.occurrences} {t("log_tap.events_unit")}
                             </span>
                           </div>
 
@@ -780,12 +782,12 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
                             <span>
-                              First seen: {new Date(incident.firstSeenAt).toLocaleString()}
+                              {t("log_tap.first_seen")} {new Date(incident.firstSeenAt).toLocaleString()}
                             </span>
                             <span>
-                              Last seen: {new Date(incident.lastSeenAt).toLocaleString()}
+                              {t("log_tap.last_seen")} {new Date(incident.lastSeenAt).toLocaleString()}
                             </span>
-                            {incident.userEmail && <span>User: {incident.userEmail}</span>}
+                            {incident.userEmail && <span>{t("log_tap.user_label")} {incident.userEmail}</span>}
                           </div>
                         </div>
 
@@ -796,7 +798,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                             onClick={() => setSelectedError(incident)}
                             className="h-7 text-xs bg-[#82181a] hover:bg-[#9c1f22] text-white"
                           >
-                            Inspect & Stack
+                            {t("log_tap.inspect_btn")}
                           </Button>
                         </div>
                       </div>
@@ -808,7 +810,9 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {/* Pagination */}
               {errorTotalPages > 1 && (
                 <div className="p-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-                  <span>Page {errorPage} of {errorTotalPages} ({errorTotal} total)</span>
+                  <span>
+                    {t("log_tap.page_info_page")} {errorPage} {t("log_tap.page_info_of")} {errorTotalPages} ({errorTotal} {t("log_tap.page_info_total")})
+                  </span>
                   <div className="flex gap-1.5">
                     <Button
                       variant="outline"
@@ -817,7 +821,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       onClick={() => setErrorPage((p) => Math.max(1, p - 1))}
                       className="h-7 text-xs border-slate-300"
                     >
-                      Prev
+                      {t("log_tap.prev")}
                     </Button>
                     <Button
                       variant="outline"
@@ -826,7 +830,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       onClick={() => setErrorPage((p) => p + 1)}
                       className="h-7 text-xs border-slate-300"
                     >
-                      Next
+                      {t("log_tap.next")}
                     </Button>
                   </div>
                 </div>
@@ -844,13 +848,13 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 <Card className="border-slate-200 shadow-2xs">
                   <CardHeader className="p-3.5 border-b border-slate-100">
                     <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      HTTP Status Code Distribution (24h)
+                      {t("log_tap.analytics_dist_title")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-3">
                     <div>
                       <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-emerald-700">2xx Success</span>
+                        <span className="text-emerald-700">{t("log_tap.analytics_success_2xx")}</span>
                         <span>{stats?.statusCodeBreakdown.success2xx ?? 0}</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -865,7 +869,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
 
                     <div>
                       <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-amber-700">4xx Client Errors</span>
+                        <span className="text-amber-700">{t("log_tap.analytics_client_4xx")}</span>
                         <span>{stats?.statusCodeBreakdown.clientError4xx ?? 0}</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -880,7 +884,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
 
                     <div>
                       <div className="flex justify-between text-xs font-semibold mb-1">
-                        <span className="text-rose-700">5xx Server Errors</span>
+                        <span className="text-rose-700">{t("log_tap.analytics_server_5xx")}</span>
                         <span>{stats?.statusCodeBreakdown.serverError5xx ?? 0}</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -899,7 +903,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 <Card className="border-slate-200 shadow-2xs">
                   <CardHeader className="p-3.5 border-b border-slate-100">
                     <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Top Failing Endpoints (24h)
+                      {t("log_tap.analytics_top_routes")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
@@ -909,14 +913,14 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                           <div key={i} className="flex items-center justify-between text-xs">
                             <span className="font-mono text-slate-800 truncate max-w-[240px]">{r.path}</span>
                             <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[11px]">
-                              {r.count} errors
+                              {r.count} {t("log_tap.analytics_errors_unit")}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="text-center py-6 text-xs text-slate-400">
-                        No failing routes recorded in the last 24 hours!
+                        {t("log_tap.analytics_no_routes")}
                       </div>
                     )}
                   </CardContent>
@@ -940,7 +944,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               <span className="font-mono text-sm">{selectedTap?.path}</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Trace ID: <code className="font-mono text-slate-700">{selectedTap?.traceId}</code> • {selectedTap && new Date(selectedTap.createdAt).toLocaleString()}
+              {t("log_tap.modal_trace_id")} <code className="font-mono text-slate-700">{selectedTap?.traceId}</code> • {selectedTap && new Date(selectedTap.createdAt).toLocaleString()}
             </DialogDescription>
           </DialogHeader>
 
@@ -949,24 +953,24 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {/* Metadata pills */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-md border border-slate-200">
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Status</span>
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">{t("log_tap.modal_status")}</span>
                   <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-mono mt-0.5 ${getStatusBadgeClass(selectedTap.statusCode)}`}>
                     {selectedTap.statusCode}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Latency</span>
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">{t("log_tap.modal_latency")}</span>
                   <span className={`font-mono text-xs font-bold ${getLatencyClass(selectedTap.durationMs)}`}>
                     {selectedTap.durationMs}ms
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Client IP</span>
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">{t("log_tap.modal_ip")}</span>
                   <span className="font-mono text-slate-700">{selectedTap.ipAddress || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">User</span>
-                  <span className="text-slate-700 truncate block">{selectedTap.userEmail || "Anonymous"}</span>
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">{t("log_tap.modal_user")}</span>
+                  <span className="text-slate-700 truncate block">{selectedTap.userEmail || t("log_tap.modal_anonymous")}</span>
                 </div>
               </div>
 
@@ -974,7 +978,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    Input Payload (Sanitized)
+                    {t("log_tap.modal_input_payload")}
                   </span>
                   {selectedTap.inputPayload && (
                     <Button
@@ -984,12 +988,12 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       className="h-6 text-[10px] px-1.5 text-slate-500"
                     >
                       <Copy className="h-3 w-3 mr-1" />
-                      {copiedKey === "input-payload" ? "Copied!" : "Copy"}
+                      {copiedKey === "input-payload" ? t("log_tap.modal_copied") : t("log_tap.modal_copy")}
                     </Button>
                   )}
                 </div>
                 <div className="bg-slate-900 text-slate-100 p-2.5 rounded font-mono text-[11px] overflow-x-auto max-h-48 whitespace-pre-wrap">
-                  {selectedTap.inputPayload || "// No request payload"}
+                  {selectedTap.inputPayload || t("log_tap.modal_no_payload")}
                 </div>
               </div>
 
@@ -997,7 +1001,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                    Response Summary / Error
+                    {t("log_tap.modal_output_summary")}
                   </span>
                   {selectedTap.outputSummary && (
                     <Button
@@ -1007,7 +1011,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       className="h-6 text-[10px] px-1.5 text-slate-500"
                     >
                       <Copy className="h-3 w-3 mr-1" />
-                      {copiedKey === "output-summary" ? "Copied!" : "Copy"}
+                      {copiedKey === "output-summary" ? t("log_tap.modal_copied") : t("log_tap.modal_copy")}
                     </Button>
                   )}
                 </div>
@@ -1015,7 +1019,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                   {selectedTap.errorMessage ? (
                     <span className="text-rose-400">{selectedTap.errorMessage}</span>
                   ) : (
-                    selectedTap.outputSummary || "// No output payload captured"
+                    selectedTap.outputSummary || t("log_tap.modal_no_output")
                   )}
                 </div>
               </div>
@@ -1023,7 +1027,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {/* User Agent */}
               {selectedTap.userAgent && (
                 <div className="text-[11px] text-slate-400 truncate">
-                  User Agent: {selectedTap.userAgent}
+                  {t("log_tap.modal_user_agent")} {selectedTap.userAgent}
                 </div>
               )}
             </div>
@@ -1036,7 +1040,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               onClick={() => setSelectedTap(null)}
               className="text-xs"
             >
-              Close
+              {t("log_tap.modal_close")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1053,7 +1057,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                 {selectedError?.severity}
               </span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                {selectedError?.occurrences} occurrences
+                {selectedError?.occurrences} {t("log_tap.events_unit")}
               </span>
             </div>
             <DialogTitle className="text-base font-bold text-slate-900">
@@ -1069,7 +1073,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {/* Status Manager */}
               <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded border border-slate-200">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-700">Status:</span>
+                  <span className="font-semibold text-slate-700">{t("log_tap.modal_status_label")}</span>
                   <Select
                     value={selectedError.status}
                     onValueChange={(val: any) => handleUpdateStatus(selectedError.id, val)}
@@ -1079,17 +1083,17 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="UNRESOLVED">Unresolved</SelectItem>
-                      <SelectItem value="INVESTIGATING">Investigating</SelectItem>
-                      <SelectItem value="RESOLVED">Resolved</SelectItem>
-                      <SelectItem value="IGNORED">Ignored</SelectItem>
+                      <SelectItem value="UNRESOLVED">{t("log_tap.status_unresolved")}</SelectItem>
+                      <SelectItem value="INVESTIGATING">{t("log_tap.status_investigating")}</SelectItem>
+                      <SelectItem value="RESOLVED">{t("log_tap.status_resolved")}</SelectItem>
+                      <SelectItem value="IGNORED">{t("log_tap.status_ignored")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {selectedError.resolvedBy && (
                   <span className="text-[11px] text-emerald-700">
-                    Resolved by {selectedError.resolvedBy} on {new Date(selectedError.resolvedAt!).toLocaleDateString()}
+                    {t("log_tap.modal_resolved_info")} {selectedError.resolvedBy} ({new Date(selectedError.resolvedAt!).toLocaleDateString()})
                   </span>
                 )}
               </div>
@@ -1098,7 +1102,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               {selectedError.requestBody && selectedError.requestBody !== "null" && (
                 <div>
                   <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] block mb-1">
-                    Request Payload at Failure
+                    {t("log_tap.modal_request_failure")}
                   </span>
                   <div className="bg-slate-900 text-slate-100 p-2.5 rounded font-mono text-[11px] overflow-x-auto max-h-36 whitespace-pre-wrap">
                     {selectedError.requestBody}
@@ -1110,7 +1114,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Stack Trace
+                    {t("log_tap.modal_stack_trace")}
                   </span>
                   {selectedError.stack && (
                     <Button
@@ -1120,12 +1124,12 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
                       className="h-6 text-[10px] px-1.5 text-slate-500"
                     >
                       <Copy className="h-3 w-3 mr-1" />
-                      {copiedKey === "modal-stack" ? "Copied!" : "Copy Stack"}
+                      {copiedKey === "modal-stack" ? t("log_tap.modal_copied") : t("log_tap.modal_copy_stack")}
                     </Button>
                   )}
                 </div>
                 <div className="bg-slate-950 text-rose-300 p-2.5 rounded font-mono text-[11px] overflow-x-auto max-h-56 whitespace-pre-wrap border border-slate-800">
-                  {selectedError.stack || "// No stack trace available"}
+                  {selectedError.stack || t("log_tap.modal_no_stack")}
                 </div>
               </div>
             </div>
@@ -1138,7 +1142,7 @@ export function LogTapDashboard({ callerRole }: { callerRole: string }) {
               onClick={() => setSelectedError(null)}
               className="text-xs"
             >
-              Close
+              {t("log_tap.modal_close")}
             </Button>
           </DialogFooter>
         </DialogContent>

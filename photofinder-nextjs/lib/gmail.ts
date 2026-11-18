@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { getSystemSecret } from '@/lib/system-settings';
 
 export async function sendPhotoMatchSummaryEmail(
   toEmail: string,
@@ -7,8 +8,8 @@ export async function sendPhotoMatchSummaryEmail(
   matchCount: number,
   actionUrl: string
 ) {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = (await getSystemSecret('GMAIL_USER')) || process.env.GMAIL_USER;
+  const pass = (await getSystemSecret('GMAIL_APP_PASSWORD')) || process.env.GMAIL_APP_PASSWORD;
 
   if (!user || !pass) {
     console.warn('GMAIL_USER or GMAIL_APP_PASSWORD is missing. Skipping email notification.');

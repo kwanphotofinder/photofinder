@@ -238,6 +238,78 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ minutes }),
     }),
+  getSystemSettings: () =>
+    apiCall<{
+      settings: Record<string, number>
+      definitions: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        descriptionTh: string
+        descriptionEn: string
+        category: "business" | "features"
+        type: "number" | "boolean"
+        defaultValue: number
+        min?: number
+        max?: number
+        step?: number
+        unit?: string
+        isDangerous?: boolean
+      }>
+      secrets: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        service: string
+        descriptionTh: string
+        descriptionEn: string
+        docsUrl?: string
+        placeholder: string
+        isPassword?: boolean
+        isConfigured: boolean
+        maskedValue: string
+        source: "database" | "env" | "none"
+        updatedAt: string | null
+      }>
+      callerRole: string
+      callerEmail: string
+    }>("/admin/system-settings"),
+  updateSystemSettings: (payload: {
+    settings?: Record<string, number>
+    secrets?: Record<string, string>
+  }) =>
+    apiCall<{
+      success: boolean
+      settings: Record<string, number>
+      secrets: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        service: string
+        descriptionTh: string
+        descriptionEn: string
+        docsUrl?: string
+        placeholder: string
+        isPassword?: boolean
+        isConfigured: boolean
+        maskedValue: string
+        source: "database" | "env" | "none"
+        updatedAt: string | null
+      }>
+      changedCount: number
+    }>("/admin/system-settings", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  resetSystemSettings: () =>
+    apiCall<{
+      success: boolean
+      settings: Record<string, number>
+      secrets: any[]
+    }>("/admin/system-settings", {
+      method: "POST",
+      body: JSON.stringify({ action: "reset" }),
+    }),
   dismissLowConfidencePhoto: (photoId: string) =>
     apiCall<any>("/admin/low-confidence", {
       method: "PATCH",
