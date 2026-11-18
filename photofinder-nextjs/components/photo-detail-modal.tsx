@@ -12,6 +12,7 @@ import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
 import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
+import { useLanguage } from "@/lib/language-context"
 
 interface Photo {
   id: string
@@ -41,6 +42,7 @@ function formatDayMonthYear(dateValue?: string) {
 }
 
 export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = false }: PhotoDetailModalProps) {
+  const { lang, t } = useLanguage()
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const trackedViewPhotoIdRef = useRef<string | null>(null)
   const [showRemovalRequest, setShowRemovalRequest] = useState(false)
@@ -258,17 +260,17 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{photo.eventName}</DialogTitle>
+      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg sm:text-xl font-bold">{photo.eventName}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Photo Display */}
           <div
             ref={imageContainerRef}
-            className={`relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center ${
-              isFullscreen ? "h-screen" : "h-[400px]"
+            className={`relative w-full bg-muted rounded-xl overflow-hidden flex items-center justify-center ${
+              isFullscreen ? "h-screen" : "h-[260px] xs:h-[320px] sm:h-[400px]"
             }`}
           >
             {imageError ? (
@@ -290,12 +292,21 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                 onError={() => setImageError(true)}
                 onClick={handleToggleZoom}
                 className={`w-auto object-contain transition-transform duration-300 ${
-                  isFullscreen ? "max-h-screen" : "max-h-[400px]"
+                  isFullscreen ? "max-h-screen" : "max-h-[260px] xs:max-h-[320px] sm:max-h-[400px]"
                 } ${isZoomed ? "scale-[1.55] cursor-zoom-out" : "scale-100 cursor-zoom-in"}`}
               />
             )}
 
-            <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+            <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 sm:gap-2">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 rounded-full bg-primary text-primary-foreground shadow hover:bg-primary/90"
+                onClick={handleDownload}
+                title={t("detail.download_original")}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
               <Button
                 size="icon"
                 variant="secondary"
@@ -318,64 +329,68 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
           </div>
 
           {/* Photo Info */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-card border border-border rounded-lg">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 bg-card border border-border rounded-xl">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Event</p>
-              <p className="font-semibold text-foreground">{photo.eventName}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                {lang === "th" ? "กิจกรรม" : "Event"}
+              </p>
+              <p className="font-semibold text-foreground text-sm sm:text-base line-clamp-1">{photo.eventName}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Date</p>
-              <p className="font-semibold text-foreground">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                {lang === "th" ? "วันที่" : "Date"}
+              </p>
+              <p className="font-semibold text-foreground text-sm sm:text-base">
                 {formatDayMonthYear(photo.uploadDate || photo.eventDate)}
               </p>
             </div>
           </div>
 
           {/* Engagement Metrics Row */}
-          <div className="grid grid-cols-3 gap-2.5 p-3 bg-muted/40 border border-border/80 rounded-lg text-center">
-            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5 p-2.5 sm:p-3 bg-muted/40 border border-border/80 rounded-xl text-center">
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-background/60 shadow-2xs">
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                 <Eye className="w-3.5 h-3.5 text-primary" />
-                เข้าชม
+                {t("detail.stats.views")}
               </span>
-              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.views}</span>
+              <span className="text-sm sm:text-base font-bold text-foreground mt-0.5">{engagementStats.views}</span>
             </div>
-            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-background/60 shadow-2xs">
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                 <Download className="w-3.5 h-3.5 text-emerald-600" />
-                ดาวน์โหลด
+                {t("detail.stats.downloads")}
               </span>
-              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.downloads}</span>
+              <span className="text-sm sm:text-base font-bold text-foreground mt-0.5">{engagementStats.downloads}</span>
             </div>
-            <div className="flex flex-col items-center justify-center p-2 rounded-md bg-background/60 shadow-2xs">
+            <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-background/60 shadow-2xs">
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                 <Share2 className="w-3.5 h-3.5 text-sky-600" />
-                แชร์
+                {t("detail.stats.shares")}
               </span>
-              <span className="text-base font-bold text-foreground mt-0.5">{engagementStats.shares}</span>
+              <span className="text-sm sm:text-base font-bold text-foreground mt-0.5">{engagementStats.shares}</span>
             </div>
           </div>
 
-          {/* Primary Quick Actions: Download & Favorite */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Primary Quick Actions: Mobile-first layout */}
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
             <Button
               onClick={handleDownload}
               variant="default"
-              className="h-11 font-semibold flex items-center justify-center gap-2 bg-primary text-primary-foreground"
+              className="h-12 sm:h-11 flex-1 font-semibold text-sm sm:text-base flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md rounded-xl transition-all active:scale-[0.98]"
             >
-              <Download className="h-4 w-4" />
-              ดาวน์โหลดภาพ (Download)
+              <Download className="h-5 w-5 sm:h-4 sm:w-4" />
+              <span>{lang === "th" ? "ดาวน์โหลดภาพต้นฉบับ" : "Download Original"}</span>
             </Button>
             <Button
               onClick={handleToggleFavorite}
               disabled={isFavoriteLoading}
               variant={isFavorite ? "secondary" : "outline"}
-              className={`h-11 font-semibold flex items-center justify-center gap-2 ${
+              className={`h-12 sm:h-11 sm:w-auto px-5 font-semibold text-sm flex items-center justify-center gap-2 rounded-xl transition-all ${
                 isFavorite ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300" : ""
               }`}
             >
-              <Heart className={`h-4 w-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
-              {isFavorite ? "บันทึกแล้ว (Favorited)" : "บันทึกภาพ (Favorite)"}
+              <Heart className={`h-5 w-5 sm:h-4 sm:w-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
+              <span>{isFavorite ? t("detail.saved") : t("detail.favorite")}</span>
             </Button>
           </div>
 
