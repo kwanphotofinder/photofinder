@@ -22,10 +22,10 @@ export const SYSTEM_SETTING_DEFINITIONS: Record<string, SystemSettingDef> = {
   // Business Logic
   biometric_match_confidence: {
     key: "biometric_match_confidence",
-    nameTh: "เกณฑ์ความแม่นยำในการจับคู่ใบหน้า",
-    nameEn: "Biometric Match Confidence",
-    descriptionTh: "ระดับคะแนนความมั่นใจขั้นต่ำในการค้นหาและจับคู่ใบหน้านักศึกษา ค่ายิ่งสูงระบบจะยิ่งเข้มงวดและแม่นยำขึ้น",
-    descriptionEn: "Minimum confidence score required for facial recognition matching. Higher values yield stricter, more accurate matches.",
+    nameTh: "เกณฑ์ความแม่นยำสำหรับการแจ้งเตือนทางอีเมล",
+    nameEn: "Notification Match Threshold",
+    descriptionTh: "ความเข้มงวดในการจับคู่ใบหน้าเมื่อส่งอีเมลแจ้งนักศึกษาว่ามีภาพของตนเอง ค่ายิ่งสูงยิ่งเข้มงวด (แจ้งเฉพาะคู่ที่มั่นใจมาก) ไม่มีผลต่อการค้นหาภาพของนักศึกษา",
+    descriptionEn: "How strict face matching is when emailing students that their photos are ready. Higher = stricter (only very confident matches are notified). Does not affect the student photo search.",
     category: "business",
     type: "number",
     defaultValue: 0.50,
