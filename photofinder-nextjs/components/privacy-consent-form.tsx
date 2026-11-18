@@ -1,7 +1,8 @@
 "use client"
 
 import { Checkbox } from "@/components/ui/checkbox"
-import { ShieldCheck, UserSearch, FileText } from "lucide-react"
+import { UserSearch, FileText } from "lucide-react"
+import { useLanguage } from "@/lib/language-context"
 
 export interface ConsentData {
     globalFaceSearch: boolean
@@ -15,23 +16,23 @@ interface PrivacyConsentFormProps {
 }
 
 export function PrivacyConsentForm({ consent, onChange, disabled = false }: PrivacyConsentFormProps) {
+    const { t } = useLanguage()
+
     return (
         <div className="space-y-4">
             {/* Face Search Consent */}
-            <div 
-                className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
-                    consent.globalFaceSearch 
-                    ? "border-primary/40 bg-primary/5 shadow-md shadow-primary/5" 
-                    : "border-slate-200 bg-white hover:border-primary/30 hover:shadow-lg hover:shadow-slate-200/50"
-                }`}
+            <div
+                className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${consent.globalFaceSearch
+                        ? "border-primary/40 bg-primary/5 shadow-md shadow-primary/5"
+                        : "border-slate-200 bg-white hover:border-primary/30 hover:shadow-lg hover:shadow-slate-200/50"
+                    }`}
                 onClick={() => !disabled && onChange("globalFaceSearch")}
             >
                 <div className="flex items-start gap-4 p-5 sm:p-6">
-                    <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
-                        consent.globalFaceSearch 
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
-                        : "border-slate-300 bg-white group-hover:border-primary/50"
-                    }`}>
+                    <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${consent.globalFaceSearch
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                            : "border-slate-300 bg-white group-hover:border-primary/50"
+                        }`}>
                         <Checkbox
                             id="globalFaceSearch"
                             checked={consent.globalFaceSearch}
@@ -48,32 +49,29 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
                                 htmlFor="globalFaceSearch"
                                 className="text-sm font-semibold tracking-tight text-slate-900 cursor-pointer block"
                             >
-                                Enable AI Face Search
+                                {t("consent.face_search_title")}
                             </label>
                         </div>
                         <p className="text-sm leading-relaxed text-slate-500">
-                            Allow the system to identify your face in event photos and create a personal photo album. You can
-                            change this per-event or withdraw consent anytime.
+                            {t("consent.face_search_desc")}
                         </p>
                     </div>
                 </div>
             </div>
 
             {/* Data Processing Consent */}
-            <div 
-                className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
-                    consent.dataProcessing 
-                    ? "border-primary/40 bg-primary/5 shadow-md shadow-primary/5" 
-                    : "border-slate-200 bg-white hover:border-primary/30 hover:shadow-lg hover:shadow-slate-200/50"
-                }`}
+            <div
+                className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${consent.dataProcessing
+                        ? "border-primary/40 bg-primary/5 shadow-md shadow-primary/5"
+                        : "border-slate-200 bg-white hover:border-primary/30 hover:shadow-lg hover:shadow-slate-200/50"
+                    }`}
                 onClick={() => !disabled && onChange("dataProcessing")}
             >
                 <div className="flex items-start gap-4 p-5 sm:p-6">
-                    <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
-                        consent.dataProcessing 
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
-                        : "border-slate-300 bg-white group-hover:border-primary/50"
-                    }`}>
+                    <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${consent.dataProcessing
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                            : "border-slate-300 bg-white group-hover:border-primary/50"
+                        }`}>
                         <Checkbox
                             id="dataProcessing"
                             checked={consent.dataProcessing}
@@ -90,12 +88,11 @@ export function PrivacyConsentForm({ consent, onChange, disabled = false }: Priv
                                 htmlFor="dataProcessing"
                                 className="text-sm font-semibold tracking-tight text-slate-900 cursor-pointer block"
                             >
-                                Data Processing Agreement
+                                {t("consent.data_processing_title")}
                             </label>
                         </div>
                         <p className="text-sm leading-relaxed text-slate-500">
-                            I understand my biometric data will be processed and stored securely in compliance with GDPR and
-                            PDPA regulations. Data is retained only for the duration of the event.
+                            {t("consent.data_processing_desc")}
                         </p>
                     </div>
                 </div>

@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Camera, Upload, Shield } from "lucide-react"
 import { CinematicLoader } from "@/components/cinematic-loader"
 import { motion, AnimatePresence } from "framer-motion"
+import { useLanguage } from "@/lib/language-context"
 
 export default function LandingPage() {
   const router = useRouter()
+  const { lang, setLang, t } = useLanguage()
   const [showLoader, setShowLoader] = useState(true)
 
   useEffect(() => {
@@ -35,6 +37,36 @@ export default function LandingPage() {
               <div className="flex items-center gap-2">
                 <img src="/Logo2.png" alt="Photo Finder" className="h-14 w-auto" />
               </div>
+
+              <div className="flex items-center">
+                {/* Language Switcher */}
+                <div className="flex items-center overflow-hidden rounded-md border border-border/60 bg-background/80 shadow-xs backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={() => setLang("th")}
+                    className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                      lang === "th"
+                        ? "bg-primary text-white shadow-inner"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                    title="ภาษาไทย"
+                  >
+                    TH
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLang("en")}
+                    className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                      lang === "en"
+                        ? "bg-primary text-white shadow-inner"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                    title="English"
+                  >
+                    EN
+                  </button>
+                </div>
+              </div>
             </div>
           </nav>
 
@@ -59,11 +91,13 @@ export default function LandingPage() {
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
               <div className="text-center space-y-7 mb-12 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
                 <div className="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs sm:text-sm font-medium tracking-wide text-white/95 backdrop-blur-md">
-                  AI-Powered Campus Photo Discovery
+                  {t("landing.tagline")}
                 </div>
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight text-balance">Find Your Moments</h1>
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight text-balance">
+                  {t("landing.hero_title")}
+                </h1>
                 <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto text-pretty">
-                  Discover and download your photos from campus events using AI-powered face recognition
+                  {t("landing.hero_desc")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
                   <Button
@@ -71,7 +105,7 @@ export default function LandingPage() {
                     size="lg"
                     className="w-full sm:w-auto bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xl transition-all duration-300 hover:scale-[1.02] px-8 py-6 text-base"
                   >
-                    Explore the App
+                    {t("landing.explore_btn")}
                   </Button>
                   <Button
                     onClick={() => router.push("/privacy")}
@@ -79,7 +113,7 @@ export default function LandingPage() {
                     variant="ghost"
                     className="w-full sm:w-auto hover:bg-white/10 text-white border border-transparent hover:border-white/20 font-semibold transition-all duration-300 px-8 py-6 text-base"
                   >
-                    Privacy Policy
+                    {t("landing.privacy_btn")}
                   </Button>
                 </div>
               </div>
@@ -98,14 +132,13 @@ export default function LandingPage() {
             <div className="container px-5 py-24 mx-auto relative">
               <div className="text-center mb-20">
                 <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-6 py-2 text-sm font-medium tracking-wide text-primary backdrop-blur-sm mb-6">
-                  How It Works
+                  {t("landing.how_it_works_badge")}
                 </div>
                 <h1 className="sm:text-4xl text-3xl font-bold title-font text-foreground mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Simple Steps to Your Photos
+                  {t("landing.how_it_works_title")}
                 </h1>
                 <p className="text-base leading-relaxed xl:w-2/4 lg:w-3/4 mx-auto text-muted-foreground max-w-2xl">
-                  Our platform makes it incredibly easy to find your photos from any
-                  event. Just follow these simple steps.
+                  {t("landing.how_it_works_subtitle")}
                 </p>
                 <div className="flex mt-8 justify-center">
                   <div className="w-24 h-1 rounded-full bg-gradient-to-r from-primary to-primary/60 inline-flex"></div>
@@ -124,11 +157,10 @@ export default function LandingPage() {
                   </div>
                   <div className="flex-grow">
                     <h2 className="text-foreground text-xl title-font font-semibold mb-3 group-hover:text-primary transition-colors duration-300">
-                      Upload a Selfie
+                      {t("landing.step1_title")}
                     </h2>
                     <p className="leading-relaxed text-base text-muted-foreground max-w-xs">
-                      Provide a clear photo of yourself so our AI can work its
-                      magic. This is your private reference photo.
+                      {t("landing.step1_desc")}
                     </p>
                   </div>
                 </div>
@@ -144,11 +176,10 @@ export default function LandingPage() {
                   </div>
                   <div className="flex-grow">
                     <h2 className="text-foreground text-xl title-font font-semibold mb-3 group-hover:text-primary transition-colors duration-300">
-                      Browse Events
+                      {t("landing.step2_title")}
                     </h2>
                     <p className="leading-relaxed text-base text-muted-foreground max-w-xs">
-                      Our AI automatically scans all event photos and finds matches
-                      for you in your private dashboard.
+                      {t("landing.step2_desc")}
                     </p>
                   </div>
                 </div>
@@ -164,11 +195,10 @@ export default function LandingPage() {
                   </div>
                   <div className="flex-grow">
                     <h2 className="text-foreground text-xl title-font font-semibold mb-3 group-hover:text-primary transition-colors duration-300">
-                      Enjoy Your Photos
+                      {t("landing.step3_title")}
                     </h2>
                     <p className="leading-relaxed text-base text-muted-foreground max-w-xs">
-                      Download your favorite moments. Your data is secure and you
-                      can request removal at any time.
+                      {t("landing.step3_desc")}
                     </p>
                   </div>
                 </div>

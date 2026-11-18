@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Camera, RefreshCw, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Eye, StopCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UploadLoader } from "@/components/upload-loader"
+import { useLanguage } from "@/lib/language-context"
 
 interface IdentityVerificationProps {
   onSuccess: (frontSelfie: string) => void
@@ -32,12 +33,13 @@ const createLivenessSessionId = () =>
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 
 const challengeSteps = [
-  { key: "blink", label: "Blink both eyes slowly", icon: Eye },
-  { key: "turn_left", label: "Turn head slowly left", icon: ArrowLeft },
-  { key: "turn_right", label: "Turn head slowly right", icon: ArrowRight },
+  { key: "blink", labelKey: "liveness.challenge_blink", icon: Eye },
+  { key: "turn_left", labelKey: "liveness.challenge_turn_left", icon: ArrowLeft },
+  { key: "turn_right", labelKey: "liveness.challenge_turn_right", icon: ArrowRight },
 ]
 
 export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificationProps) {
+  const { t } = useLanguage()
   const [step, setStep] = useState<VerificationStep>("start")
   const [error, setError] = useState<string | null>(null)
 
@@ -154,7 +156,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       streamRef.current = stream
       setStep("liveness")
     } catch (err) {
-      setError("Unable to access camera. Please check permissions.")
+      setError(t("liveness.err_camera"))
       setStep("error")
     }
   }
@@ -405,14 +407,14 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           onSuccess(selfieDataUrl)
         }, 2000)
       } else {
-        throw new Error(data.error || "Identity mismatch.")
+        throw new Error(data.error || t("liveness.err_identity_mismatch"))
       }
     } catch (err: any) {
       const newRetryCount = retryCount + 1
       setRetryCount(newRetryCount)
 
       if (newRetryCount >= 3) {
-        setError("Too many failed attempts. Restarting liveness test...")
+        setError(t("liveness.err_too_many_attempts"))
         setStep("error")
         setTimeout(() => {
           setAnchorImage(null)
@@ -422,7 +424,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           startCamera() // Restart liveness
         }, 3000)
       } else {
-        setError(`${err.message} (Attempt ${newRetryCount}/3)`)
+        setError(`${err.message} (${t("liveness.attempt")} ${newRetryCount}/3)`)
         setStep("error")
         setTimeout(() => {
           setError(null)
@@ -435,21 +437,21 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   return (
     <div className="flex flex-col items-center justify-center p-6 space-y-6 max-w-md mx-auto bg-card rounded-2xl border shadow-xl">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Identity Guard</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t("liveness.title")}</h2>
         <p className="text-sm text-muted-foreground min-h-[40px]">
-          {step === "start" && "Prove you're human to secure your account."}
+          {step === "start" && t("liveness.step_start_desc")}
           {step === "liveness" && (
             <span className="flex items-center justify-center gap-2 font-medium text-primary">
               <currentChallenge.icon className="w-4 h-4 animate-pulse" />
-              {currentChallenge.label}
+              {t(currentChallenge.labelKey)}
             </span>
           )}
-          {step === "capture-selfie" && "Liveness Verified! Look straight and pose."}
-          {step === "verifying" && "Checking identity..."}
-          {step === "success" && "Identity Verified Successfully!"}
+          {step === "capture-selfie" && t("liveness.step_capture_desc")}
+          {step === "verifying" && t("liveness.step_verifying_desc")}
+          {step === "success" && t("liveness.step_success_desc")}
           {step === "error" && (
             <span className="text-destructive font-semibold">
-              {error || "Verification failed."}
+              {error || t("liveness.step_error_desc")}
             </span>
           )}
         </p>
@@ -497,7 +499,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
               {step === "liveness" && livenessData && (
                 <div className="absolute bottom-5 left-0 right-0 z-20 flex justify-center">
                   <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-xs ${livenessData.face_detected ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
-                    {livenessData.face_detected ? "Face Detected" : "No Face"}
+                    {livenessData.face_detected ? t("liveness.face_detected") : t("liveness.no_face")}
                   </span>
                 </div>
               )}
@@ -552,32 +554,32 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
         {step === "start" && (
           <Button onClick={startCamera} className="w-full h-12 text-base font-bold">
-            Start Verification
+            {t("liveness.btn_start")}
           </Button>
         )}
 
         {step === "capture-selfie" && (
           <Button onClick={captureFinalSelfie} className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700">
-            <Camera className="mr-2 w-5 h-5" /> Capture Final Selfie
+            <Camera className="mr-2 w-5 h-5" /> {t("liveness.btn_capture")}
           </Button>
         )}
 
         {step === "liveness" && (
           <Button onClick={() => { stopCamera(); onCancel() }} variant="outline" className="w-full h-10">
-            <StopCircle className="mr-2 w-4 h-4" /> Stop Verification
+            <StopCircle className="mr-2 w-4 h-4" /> {t("liveness.btn_stop")}
           </Button>
         )}
       </div>
 
       {(step === "start" || step === "capture-selfie") && (
         <button onClick={() => { stopCamera(); onCancel() }} className="text-xs text-muted-foreground hover:underline font-medium">
-          Cancel and return
+          {t("liveness.btn_cancel")}
         </button>
       )}
 
       <UploadLoader
         isVisible={step === "verifying"}
-        message="Verifying your identity..."
+        message={t("liveness.loader_verifying")}
       />
     </div>
   )

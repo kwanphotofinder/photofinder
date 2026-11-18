@@ -464,36 +464,39 @@ export function PhotoGrid({
               </div>
 
               {/* Action Buttons - Mobile / Small screen visible below the image */}
-              <div className="p-3 pt-0 2xl:hidden">
-                <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="p-2 sm:p-3 pt-0 2xl:hidden">
+                <div className="flex items-center gap-1.5 justify-between">
                   <Button
                     size="sm"
                     variant="outline"
-                    className={`shrink-0 ${savedPhotoIds.includes(photo.id) ? "bg-primary hover:bg-primary/90 text-primary-foreground border-primary" : ""}`}
+                    className={`flex-1 h-9 p-0 flex items-center justify-center rounded-lg ${savedPhotoIds.includes(photo.id) ? "bg-primary hover:bg-primary/90 text-primary-foreground border-primary" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleSavePhoto(photo.id, e)
                     }}
+                    title="บันทึก"
                   >
                     <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? "fill-current" : ""}`} />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0"
+                    className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg"
                     onClick={(e) => {
                       e.stopPropagation()
                       setSelectedPhoto(photo)
                       setShowDetail(true)
                     }}
+                    title="ดูภาพขยาย"
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0"
+                    className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary hover:text-white border-primary/30 text-primary transition-colors"
                     onClick={(e) => handleDownload(photo, e)}
+                    title="ดาวน์โหลดภาพ"
                   >
                     <Download className="w-4 h-4" />
                   </Button>
@@ -501,8 +504,9 @@ export function PhotoGrid({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="shrink-0"
+                      className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg"
                       onClick={(e) => handleShare(photo, e)}
+                      title="แชร์"
                     >
                       <Share2 className="w-4 h-4" />
                     </Button>
@@ -511,13 +515,14 @@ export function PhotoGrid({
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="shrink-0"
+                      className="h-9 px-2.5 flex items-center justify-center rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation()
                         if (confirm("Remove this photo from My Photos?")) {
                           onRemove(photo.id)
                         }
                       }}
+                      title="ลบ"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
