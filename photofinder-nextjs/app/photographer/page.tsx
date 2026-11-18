@@ -8,6 +8,7 @@ import { optimizeImageWithStats } from "@/lib/client-image-optimizer"
 import { uploadFileInChunks } from "@/lib/chunked-uploader"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   AlertCircle,
@@ -104,7 +105,7 @@ async function extractFilesFromDataTransfer(dataTransfer: DataTransfer): Promise
 
 export default function PhotographerPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +123,7 @@ export default function PhotographerPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
+  const [uploadSummary, setUploadSummary] = useState<{ success: number; failed: { name: string; reason: string }[] } | null>(null)
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState<string | null>(null)
@@ -487,6 +489,10 @@ export default function PhotographerPage() {
 
     setIsUploading(true)
 
+    // Track this batch's outcome locally (state updates are async and would be stale here)
+    const succeeded: string[] = []
+    const failed: { name: string; reason: string }[] = []
+
     // Upload files sequentially with resumable chunk support
     for (let i = 0; i < selectedFiles.length; i++) {
       const rawFile = selectedFiles[i]
@@ -558,26 +564,36 @@ export default function PhotographerPage() {
         if (result.success) {
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 100 }))
           setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Completed & Enqueued" }))
+          succeeded.push(rawFile.name)
         } else {
+          const reason = result.error || "Upload failed"
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
           setUploadErrors((prev) => ({
             ...prev,
-            [rawFile.name]: result.error || "Upload failed",
+            [rawFile.name]: reason,
           }))
           setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Failed" }))
+          failed.push({ name: rawFile.name, reason })
         }
       } catch (error: any) {
         console.error("[v0] Upload error:", error)
+        const reason = error?.message || "Network error"
         setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
         setUploadErrors((prev) => ({
           ...prev,
-          [rawFile.name]: error?.message || "Network error",
+          [rawFile.name]: reason,
         }))
         setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Network error" }))
+        failed.push({ name: rawFile.name, reason })
       }
     }
 
     setIsUploading(false)
+
+    // Show a completion summary (how many succeeded / failed with reasons).
+    if (succeeded.length + failed.length > 0) {
+      setUploadSummary({ success: succeeded.length, failed })
+    }
 
     // After uploads, reload this photographer's photos
     await loadData(photographerUser?.id)
@@ -1606,6 +1622,60 @@ export default function PhotographerPage() {
         isLoading={isBulkDeleting}
         onConfirm={handleBulkDeleteConfirm}
       />
+
+      {/* Upload completion summary */}
+      <Dialog open={uploadSummary !== null} onOpenChange={(open) => !open && setUploadSummary(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              {uploadSummary && uploadSummary.failed.length === 0 ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              )}
+              {lang === "th" ? "สรุปผลการอัปโหลด" : "Upload Summary"}
+            </DialogTitle>
+          </DialogHeader>
+          {uploadSummary && (
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <CheckCircle className="w-4 h-4" />
+                  {uploadSummary.success} {lang === "th" ? "สำเร็จ" : "uploaded"}
+                </span>
+                {uploadSummary.failed.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-red-700">
+                    <XCircle className="w-4 h-4" />
+                    {uploadSummary.failed.length} {lang === "th" ? "ล้มเหลว" : "failed"}
+                  </span>
+                )}
+              </div>
+              {uploadSummary.failed.length > 0 && (
+                <div className="max-h-48 space-y-1.5 overflow-y-auto rounded border border-red-100 bg-red-50/60 p-2">
+                  {uploadSummary.failed.map((f) => (
+                    <div key={f.name} className="text-xs">
+                      <p className="truncate font-semibold text-red-800">{f.name}</p>
+                      <p className="text-red-600">{f.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {uploadSummary.failed.length > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  {lang === "th"
+                    ? "ใช้ปุ่ม \"อัปโหลดใหม่เฉพาะที่ล้มเหลว\" เพื่อลองอีกครั้ง"
+                    : 'Use the "Retry failed" button to try the failed ones again.'}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button size="sm" onClick={() => setUploadSummary(null)} className="h-8 text-xs">
+              {lang === "th" ? "ปิด" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

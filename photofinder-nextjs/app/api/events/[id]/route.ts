@@ -59,6 +59,7 @@ export async function PATCH(
     if (body.location !== undefined) dataToUpdate.location = body.location;
     if (body.description !== undefined) dataToUpdate.description = body.description;
     if (body.status !== undefined) dataToUpdate.status = body.status;
+    if (body.expiresAt !== undefined) dataToUpdate.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
 
     const updatedEvent = await prisma.event.update({
       where: { id: p.id },

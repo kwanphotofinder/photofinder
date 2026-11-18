@@ -724,8 +724,8 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-6 md:flex-row md:items-start">
             {/* REG MFU / Ant Design Style Left Navigation Menu */}
-            <TabsList className="!inline-flex !h-auto sticky top-20 w-full shrink-0 flex-col items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64">
-              <div className="mb-2 px-3 py-2 border-b border-slate-100">
+            <TabsList className="!inline-flex !h-auto md:sticky md:top-20 w-full shrink-0 flex-row overflow-x-auto items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64 md:flex-col md:overflow-x-visible">
+              <div className="mb-2 px-3 py-2 border-b border-slate-100 hidden md:block">
                 <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   {t("menu.title")}
                 </h3>
@@ -745,7 +745,7 @@ export default function AdminDashboardPage() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="group flex items-center justify-between w-full rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
+                  className="group flex items-center justify-between w-auto shrink-0 md:w-full whitespace-nowrap rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-b-2 md:border-b-0 md:border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <tab.icon className="w-4 h-4 shrink-0 text-slate-500 group-data-[state=active]:text-[#82181a]" />
@@ -985,7 +985,8 @@ export default function AdminDashboardPage() {
                               alt="Event photo"
                               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                             />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                            {/* Desktop: reveal delete on hover */}
+                            <div className="absolute inset-0 hidden md:flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -996,6 +997,16 @@ export default function AdminDashboardPage() {
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
+                            {/* Mobile/touch: always-visible delete button (no hover) */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setPhotoToDelete(photo.id)}
+                              className="md:hidden absolute top-1.5 right-1.5 z-10 h-7 w-7 p-0 rounded-full shadow"
+                              title="Delete Photo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                             <div className="absolute bottom-0 left-0 right-0 truncate bg-black/70 p-1.5 text-[11px] text-white">
                               {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
                             </div>
@@ -1120,7 +1131,7 @@ export default function AdminDashboardPage() {
                           <img
                             src={selectedLowConfidencePhoto.storageUrl}
                             alt="Low confidence preview"
-                            className="h-[360px] w-full object-contain"
+                            className="max-h-[45vh] w-full object-contain"
                           />
                         </div>
 
@@ -1145,7 +1156,7 @@ export default function AdminDashboardPage() {
                       <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
                         {t("lc.modal.preview_btn")}
                       </Button>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           variant="default"
                           size="sm"

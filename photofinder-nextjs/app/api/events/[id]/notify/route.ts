@@ -33,8 +33,9 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // Read dynamic biometric confidence threshold from system settings (defaults to 0.50)
-    // to match /api/me/matches exactly (Cosine distance <= threshold is confidence >= threshold)
+    // Notification match threshold from system settings (defaults to 0.50). Treated as a
+    // confidence value: a user is notified when (1 - cosine distance) >= threshold, the same
+    // way /api/me/matches filters. Higher = stricter (fewer, more confident notifications).
     let similarityThreshold = 0.50;
     try {
       const confidenceSettings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
@@ -78,7 +79,7 @@ export async function POST(
         SELECT "userId"
         FROM "user_faces"
         WHERE "embedding" IS NOT NULL
-          AND ("embedding" <=> ${vectorString}::vector) <= ${similarityThreshold}
+          AND (1 - ("embedding" <=> ${vectorString}::vector)) >= ${similarityThreshold}
       `;
 
       for (const match of matches) {
