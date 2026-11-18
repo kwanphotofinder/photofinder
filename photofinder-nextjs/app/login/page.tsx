@@ -80,13 +80,28 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    // Check if redirected back with an error
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get("error");
+      if (urlError) {
+        setError(decodeURIComponent(urlError));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const initGoogle = () => {
       if (window.google && buttonRef.current) {
+        const loginUri = `${window.location.origin}/api/auth/google/callback`;
+
         // Only initialize once globally to avoid [GSI_LOGGER] warning
         if (!window.__google_gsi_initialized) {
           window.google.accounts.id.initialize({
             client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
             callback: handleCredentialResponse,
+            ux_mode: "redirect",
+            login_uri: loginUri,
             auto_select: false,
           });
           window.__google_gsi_initialized = true;
