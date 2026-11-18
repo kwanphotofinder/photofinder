@@ -34,6 +34,7 @@ interface PhotoGridProps {
   showConfidence?: boolean
   showShare?: boolean
   showEngagement?: boolean
+  showStats?: boolean
   enableBatchDownload?: boolean
 }
 
@@ -51,9 +52,11 @@ export function PhotoGrid({
   compact = false,
   showConfidence = true,
   showShare = true,
-  showEngagement = true,
+  showEngagement: showEngagementProp = true,
+  showStats,
   enableBatchDownload = true,
 }: PhotoGridProps) {
+  const showEngagement = showStats !== undefined ? showStats : showEngagementProp
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [openShareSheet, setOpenShareSheet] = useState(false)

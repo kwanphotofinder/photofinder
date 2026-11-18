@@ -1,3 +1,5 @@
+import { getSystemSecret } from "@/lib/system-settings";
+
 const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
 export async function pushPhotoMatchNotification(
@@ -7,7 +9,7 @@ export async function pushPhotoMatchNotification(
   photoUrl: string,
   actionUrl: string,
 ) {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const token = (await getSystemSecret("LINE_CHANNEL_ACCESS_TOKEN")) || process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
   if (!token) {
     console.warn(
@@ -127,7 +129,7 @@ export async function pushBatchPhotoMatchNotification(
   matchCount: number,
   actionUrl: string,
 ) {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const token = (await getSystemSecret("LINE_CHANNEL_ACCESS_TOKEN")) || process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
   if (!token) {
     console.warn(

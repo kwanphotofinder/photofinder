@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Clock } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Sliders, ExternalLink, Clock } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
@@ -22,7 +22,7 @@ const minutesToTime = (minutes: number) =>
 
 export default function AdminDashboardPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [adminName, setAdminName] = useState("")
   const [events, setEvents] = useState<any[]>([])
   const [photos, setPhotos] = useState<any[]>([])
@@ -658,9 +658,15 @@ export default function AdminDashboardPage() {
                 <Button
                   variant="outline"
                   onClick={() => router.push("/admin/settings")}
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white flex items-center gap-1.5"
                 >
-                  {t("dash.btn.settings")}
+                  <Sliders className="h-3.5 w-3.5 text-[#82181a]" />
+                  <span>{t("dash.btn.settings")}</span>
+                  {callerRole === "SUPER_ADMIN" && (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded ml-0.5">
+                      SUPER
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>
@@ -790,7 +796,17 @@ export default function AdminDashboardPage() {
                         <div className="flex items-start gap-3">
                           <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{t("settings.confidence_title")}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-slate-800">{t("settings.confidence_title")}</p>
+                              <button
+                                type="button"
+                                onClick={() => router.push("/admin/settings")}
+                                className="text-[11px] font-semibold text-[#82181a] hover:underline inline-flex items-center gap-0.5"
+                              >
+                                <span>{lang === "th" ? "จัดการการตั้งค่าระบบทั้งหมด" : "Manage All System Settings"}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </div>
                             <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.confidence_desc")}</p>
                           </div>
                         </div>
