@@ -10,12 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Clock } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
 import { ConfirmationModal } from "@/components/confirmation-modal"
+
+const minutesToTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -37,6 +40,11 @@ export default function AdminDashboardPage() {
   const [biometricConfidenceDraft, setBiometricConfidenceDraft] = useState("50")
   const [isSavingBiometricConfidence, setIsSavingBiometricConfidence] = useState(false)
   const [biometricConfidenceMessage, setBiometricConfidenceMessage] = useState<string | null>(null)
+  const [cleanupTime, setCleanupTime] = useState("00:00")
+  const [cleanupTimeDraft, setCleanupTimeDraft] = useState("00:00")
+  const [cleanupLastRunAt, setCleanupLastRunAt] = useState<string | null>(null)
+  const [isSavingCleanupTime, setIsSavingCleanupTime] = useState(false)
+  const [cleanupTimeMessage, setCleanupTimeMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -142,6 +150,16 @@ export default function AdminDashboardPage() {
             setBiometricConfidence(percentage)
             setBiometricConfidenceDraft(String(percentage))
           }
+
+          const cleanupRes = await apiClient.getCleanupTime()
+          if (cleanupRes.data) {
+            const time = minutesToTime(cleanupRes.data.minutes)
+            setCleanupTime(time)
+            setCleanupTimeDraft(time)
+            setCleanupLastRunAt(cleanupRes.data.lastRunAt)
+          } else {
+            setCleanupTimeMessage({ text: t("settings.cleanup_load_error"), ok: false })
+          }
         }
 
         if (eventsRes.data && Array.isArray(eventsRes.data)) {
@@ -202,6 +220,27 @@ export default function AdminDashboardPage() {
       setBiometricConfidenceMessage(response.error || t("settings.confidence_save_error"))
     }
     setIsSavingBiometricConfidence(false)
+  }
+
+  const saveCleanupTime = async () => {
+    const match = /^(\d{2}):(\d{2})$/.exec(cleanupTimeDraft)
+    if (!match) {
+      setCleanupTimeMessage({ text: t("settings.cleanup_save_error"), ok: false })
+      return
+    }
+
+    setIsSavingCleanupTime(true)
+    setCleanupTimeMessage(null)
+    const response = await apiClient.updateCleanupTime(Number(match[1]) * 60 + Number(match[2]))
+    if (response.data) {
+      const time = minutesToTime(response.data.minutes)
+      setCleanupTime(time)
+      setCleanupTimeDraft(time)
+      setCleanupTimeMessage({ text: t("settings.cleanup_saved"), ok: true })
+    } else {
+      setCleanupTimeMessage({ text: response.error || t("settings.cleanup_save_error"), ok: false })
+    }
+    setIsSavingCleanupTime(false)
   }
 
   const fetchAuditLogs = async (cat = auditCategoryFilter, search = auditSearchQuery, page = auditPage) => {
@@ -780,6 +819,44 @@ export default function AdminDashboardPage() {
                       {biometricConfidenceMessage && (
                         <p className={`mt-2 text-[11px] ${biometricConfidenceMessage === t("settings.confidence_saved") ? "text-emerald-600" : "text-destructive"}`}>
                           {biometricConfidenceMessage}
+                        </p>
+                      )}
+                      <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{t("settings.cleanup_title")}</p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.cleanup_desc")}</p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              {t("settings.cleanup_last_run")}{" "}
+                              {cleanupLastRunAt
+                                ? new Date(cleanupLastRunAt).toLocaleString(undefined, { timeZone: "Asia/Bangkok" })
+                                : t("settings.cleanup_never_run")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 sm:min-w-80">
+                          <input
+                            type="time"
+                            value={cleanupTimeDraft}
+                            onChange={(event) => setCleanupTimeDraft(event.target.value)}
+                            className="h-8 w-28 rounded border border-slate-300 px-2 text-center text-sm"
+                            aria-label={t("settings.cleanup_title")}
+                          />
+                          <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-[#82181a]">{t("settings.cleanup_timezone")}</span>
+                          <Button
+                            size="sm"
+                            disabled={isSavingCleanupTime || !cleanupTimeDraft || cleanupTimeDraft === cleanupTime}
+                            onClick={saveCleanupTime}
+                            className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
+                          >
+                            {isSavingCleanupTime ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("settings.confidence_save")}
+                          </Button>
+                        </div>
+                      </div>
+                      {cleanupTimeMessage && (
+                        <p className={`mt-2 text-[11px] ${cleanupTimeMessage.ok ? "text-emerald-600" : "text-destructive"}`}>
+                          {cleanupTimeMessage.text}
                         </p>
                       )}
                     </CardContent>

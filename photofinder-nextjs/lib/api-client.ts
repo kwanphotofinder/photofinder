@@ -231,6 +231,13 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ percentage }),
     }),
+  getCleanupTime: () =>
+    apiCall<{ minutes: number; lastRunAt: string | null }>("/admin/system-settings/cleanup-time"),
+  updateCleanupTime: (minutes: number) =>
+    apiCall<{ minutes: number; lastRunAt: string | null }>("/admin/system-settings/cleanup-time", {
+      method: "PATCH",
+      body: JSON.stringify({ minutes }),
+    }),
   dismissLowConfidencePhoto: (photoId: string) =>
     apiCall<any>("/admin/low-confidence", {
       method: "PATCH",

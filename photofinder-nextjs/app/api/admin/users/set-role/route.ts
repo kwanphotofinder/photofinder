@@ -17,14 +17,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and role are required' }, { status: 400 });
     }
 
-    // Only SUPER_ADMIN can assign ADMIN role
-    if (role === 'ADMIN' && caller.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Only Super Admin can assign Admin role' }, { status: 403 });
-    }
-
     const validRoles = ['STUDENT', 'ADMIN', 'PHOTOGRAPHER', 'SUPER_ADMIN'];
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
+
+    // Privileged-role guard: only a Super Admin may grant ADMIN/SUPER_ADMIN,
+    // or change the role of a user who currently holds ADMIN/SUPER_ADMIN.
+    // A normal admin may only move regular users between STUDENT/PHOTOGRAPHER.
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const privilegedRoles = ['ADMIN', 'SUPER_ADMIN'];
+    const touchesPrivilegedRole =
+      privilegedRoles.includes(role) ||
+      (existingUser != null && privilegedRoles.includes(existingUser.role));
+
+    if (touchesPrivilegedRole && caller.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Only Super Admin can assign or change admin-level roles' },
+        { status: 403 }
+      );
     }
 
     // Upsert user: create if not exists, update role if exists
