@@ -56,6 +56,8 @@ any of those resources is missing or the database pod is not Ready.
 
 Rollback is an explicit manual CI job and runs `helm rollback` for the production release.
 
+Any merge into `production` deploys the app, even if you only change docs.
+
 ## Initial replacement of a legacy release
 
 Do not uninstall the live release as part of every pipeline. For the one-time replacement, run the reviewed `production` pipeline with protected variable `RECREATE_LEGACY_PRODUCTION=true`. The pipeline captures non-secret Helm/workload/ingress evidence, verifies namespace-scoped RBAC, runtime and pull Secrets, and the new immutable manifest, then removes only the exact `photofinder` Helm release before installing the new chart. If that exact release is absent, the destructive job fails closed instead of guessing resource names. A missing kubeconfig, concurrent deployment, missing baseline, or failed authorization check stops the cutover. Leave the variable unset for every later release so normal atomic upgrades preserve Helm history.
