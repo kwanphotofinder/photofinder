@@ -124,5 +124,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Safety net: a single too-wide element must never make the whole page scroll sideways on mobile. */
+    overflow-x: hidden;
   }
 }
