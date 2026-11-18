@@ -856,6 +856,23 @@ const translations: Record<Language, Record<string, string>> = {
     "consent.minimal.access_item4": "เปลี่ยนใจกลับมาเปิดระบบค้นหาใบหน้าได้ตลอดเวลาในหน้าตั้งค่า",
     "consent.minimal.note": "ระบบค้นหาด้วยใบหน้าจะไม่ทำงาน หากคุณต้องการเปิดใช้งานในภายหลัง สามารถเข้าไปเปิดได้ตลอดเวลาที่หน้าการตั้งค่าบัญชี",
     "consent.minimal.continue_btn": "ไปยังหน้าแดชบอร์ด",
+
+    // Landing Page
+    "landing.tagline": "ระบบค้นหาภาพกิจกรรมมหาวิทยาลัยด้วย AI",
+    "landing.hero_title": "ค้นพบทุกช่วงเวลาของคุณ",
+    "landing.hero_desc": "ค้นหาและดาวน์โหลดรูปภาพของคุณจากกิจกรรมต่างๆ ภายในมหาวิทยาลัย ด้วยระบบตรวจจับใบหน้าอัจฉริยะ (AI)",
+    "landing.explore_btn": "เข้าสู่ระบบเพื่อใช้งาน",
+    "landing.privacy_btn": "นโยบายความเป็นส่วนตัว",
+    "landing.login_btn": "เข้าสู่ระบบ",
+    "landing.how_it_works_badge": "ขั้นตอนการทำงาน",
+    "landing.how_it_works_title": "ค้นหาภาพของคุณได้ง่ายๆ ใน 3 ขั้นตอน",
+    "landing.how_it_works_subtitle": "ระบบของเราช่วยให้การค้นหารูปถ่ายของคุณจากทุกกิจกรรมเป็นเรื่องง่ายดาย เพียงทำตามขั้นตอนเหล่านี้",
+    "landing.step1_title": "อัปโหลดรูปเซลฟี่ของคุณ",
+    "landing.step1_desc": "เพิ่มรูปถ่ายหน้าตรงที่ชัดเจน เพื่อให้ AI ใช้เป็นรูปอ้างอิงส่วนตัวสำหรับการค้นหาใบหน้าของคุณ",
+    "landing.step2_title": "ระบบค้นหาภาพอัตโนมัติ",
+    "landing.step2_desc": "AI จะทำการสแกนรูปภาพจากกิจกรรมต่างๆ และรวบรวมรูปที่มีคุณมาแสดงในแดชบอร์ดส่วนตัวโดยอัตโนมัติ",
+    "landing.step3_title": "รับภาพความประทับใจ",
+    "landing.step3_desc": "ดาวน์โหลดรูปภาพโปรดของคุณได้ทันที ข้อมูลของคุณได้รับการปกป้องอย่างปลอดภัย และสามารถขอลบได้ตลอดเวลา",
   },
   en: {
     // Header & Global
@@ -1701,6 +1718,23 @@ const translations: Record<Language, Record<string, string>> = {
     "consent.minimal.access_item4": "Change your preferences anytime in settings",
     "consent.minimal.note": "Face search features will not be available. If you change your mind, you can update your preferences anytime in account settings.",
     "consent.minimal.continue_btn": "Continue to Dashboard",
+
+    // Landing Page
+    "landing.tagline": "AI-Powered Campus Photo Discovery",
+    "landing.hero_title": "Find Your Moments",
+    "landing.hero_desc": "Discover and download your photos from campus events using AI-powered face recognition",
+    "landing.explore_btn": "Explore the App",
+    "landing.privacy_btn": "Privacy Policy",
+    "landing.login_btn": "Sign In",
+    "landing.how_it_works_badge": "How It Works",
+    "landing.how_it_works_title": "Simple Steps to Your Photos",
+    "landing.how_it_works_subtitle": "Our platform makes it incredibly easy to find your photos from any event. Just follow these simple steps.",
+    "landing.step1_title": "Upload a Selfie",
+    "landing.step1_desc": "Provide a clear photo of yourself so our AI can work its magic. This is your private reference photo.",
+    "landing.step2_title": "Browse Events",
+    "landing.step2_desc": "Our AI automatically scans all event photos and finds matches for you in your private dashboard.",
+    "landing.step3_title": "Enjoy Your Photos",
+    "landing.step3_desc": "Download your favorite moments. Your data is secure and you can request removal at any time.",
   },
 }
 
