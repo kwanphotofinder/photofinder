@@ -38,7 +38,7 @@ export default function LandingPage() {
                 <img src="/Logo2.png" alt="Photo Finder" className="h-14 w-auto" />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center">
                 {/* Language Switcher */}
                 <div className="flex items-center overflow-hidden rounded-md border border-border/60 bg-background/80 shadow-xs backdrop-blur-sm">
                   <button
@@ -66,14 +66,6 @@ export default function LandingPage() {
                     EN
                   </button>
                 </div>
-
-                <Button
-                  onClick={() => router.push("/login")}
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm transition-all"
-                >
-                  {t("landing.login_btn")}
-                </Button>
               </div>
             </div>
           </nav>
