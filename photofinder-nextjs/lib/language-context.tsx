@@ -873,6 +873,20 @@ const translations: Record<Language, Record<string, string>> = {
     "landing.step2_desc": "AI จะทำการสแกนรูปภาพจากกิจกรรมต่างๆ และรวบรวมรูปที่มีคุณมาแสดงในแดชบอร์ดส่วนตัวโดยอัตโนมัติ",
     "landing.step3_title": "รับภาพความประทับใจ",
     "landing.step3_desc": "ดาวน์โหลดรูปภาพโปรดของคุณได้ทันที ข้อมูลของคุณได้รับการปกป้องอย่างปลอดภัย และสามารถขอลบได้ตลอดเวลา",
+
+    // Login Page
+    "login.title": "เข้าสู่ระบบ",
+    "login.desc_prefix": "เข้าสู่ระบบด้วยอีเมลนักศึกษา",
+    "login.desc_suffix": "หรือบัญชีที่ได้รับอนุญาตเพื่อดำเนินการต่อ",
+    "login.restriction_text": "บริการนี้จำกัดเฉพาะ",
+    "login.restriction_student": "อีเมลนักศึกษา มฟล. (Gmail)",
+    "login.restriction_and": "และ",
+    "login.restriction_authorized": "บัญชีที่ได้รับอนุญาต",
+    "login.signing_in": "กำลังเข้าสู่ระบบ...",
+    "login.first_time_notice": "การเข้าสู่ระบบครั้งแรก ระบบจะนำคุณไปยังขั้นตอนข้อตกลงความเป็นส่วนตัว (PDPA) เพื่อเปิดใช้งานระบบค้นหาภาพด้วย AI",
+    "login.err_no_credential": "ไม่ได้รับข้อมูลยืนยันตัวตนจาก Google กรุณาลองใหม่อีกครั้ง",
+    "login.err_failed": "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+    "login.err_google_failed": "การเข้าสู่ระบบด้วย Google ขัดข้อง กรุณาลองใหม่อีกครั้ง",
   },
   en: {
     // Header & Global
@@ -1735,6 +1749,20 @@ const translations: Record<Language, Record<string, string>> = {
     "landing.step2_desc": "Our AI automatically scans all event photos and finds matches for you in your private dashboard.",
     "landing.step3_title": "Enjoy Your Photos",
     "landing.step3_desc": "Download your favorite moments. Your data is secure and you can request removal at any time.",
+
+    // Login Page
+    "login.title": "Sign In",
+    "login.desc_prefix": "Sign in with your",
+    "login.desc_suffix": "student email or an authorized account to continue",
+    "login.restriction_text": "This service is restricted to",
+    "login.restriction_student": "MFU Student Gmails",
+    "login.restriction_and": "and",
+    "login.restriction_authorized": "Authorized Accounts",
+    "login.signing_in": "Signing you in...",
+    "login.first_time_notice": "Your first login will take you through our consent process to enable AI-powered photo discovery.",
+    "login.err_no_credential": "Google did not return a credential. Try signing in again.",
+    "login.err_failed": "Login failed. Please try again.",
+    "login.err_google_failed": "Google login failed. Please try again.",
   },
 }
 

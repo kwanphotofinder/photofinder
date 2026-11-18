@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLanguage } from "@/lib/language-context";
 
 declare global {
   interface Window {
@@ -21,6 +22,7 @@ declare global {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { lang, setLang, t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -58,13 +60,13 @@ export default function LoginPage() {
     try {
       const token = response.credential;
       if (!token) {
-        throw new Error("Google did not return a credential. Try signing in again.");
+        throw new Error(t("login.err_no_credential"));
       }
 
       const res = await apiClient.loginWithGoogle(token);
 
       if (res.error || !res.data) {
-        const message = res.error || "Login failed. Please try again.";
+        const message = res.error || t("login.err_failed");
         setError(message);
         setIsLoading(false);
         return;
@@ -74,14 +76,14 @@ export default function LoginPage() {
       persistAndRouteUser(access_token, user);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Google login failed. Please try again.");
+      setError(err.message || t("login.err_google_failed"));
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
     const initGoogle = () => {
-      if (window.google && buttonRef.current) {
+      if (window.google?.accounts?.id && buttonRef.current) {
         // Only initialize once globally to avoid [GSI_LOGGER] warning
         if (!window.__google_gsi_initialized) {
           window.google.accounts.id.initialize({
@@ -92,12 +94,13 @@ export default function LoginPage() {
           window.__google_gsi_initialized = true;
         }
 
+        buttonRef.current.innerHTML = "";
         window.google.accounts.id.renderButton(buttonRef.current, {
           theme: "outline",
           size: "large",
           text: "signin_with",
           shape: "rectangular",
-          locale: "en",
+          locale: lang === "th" ? "th" : "en",
           width: 320,
         });
       }
@@ -118,7 +121,7 @@ export default function LoginPage() {
     }, 100);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [lang]);
 
   return (
     <main
@@ -130,11 +133,41 @@ export default function LoginPage() {
       }}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <Card className="relative z-10 w-full max-w-md bg-white/10 dark:bg-black/10 border-white/20 text-white animate-in fade-in-0 zoom-in-95 duration-500">
-        <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-3xl font-bold">Sign In</CardTitle>
+      <Card className="relative z-10 w-full max-w-md bg-white/10 dark:bg-black/10 border-white/20 text-white animate-in fade-in-0 zoom-in-95 duration-500 overflow-hidden">
+        {/* Language Switcher */}
+        <div className="absolute top-4 right-4 z-20">
+          <div className="flex items-center overflow-hidden rounded-md border border-white/20 bg-black/40 shadow-xs backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => setLang("th")}
+              className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                lang === "th"
+                  ? "bg-primary text-white shadow-inner"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+              title="ภาษาไทย"
+            >
+              TH
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                lang === "en"
+                  ? "bg-primary text-white shadow-inner"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+              title="English"
+            >
+              EN
+            </button>
+          </div>
+        </div>
+
+        <CardHeader className="text-center space-y-2 pt-10">
+          <CardTitle className="text-3xl font-bold">{t("login.title")}</CardTitle>
           <CardDescription className="text-white/80">
-            Sign in with your <strong>@lamduan.mfu.ac.th</strong> student email or an authorized account to continue
+            {t("login.desc_prefix")} <strong>@lamduan.mfu.ac.th</strong> {t("login.desc_suffix")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -147,7 +180,10 @@ export default function LoginPage() {
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
             <p className="text-[11px] leading-relaxed text-white/70">
-              This service is restricted to <span className="text-white font-semibold">MFU Student Gmails</span> and <span className="text-white font-semibold">Authorized Accounts</span>.
+              {t("login.restriction_text")}{" "}
+              <span className="text-white font-semibold">{t("login.restriction_student")}</span>{" "}
+              {t("login.restriction_and")}{" "}
+              <span className="text-white font-semibold">{t("login.restriction_authorized")}</span>
             </p>
           </div>
 
@@ -155,7 +191,7 @@ export default function LoginPage() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center space-y-3">
                 <Loader2 className="w-8 h-8 animate-spin text-white/80" />
-                <span className="text-sm font-medium text-white/80">Signing you in...</span>
+                <span className="text-sm font-medium text-white/80">{t("login.signing_in")}</span>
               </div>
             ) : (
               <div ref={buttonRef} />
@@ -163,8 +199,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-xs text-white/60 text-center">
-            Your first login will take you through our consent process to enable
-            AI-powered photo discovery.
+            {t("login.first_time_notice")}
           </p>
         </CardContent>
       </Card>
