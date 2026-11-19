@@ -34,13 +34,6 @@ export async function POST(req: NextRequest) {
       aiFormData.append('session_id', sessionId);
     }
 
-    // Round-trip the temporal blink state (kept on the client so the AI service can run
-    // with multiple workers). Cap the size defensively.
-    const blinkState = formData.get('blink_state');
-    if (typeof blinkState === 'string' && blinkState.length <= 512) {
-      aiFormData.append('blink_state', blinkState);
-    }
-
     try {
       const aiResponse = await fetch(detectUrl, {
         method: 'POST',
@@ -74,7 +67,6 @@ export async function POST(req: NextRequest) {
         head_down: livenessResult.head_down || false,
         face_detected: livenessResult.face_detected !== false,
         confidence: livenessResult.confidence || 0,
-        blink_state: livenessResult.blink_state ?? null,
         ai_request_url: detectUrl,
       };
 
