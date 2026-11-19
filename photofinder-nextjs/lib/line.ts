@@ -249,3 +249,139 @@ export async function pushBatchPhotoMatchNotification(
     console.error("Error sending LINE notification:", error);
   }
 }
+
+
+export async function pushImportCompletionNotification(
+  lineUserId: string,
+  eventName: string,
+  importedCount: number,
+  skippedCount: number,
+  actionUrl: string,
+) {
+  const token = (await getSystemSecret("LINE_CHANNEL_ACCESS_TOKEN")) || process.env.LINE_CHANNEL_ACCESS_TOKEN;
+
+  if (!token) return;
+
+  const flexMessage = {
+    type: "flex",
+    altText: `นำเข้าภาพ ${importedCount} รูปเสร็จสมบูรณ์ - ${eventName}`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#059669",
+        paddingAll: "lg",
+        contents: [
+          {
+            type: "text",
+            text: "✅ นำเข้าภาพเสร็จสมบูรณ์",
+            color: "#ffffff",
+            weight: "bold",
+            size: "md",
+          },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: eventName,
+            weight: "bold",
+            size: "lg",
+            wrap: true,
+          },
+          {
+            type: "separator",
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "นำเข้าสำเร็จ:",
+                color: "#6b7280",
+                size: "sm",
+              },
+              {
+                type: "text",
+                text: `${importedCount} ภาพ`,
+                weight: "bold",
+                color: "#059669",
+                size: "sm",
+                align: "end",
+              },
+            ],
+          },
+          ...(skippedCount > 0
+            ? [
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "รูปซ้ำ (ข้าม):",
+                      color: "#6b7280",
+                      size: "sm",
+                    },
+                    {
+                      type: "text",
+                      text: `${skippedCount} ภาพ`,
+                      color: "#9ca3af",
+                      size: "sm",
+                      align: "end",
+                    },
+                  ],
+                },
+              ]
+            : []),
+          {
+            type: "text",
+            text: "🤖 AI กำลังสแกนตรวจจับใบหน้าในเบื้องหลัง",
+            color: "#6b7280",
+            size: "xs",
+            margin: "sm",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#82181a",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "เปิดดูอัลบั้ม",
+              uri: actionUrl,
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  try {
+    await fetch(LINE_MESSAGING_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        to: lineUserId,
+        messages: [flexMessage],
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to send LINE import completion notification:", err);
+  }
+}

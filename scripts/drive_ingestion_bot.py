@@ -28,6 +28,11 @@ except ImportError:
     print("Please install requests: pip install requests")
     sys.exit(1)
 
+try:
+    import gdown
+except ImportError:
+    gdown = None
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -182,7 +187,17 @@ class DriveIngestionBot:
                 uploaded_count += 1
             time.sleep(0.5)  # gentle rate limit between uploads
 
-        logger.info(f"Batch sync finished. Ingested {uploaded_count}/{len(images)} files.")
+        logger.info("=" * 60)
+        logger.info(f"🎉 [INGESTION COMPLETED] Finished processing {len(images)} photos!")
+        logger.info(f"   ✅ Successfully ingested: {uploaded_count} photos")
+        logger.info(f"   ⚠️  Skipped / Failed:     {len(images) - uploaded_count} photos")
+        logger.info(f"   🎯 Target Event:          {self.event_id}")
+        logger.info("=" * 60)
+        try:
+            sys.stdout.write("\a")
+            sys.stdout.flush()
+        except Exception:
+            pass
         return uploaded_count
 
     def watch(self, poll_interval_sec: int = 15):
@@ -201,7 +216,8 @@ class DriveIngestionBot:
 
 def main():
     parser = argparse.ArgumentParser(description="MFU Drive / Google Drive Ingestion Bot for PhotoFinder")
-    parser.add_argument("--dir", required=True, help="Path to MFU Drive / Google Drive folder with photos")
+    parser.add_argument("--dir", default=None, help="Path to local folder or synced drive folder with photos")
+    parser.add_argument("--drive-url", default=None, help="Public Google Drive folder URL to download via gdown")
     parser.add_argument("--event-id", required=True, help="Target Event ID in PhotoFinder")
     parser.add_argument("--api-url", default="http://localhost:3000", help="PhotoFinder API base URL")
     parser.add_argument("--token", default=None, help="Photographer / Admin JWT token")
@@ -212,10 +228,30 @@ def main():
 
     args = parser.parse_args()
 
-    watch_path = Path(args.dir)
-    if not watch_path.exists():
-        logger.error(f"Target folder does not exist: {watch_path}")
+    if not args.dir and not args.drive_url:
+        logger.error("Please specify either --dir (local folder) or --drive-url (Google Drive public folder URL)")
         sys.exit(1)
+
+    if args.drive_url:
+        if not gdown:
+            logger.error("gdown is required to download from Google Drive. Please run: pip install gdown")
+            sys.exit(1)
+        
+        target_dir = Path(args.dir) if args.dir else Path("./downloads_gdrive")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Downloading Google Drive folder from {args.drive_url} via gdown to '{target_dir}'...")
+        try:
+            gdown.download_folder(url=args.drive_url, output=str(target_dir), quiet=False, use_cookies=False, resume=True)
+            logger.info("Download completed successfully!")
+            watch_path = target_dir
+        except Exception as e:
+            logger.error(f"Failed to download Google Drive folder with gdown: {e}")
+            sys.exit(1)
+    else:
+        watch_path = Path(args.dir)
+        if not watch_path.exists():
+            logger.error(f"Target folder does not exist: {watch_path}")
+            sys.exit(1)
 
     bot = DriveIngestionBot(
         api_base=args.api_url,
