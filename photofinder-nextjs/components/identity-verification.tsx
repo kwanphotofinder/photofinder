@@ -20,7 +20,6 @@ interface LivenessDetectionResult {
   head_turn_direction: "left" | "right" | null;
   face_detected: boolean;
   confidence: number;
-  blink_state?: string | null;
 }
 
 // Liveness frames only need enough pixels for landmark detection. Smaller
@@ -55,8 +54,6 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const livenessCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const livenessSessionIdRef = useRef<string | null>(null)
-  // Temporal blink state round-tripped with the AI service (so it can run multi-worker).
-  const blinkStateRef = useRef<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const frameTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -208,7 +205,6 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
     isRunningRef.current = true
     const runId = ++livenessRunIdRef.current
     livenessSessionIdRef.current = createLivenessSessionId()
-    blinkStateRef.current = null // fresh blink tracking for this attempt
 
     const processFrame = async () => {
       let nextFrameDelayMs = 120
@@ -267,9 +263,6 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         if (livenessSessionIdRef.current) {
           formData.append("session_id", livenessSessionIdRef.current)
         }
-        if (blinkStateRef.current) {
-          formData.append("blink_state", blinkStateRef.current)
-        }
 
         const controller = new AbortController()
         abortControllerRef.current = controller
@@ -284,11 +277,6 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
         if (response.ok && isRunningRef.current) {
           const data = await response.json()
-          // Persist the updated blink state for the next frame (only when present, so a
-          // no-face frame doesn't wipe progress).
-          if (typeof data.blink_state === "string") {
-            blinkStateRef.current = data.blink_state
-          }
           setLivenessData(data)
         } else if (response.status === 429) {
           // Respect the limiter instead of hammering it; resume after the window.
