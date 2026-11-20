@@ -641,7 +641,7 @@ export default function AdminSettingsPage() {
                                         type="button"
                                         onClick={() => handleSettingChange(def.key, def.defaultValue)}
                                         title={lang === "th" ? "คืนค่าเริ่มต้น" : "Reset to default"}
-                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0"
+                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0 p-1 -m-1"
                                       >
                                         <RotateCcw className="w-3.5 h-3.5" />
                                       </button>
@@ -788,7 +788,7 @@ export default function AdminSettingsPage() {
                                         type="button"
                                         onClick={() => handleSettingChange(def.key, def.defaultValue)}
                                         title={lang === "th" ? "คืนค่าเริ่มต้น" : "Reset to default"}
-                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0"
+                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0 p-1 -m-1"
                                       >
                                         <RotateCcw className="w-3.5 h-3.5" />
                                       </button>
