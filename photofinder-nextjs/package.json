@@ -9,6 +9,9 @@
     "lint": "echo 'No linter configured'",
     "start": "next start"
   },
+  "overrides": {
+    "effect": "^3.22.1"
+  },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.35",
     "@ai-sdk/openai": "^3.0.53",
