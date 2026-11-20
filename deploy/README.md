@@ -23,7 +23,7 @@ The runtime file must include at least:
 - `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`
 - `SUPER_ADMIN_EMAIL`
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- `CLOUDINARY_URL`
+- `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` (MinIO image storage; `MINIO_REGION` optional)
 
 Optional integrations such as Groq, Gmail, and LINE remain in the same runtime file. The pipeline creates or updates the `photofinder-runtime` Kubernetes secret without logging values. Removing the CI env variable later does not delete the existing Kubernetes secret; it switches the job to presence/readiness validation.
 

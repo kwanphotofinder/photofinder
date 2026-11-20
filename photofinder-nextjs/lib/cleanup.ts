@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma"
-import { deleteFolderFromCloudinary } from "@/lib/cloudinary"
+import { deleteFolderFromStorage } from "@/lib/storage"
 import { recordAuditLog } from "@/lib/audit-logger"
 
 const AUDIT_LOG_RETENTION_DAYS = 90
@@ -36,7 +36,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     try {
       console.log(`[Cleanup] Deleting expired event: ${event.name} (${event.id})`)
       // Cloudinary first: once the DB row is gone we lose the ID and would orphan the files.
-      await deleteFolderFromCloudinary(event.id)
+      await deleteFolderFromStorage(event.id)
       await prisma.event.delete({ where: { id: event.id } })
       deletedIds.push(event.id)
 

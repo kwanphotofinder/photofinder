@@ -25,7 +25,7 @@ else
   kubectl get secret "$K8S_RUNTIME_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" >/dev/null
 fi
 
-required_keys=(DATABASE_URL DIRECT_URL JWT_SECRET SUPER_ADMIN_EMAIL NEXT_PUBLIC_GOOGLE_CLIENT_ID GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET CLOUDINARY_URL)
+required_keys=(DATABASE_URL DIRECT_URL JWT_SECRET SUPER_ADMIN_EMAIL NEXT_PUBLIC_GOOGLE_CLIENT_ID GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MINIO_ENDPOINT MINIO_BUCKET MINIO_ACCESS_KEY MINIO_SECRET_KEY)
 for key in "${required_keys[@]}"; do
   value=$(kubectl get secret "$K8S_RUNTIME_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o "jsonpath={.data.$key}")
   test -n "$value" || (echo "Runtime secret is missing required key: $key" >&2 && exit 1)

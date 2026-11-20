@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { uploadToCloudinary } from "@/lib/cloudinary"
+import { uploadToStorage } from "@/lib/storage"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { optimizeForStorage } from "@/lib/image"
@@ -79,7 +79,7 @@ export async function POST(
       }
 
       // 3. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
-      const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId)
+      const storageUrl = await uploadToStorage(file.name, 'image/webp', optimized.buffer, eventId)
 
       // 4. Create Photo Record with PENDING status
       const photo = await prisma.photo.create({

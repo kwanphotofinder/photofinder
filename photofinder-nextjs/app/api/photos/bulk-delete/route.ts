@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getUserFromRequest } from "@/lib/auth"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFromStorage } from "@/lib/storage"
 import { recordAuditLog } from "@/lib/audit-logger"
 
 export async function POST(req: NextRequest) {
@@ -63,11 +63,11 @@ export async function POST(req: NextRequest) {
       where: { id: { in: authorizedIds } },
     })
 
-    // 2. Concurrently delete original files from Cloudinary
+    // 2. Concurrently delete original files from object storage
     await Promise.allSettled(
       authorizedPhotos
-        .filter((p) => p.storageUrl && p.storageUrl.includes("cloudinary"))
-        .map((p) => deleteFromCloudinary(p.storageUrl))
+        .filter((p) => p.storageUrl)
+        .map((p) => deleteFromStorage(p.storageUrl))
     )
 
     // 3. Audit log
