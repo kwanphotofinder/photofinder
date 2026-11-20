@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: "Campus Event & Photo Finder",
   description: "Find your photos from campus events using AI face search",
   generator: "v0.app",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
