@@ -4,6 +4,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { getAppBaseUrl } from '@/lib/url';
 import { pushBatchPhotoMatchNotification } from '@/lib/line';
 import { sendPhotoMatchSummaryEmail } from '@/lib/gmail';
+import { getSystemSetting } from '@/lib/system-settings';
 
 export async function POST(
   req: NextRequest,
@@ -33,20 +34,18 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // Notification match threshold from system settings (defaults to 0.50). Treated as a
-    // confidence value: a user is notified when (1 - cosine distance) >= threshold, the same
-    // way /api/me/matches filters. Higher = stricter (fewer, more confident notifications).
-    let similarityThreshold = 0.50;
+    // Unified Face Match Threshold from system settings (stored as a whole percent, e.g. 60).
+    // The SAME threshold drives the student photo search (/api/me/matches), so a student is
+    // only notified about photos they would actually find. A user is notified when
+    // (1 - cosine distance) >= threshold. Higher = stricter (fewer, more confident matches).
+    let similarityThreshold = 0.60;
     try {
-      const confidenceSettings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
-        `SELECT "value" FROM "system_settings" WHERE "key" = $1 LIMIT 1`,
-        'biometric_match_confidence',
-      );
-      if (confidenceSettings.length > 0 && confidenceSettings[0]?.value) {
-        similarityThreshold = Number(confidenceSettings[0].value);
+      const pct = await getSystemSetting('face_match_threshold');
+      if (Number.isFinite(pct) && pct > 0) {
+        similarityThreshold = pct / 100;
       }
     } catch {
-      similarityThreshold = 0.50;
+      similarityThreshold = 0.60;
     }
 
     // 1. Get all face embeddings from this event's photos

@@ -329,7 +329,9 @@ export default function AdminSettingsPage() {
   // Map icons for visual clarity
   const getSettingIcon = (key: string) => {
     switch (key) {
-      case "biometric_match_confidence":
+      case "face_match_threshold":
+        return <Cpu className="w-5 h-5 text-[#82181a]" />
+      case "low_confidence_threshold":
         return <Cpu className="w-5 h-5 text-[#82181a]" />
       case "max_upload_size_mb":
         return <HardDrive className="w-5 h-5 text-[#82181a]" />
@@ -609,8 +611,8 @@ export default function AdminSettingsPage() {
                     <CardContent className="p-5 divide-y divide-slate-100">
                       {businessDefs.map((def) => {
                         const rawValue = draftSettings[def.key] ?? def.defaultValue
-                        const isConfidence = def.key === "biometric_match_confidence"
-                        const displayValue = isConfidence ? Math.round(rawValue * 100) : rawValue
+                        const isPercent = def.key === "face_match_threshold" || def.key === "low_confidence_threshold"
+                        const displayValue = rawValue
                         const isChanged = draftSettings[def.key] !== savedSettings[def.key]
                         const currentUnit = lang === "th" ? (def.unitTh || def.unitEn || "") : (def.unitEn || def.unitTh || "")
 
@@ -634,6 +636,16 @@ export default function AdminSettingsPage() {
                                         {t("settings.modified_badge")}
                                       </Badge>
                                     )}
+                                    {isChanged && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSettingChange(def.key, def.defaultValue)}
+                                        title={lang === "th" ? "คืนค่าเริ่มต้น" : "Reset to default"}
+                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                   </div>
                                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
                                     {lang === "th" ? def.descriptionTh : def.descriptionEn}
@@ -642,7 +654,7 @@ export default function AdminSettingsPage() {
                                     <span>
                                       {t("settings.default_val")}{" "}
                                       <strong className="text-slate-600">
-                                        {isConfidence ? `${Math.round(def.defaultValue * 100)}%` : `${def.defaultValue} ${currentUnit}`}
+                                        {`${def.defaultValue} ${currentUnit}`}
                                       </strong>
                                     </span>
                                     {def.min !== undefined && def.max !== undefined && (
@@ -656,27 +668,27 @@ export default function AdminSettingsPage() {
 
                               {/* Input Control */}
                               <div className="flex items-center gap-3 sm:min-w-64 justify-end">
-                                {isConfidence ? (
+                                {isPercent ? (
                                   <div className="w-full space-y-1.5">
                                     <div className="flex items-center gap-3">
                                       <Slider
-                                        min={def.min || 10}
-                                        max={def.max || 99}
+                                        min={def.min ?? 35}
+                                        max={def.max ?? 95}
                                         step={def.step || 1}
                                         value={[displayValue]}
-                                        onValueChange={(val) => handleSettingChange(def.key, val[0] / 100)}
+                                        onValueChange={(val) => handleSettingChange(def.key, val[0])}
                                         className="flex-1"
                                       />
                                       <div className="flex items-center gap-1 shrink-0">
                                         <Input
                                           type="number"
-                                          min={def.min || 10}
-                                          max={def.max || 99}
+                                          min={def.min ?? 35}
+                                          max={def.max ?? 95}
                                           value={displayValue}
                                           onChange={(e) => {
                                             const num = Number(e.target.value)
                                             if (!isNaN(num)) {
-                                              handleSettingChange(def.key, Math.max(10, Math.min(99, num)) / 100)
+                                              handleSettingChange(def.key, Math.max(def.min ?? 35, Math.min(def.max ?? 95, num)))
                                             }
                                           }}
                                           className="h-8 w-16 text-center text-xs font-bold rounded border-slate-300"
@@ -770,6 +782,16 @@ export default function AdminSettingsPage() {
                                       <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] px-1.5 py-0">
                                         {t("settings.modified_badge")}
                                       </Badge>
+                                    )}
+                                    {isChanged && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSettingChange(def.key, def.defaultValue)}
+                                        title={lang === "th" ? "คืนค่าเริ่มต้น" : "Reset to default"}
+                                        className="text-slate-400 hover:text-[#82181a] transition-colors shrink-0"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                      </button>
                                     )}
                                   </div>
                                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
