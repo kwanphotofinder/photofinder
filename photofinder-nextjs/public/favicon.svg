@@ -1,0 +1,13 @@
+<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <!-- Brand maroon tile: reads on both light and dark browser tab bars -->
+  <rect width="180" height="180" rx="40" fill="#82181a"/>
+  <!-- Camera body (white, large and solid so it survives at 16px) -->
+  <path d="M63 46 h54 l11 18 h-76 z" fill="#ffffff"/>
+  <rect x="30" y="60" width="120" height="82" rx="16" fill="#ffffff"/>
+  <!-- Lens: cut back to maroon, white ring, maroon aperture -> clear even when tiny -->
+  <circle cx="90" cy="101" r="33" fill="#82181a"/>
+  <circle cx="90" cy="101" r="24" fill="#ffffff"/>
+  <circle cx="90" cy="101" r="14" fill="#82181a"/>
+  <!-- Flash dot -->
+  <circle cx="128" cy="78" r="7" fill="#82181a"/>
+</svg>

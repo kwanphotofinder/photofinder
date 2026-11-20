@@ -3,7 +3,7 @@ import { chunkStore } from "@/lib/chunk-store"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { optimizeForStorage } from "@/lib/image"
-import { uploadToCloudinary } from "@/lib/cloudinary"
+import { uploadToStorage } from "@/lib/storage"
 import { aiQueue } from "@/lib/ai-queue"
 
 export const maxDuration = 180
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Upload to Cloudinary
-    const storageUrl = await uploadToCloudinary(fileName, "image/webp", optimized.buffer, eventId)
+    const storageUrl = await uploadToStorage(fileName, "image/webp", optimized.buffer, eventId)
 
     // 4. Create Photo Record in Prisma with PENDING status
     const photo = await prisma.photo.create({

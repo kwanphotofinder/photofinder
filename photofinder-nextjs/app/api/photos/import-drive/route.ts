@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { uploadToCloudinary } from "@/lib/cloudinary"
+import { uploadToStorage } from "@/lib/storage"
 import { optimizeForStorage } from "@/lib/image"
 import { aiQueue } from "@/lib/ai-queue"
 import { pushImportCompletionNotification } from "@/lib/line"
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Upload to Cloudinary
-        const storageUrl = await uploadToCloudinary(img.name, "image/webp", optimized.buffer, eventId)
+        const storageUrl = await uploadToStorage(img.name, "image/webp", optimized.buffer, eventId)
 
         // 4. Create Photo record in Prisma
         const photo = await prisma.photo.create({

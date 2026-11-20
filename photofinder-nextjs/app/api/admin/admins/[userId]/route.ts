@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { deleteFromCloudinary } from '@/lib/cloudinary';
+import { deleteFromStorage } from '@/lib/storage';
 
 // DELETE /api/admin/admins/[userId] - permanently remove a user
 export async function DELETE(
@@ -47,10 +47,10 @@ export async function DELETE(
 
     // Step 3: Delete actual files from Cloudinary
     for (const photo of uploadedPhotos) {
-      if (photo.storageUrl) await deleteFromCloudinary(photo.storageUrl).catch(console.error);
+      if (photo.storageUrl) await deleteFromStorage(photo.storageUrl).catch(console.error);
     }
     if (userFace?.imageUrl) {
-      await deleteFromCloudinary(userFace.imageUrl).catch(console.error);
+      await deleteFromStorage(userFace.imageUrl).catch(console.error);
     }
 
     // Step 4: Delete related records for compatibility with non-cascade legacy DBs.

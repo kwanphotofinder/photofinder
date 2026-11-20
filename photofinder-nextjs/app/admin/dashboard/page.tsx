@@ -17,9 +17,6 @@ import { apiClient } from "@/lib/api-client"
 import { useLanguage } from "@/lib/language-context"
 import { ConfirmationModal } from "@/components/confirmation-modal"
 
-const minutesToTime = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`
-
 export default function AdminDashboardPage() {
   const router = useRouter()
   const { t, lang } = useLanguage()
@@ -36,15 +33,6 @@ export default function AdminDashboardPage() {
   const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
   const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
   const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
-  const [biometricConfidence, setBiometricConfidence] = useState(50)
-  const [biometricConfidenceDraft, setBiometricConfidenceDraft] = useState("50")
-  const [isSavingBiometricConfidence, setIsSavingBiometricConfidence] = useState(false)
-  const [biometricConfidenceMessage, setBiometricConfidenceMessage] = useState<string | null>(null)
-  const [cleanupTime, setCleanupTime] = useState("00:00")
-  const [cleanupTimeDraft, setCleanupTimeDraft] = useState("00:00")
-  const [cleanupLastRunAt, setCleanupLastRunAt] = useState<string | null>(null)
-  const [isSavingCleanupTime, setIsSavingCleanupTime] = useState(false)
-  const [cleanupTimeMessage, setCleanupTimeMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -143,25 +131,6 @@ export default function AdminDashboardPage() {
           apiClient.getLowConfidencePhotos(lowConfidenceThreshold),
         ])
 
-        if (userRole === "super_admin") {
-          const confidenceRes = await apiClient.getBiometricConfidence()
-          if (confidenceRes.data) {
-            const percentage = confidenceRes.data.percentage
-            setBiometricConfidence(percentage)
-            setBiometricConfidenceDraft(String(percentage))
-          }
-
-          const cleanupRes = await apiClient.getCleanupTime()
-          if (cleanupRes.data) {
-            const time = minutesToTime(cleanupRes.data.minutes)
-            setCleanupTime(time)
-            setCleanupTimeDraft(time)
-            setCleanupLastRunAt(cleanupRes.data.lastRunAt)
-          } else {
-            setCleanupTimeMessage({ text: t("settings.cleanup_load_error"), ok: false })
-          }
-        }
-
         if (eventsRes.data && Array.isArray(eventsRes.data)) {
           setEvents(eventsRes.data)
         }
@@ -201,47 +170,6 @@ export default function AdminDashboardPage() {
 
     fetchData()
   }, [router, lowConfidenceThreshold])
-
-  const saveBiometricConfidence = async () => {
-    const percentage = Number(biometricConfidenceDraft)
-    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
-      setBiometricConfidenceMessage(t("settings.confidence_save_error"))
-      return
-    }
-
-    setIsSavingBiometricConfidence(true)
-    setBiometricConfidenceMessage(null)
-    const response = await apiClient.updateBiometricConfidence(percentage)
-    if (response.data) {
-      setBiometricConfidence(response.data.percentage)
-      setBiometricConfidenceDraft(String(response.data.percentage))
-      setBiometricConfidenceMessage(t("settings.confidence_saved"))
-    } else {
-      setBiometricConfidenceMessage(response.error || t("settings.confidence_save_error"))
-    }
-    setIsSavingBiometricConfidence(false)
-  }
-
-  const saveCleanupTime = async () => {
-    const match = /^(\d{2}):(\d{2})$/.exec(cleanupTimeDraft)
-    if (!match) {
-      setCleanupTimeMessage({ text: t("settings.cleanup_save_error"), ok: false })
-      return
-    }
-
-    setIsSavingCleanupTime(true)
-    setCleanupTimeMessage(null)
-    const response = await apiClient.updateCleanupTime(Number(match[1]) * 60 + Number(match[2]))
-    if (response.data) {
-      const time = minutesToTime(response.data.minutes)
-      setCleanupTime(time)
-      setCleanupTimeDraft(time)
-      setCleanupTimeMessage({ text: t("settings.cleanup_saved"), ok: true })
-    } else {
-      setCleanupTimeMessage({ text: response.error || t("settings.cleanup_save_error"), ok: false })
-    }
-    setIsSavingCleanupTime(false)
-  }
 
   const fetchAuditLogs = async (cat = auditCategoryFilter, search = auditSearchQuery, page = auditPage) => {
     setAuditLogsLoading(true)
@@ -790,93 +718,6 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  {callerRole === "SUPER_ADMIN" && (
-                    <CardContent className="border-b border-slate-200 bg-white p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                          <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-xs font-bold text-slate-800">{t("settings.confidence_title")}</p>
-                              <button
-                                type="button"
-                                onClick={() => router.push("/admin/settings")}
-                                className="text-[11px] font-semibold text-[#82181a] hover:underline inline-flex items-center gap-0.5"
-                              >
-                                <span>{lang === "th" ? "จัดการการตั้งค่าระบบทั้งหมด" : "Manage All System Settings"}</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </button>
-                            </div>
-                            <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.confidence_desc")}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 sm:min-w-80">
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            step="1"
-                            value={biometricConfidenceDraft}
-                            onChange={(event) => setBiometricConfidenceDraft(event.target.value.replace(/\D/g, "").slice(0, 3))}
-                            className="h-8 w-20 rounded border border-slate-300 px-2 text-center text-sm"
-                            aria-label={t("settings.confidence_title")}
-                          />
-                          <span className="w-12 text-right text-sm font-bold text-[#82181a]">{biometricConfidenceDraft || "-"}%</span>
-                          <Button
-                            size="sm"
-                            disabled={isSavingBiometricConfidence || Number(biometricConfidenceDraft) === biometricConfidence}
-                            onClick={saveBiometricConfidence}
-                            className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
-                          >
-                            {isSavingBiometricConfidence ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("settings.confidence_save")}
-                          </Button>
-                        </div>
-                      </div>
-                      {biometricConfidenceMessage && (
-                        <p className={`mt-2 text-[11px] ${biometricConfidenceMessage === t("settings.confidence_saved") ? "text-emerald-600" : "text-destructive"}`}>
-                          {biometricConfidenceMessage}
-                        </p>
-                      )}
-                      <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{t("settings.cleanup_title")}</p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.cleanup_desc")}</p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">
-                              {t("settings.cleanup_last_run")}{" "}
-                              {cleanupLastRunAt
-                                ? new Date(cleanupLastRunAt).toLocaleString(undefined, { timeZone: "Asia/Bangkok" })
-                                : t("settings.cleanup_never_run")}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 sm:min-w-80">
-                          <input
-                            type="time"
-                            value={cleanupTimeDraft}
-                            onChange={(event) => setCleanupTimeDraft(event.target.value)}
-                            className="h-8 w-28 rounded border border-slate-300 px-2 text-center text-sm"
-                            aria-label={t("settings.cleanup_title")}
-                          />
-                          <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-[#82181a]">{t("settings.cleanup_timezone")}</span>
-                          <Button
-                            size="sm"
-                            disabled={isSavingCleanupTime || !cleanupTimeDraft || cleanupTimeDraft === cleanupTime}
-                            onClick={saveCleanupTime}
-                            className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
-                          >
-                            {isSavingCleanupTime ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("settings.confidence_save")}
-                          </Button>
-                        </div>
-                      </div>
-                      {cleanupTimeMessage && (
-                        <p className={`mt-2 text-[11px] ${cleanupTimeMessage.ok ? "text-emerald-600" : "text-destructive"}`}>
-                          {cleanupTimeMessage.text}
-                        </p>
-                      )}
-                    </CardContent>
-                  )}
                   <CardContent className="p-0">
                     {isLoading ? (
                       <div className="text-center py-12 text-slate-500 text-xs">{t("events.loading")}</div>

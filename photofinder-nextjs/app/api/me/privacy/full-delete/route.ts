@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getUserFromRequest } from "@/lib/auth"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFromStorage } from "@/lib/storage"
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.referenceFace?.imageUrl) {
-      await deleteFromCloudinary(user.referenceFace.imageUrl)
+      await deleteFromStorage(user.referenceFace.imageUrl)
     }
 
     const result = await prisma.$transaction(async (tx) => {

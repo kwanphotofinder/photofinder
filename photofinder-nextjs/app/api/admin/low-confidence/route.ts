@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { getSystemSetting } from "@/lib/system-settings";
 
 async function requireAdmin(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -17,10 +18,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 
-    const thresholdParam = Number(req.nextUrl.searchParams.get("threshold") ?? "0.65");
+    // Default comes from the admin-set Low-Confidence Review Threshold (stored as a whole
+    // percent, e.g. 65). A per-request ?threshold= (0-1) still overrides it.
+    let defaultThreshold = 0.65;
+    try {
+      const pct = await getSystemSetting("low_confidence_threshold");
+      if (Number.isFinite(pct) && pct > 0) {
+        defaultThreshold = Math.min(1, Math.max(0, pct / 100));
+      }
+    } catch {
+      defaultThreshold = 0.65;
+    }
+    const rawThreshold = req.nextUrl.searchParams.get("threshold");
+    const thresholdParam = rawThreshold !== null ? Number(rawThreshold) : defaultThreshold;
     const threshold = Number.isFinite(thresholdParam) && thresholdParam > 0 && thresholdParam <= 1
       ? thresholdParam
-      : 0.65;
+      : defaultThreshold;
 
     const photos = await prisma.photo.findMany({
       where: {

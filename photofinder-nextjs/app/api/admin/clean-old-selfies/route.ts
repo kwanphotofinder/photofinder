@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFromStorage } from "@/lib/storage"
 
 
 export async function POST(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     for (const face of userFaces) {
       if (face.imageUrl) {
         try {
-          await deleteFromCloudinary(face.imageUrl)
+          await deleteFromStorage(face.imageUrl)
           deletedCount++
         } catch (err) {
           console.error(`Failed to delete from Cloudinary: ${face.imageUrl}`)

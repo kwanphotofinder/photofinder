@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma"
 import { extractFaces } from "@/lib/ai"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFromStorage, getObjectBuffer, keyFromUrl } from "@/lib/storage"
 
 export type QueuePriority = "HIGH" | "NORMAL" | "LOW"
 
@@ -213,12 +213,12 @@ class AiProcessingQueue {
 
       let buffer = job.imageBuffer
 
-      // If buffer was not retained in memory (e.g. recovered job), fetch from storageUrl
+      // If buffer was not retained in memory (e.g. recovered job), pull it straight
+      // from MinIO (the stored URL is a private proxy path, not directly fetchable here).
       if (!buffer) {
-        const res = await fetch(storageUrl)
-        if (!res.ok) throw new Error(`Failed to fetch image from ${storageUrl}`)
-        const arrayBuf = await res.arrayBuffer()
-        buffer = Buffer.from(arrayBuf)
+        const key = keyFromUrl(storageUrl)
+        if (!key) throw new Error(`Cannot resolve storage key from ${storageUrl}`)
+        buffer = await getObjectBuffer(key)
       }
 
       // Send to AI Service
@@ -228,8 +228,8 @@ class AiProcessingQueue {
         // No faces detected; clean up photo to preserve storage
         console.log(`[AI Queue] Photo ${photoId} had no faces detected. Cleaning up storage...`)
         try {
-          if (storageUrl && storageUrl.includes("cloudinary")) {
-            await deleteFromCloudinary(storageUrl)
+          if (storageUrl) {
+            await deleteFromStorage(storageUrl)
           }
           await prisma.photo.delete({ where: { id: photoId } })
         } catch {
