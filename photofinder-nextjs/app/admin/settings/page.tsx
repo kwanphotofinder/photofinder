@@ -50,6 +50,13 @@ import {
 import { useLanguage } from "@/lib/language-context"
 import { apiClient } from "@/lib/api-client"
 
+const minutesToTime = (minutes: number) => {
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
 interface SettingDefinition {
   key: string
   nameTh: string
@@ -111,6 +118,13 @@ export default function AdminSettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [activeTab, setActiveTab] = useState<string>("business")
 
+  // Daily cleanup time (relocated here from the dashboard so all system config is in one place)
+  const [cleanupTime, setCleanupTime] = useState("00:00")
+  const [cleanupTimeDraft, setCleanupTimeDraft] = useState("00:00")
+  const [cleanupLastRunAt, setCleanupLastRunAt] = useState<string | null>(null)
+  const [isSavingCleanupTime, setIsSavingCleanupTime] = useState(false)
+  const [cleanupTimeMessage, setCleanupTimeMessage] = useState<{ text: string; ok: boolean } | null>(null)
+
   // Load settings on mount
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token")
@@ -139,6 +153,16 @@ export default function AdminSettingsPage() {
           setDraftSettings(response.data.settings || {})
           setSecrets((response.data.secrets as SecretItem[]) || [])
           setDraftSecrets({})
+
+          if (response.data.callerRole === "SUPER_ADMIN") {
+            const cleanupRes = await apiClient.getCleanupTime()
+            if (cleanupRes.data) {
+              const time = minutesToTime(cleanupRes.data.minutes)
+              setCleanupTime(time)
+              setCleanupTimeDraft(time)
+              setCleanupLastRunAt(cleanupRes.data.lastRunAt)
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load system settings:", err)
@@ -175,6 +199,27 @@ export default function AdminSettingsPage() {
 
   const hasChanges = changedSettingKeys.length > 0 || changedSecretKeys.length > 0
   const totalChangedCount = changedSettingKeys.length + changedSecretKeys.length
+
+  // Save the daily cleanup time (its own endpoint, separate from the settings save-all)
+  const saveCleanupTime = async () => {
+    const match = /^(\d{2}):(\d{2})$/.exec(cleanupTimeDraft)
+    if (!match) {
+      setCleanupTimeMessage({ text: t("settings.cleanup_save_error"), ok: false })
+      return
+    }
+    setIsSavingCleanupTime(true)
+    setCleanupTimeMessage(null)
+    const response = await apiClient.updateCleanupTime(Number(match[1]) * 60 + Number(match[2]))
+    if (response.data) {
+      const time = minutesToTime(response.data.minutes)
+      setCleanupTime(time)
+      setCleanupTimeDraft(time)
+      setCleanupTimeMessage({ text: t("settings.cleanup_saved"), ok: true })
+    } else {
+      setCleanupTimeMessage({ text: response.error || t("settings.cleanup_save_error"), ok: false })
+    }
+    setIsSavingCleanupTime(false)
+  }
 
   // Update a single draft setting
   const handleSettingChange = (key: string, value: number) => {
@@ -731,6 +776,59 @@ export default function AdminSettingsPage() {
                       })}
                     </CardContent>
                   </Card>
+
+                  {isSuperAdmin && (
+                    <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden mt-4">
+                      <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                        <div className="flex items-center gap-2.5">
+                          <Clock className="w-4 h-4 text-[#82181a]" />
+                          <div>
+                            <CardTitle className="text-sm font-bold text-slate-900">
+                              {t("settings.cleanup_title")}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-slate-500 mt-0.5">
+                              {t("settings.cleanup_desc")}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-[11px] text-slate-500">
+                            {t("settings.cleanup_last_run")}{" "}
+                            {cleanupLastRunAt
+                              ? new Date(cleanupLastRunAt).toLocaleString(undefined, { timeZone: "Asia/Bangkok" })
+                              : t("settings.cleanup_never_run")}
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <Input
+                              type="time"
+                              value={cleanupTimeDraft}
+                              onChange={(e) => setCleanupTimeDraft(e.target.value)}
+                              className="h-8 w-28 text-center text-xs font-bold rounded border-slate-300"
+                              aria-label={t("settings.cleanup_title")}
+                            />
+                            <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-[#82181a]">
+                              {t("settings.cleanup_timezone")}
+                            </span>
+                            <Button
+                              size="sm"
+                              disabled={isSavingCleanupTime || !cleanupTimeDraft || cleanupTimeDraft === cleanupTime}
+                              onClick={saveCleanupTime}
+                              className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
+                            >
+                              {isSavingCleanupTime ? "…" : t("settings.confidence_save")}
+                            </Button>
+                          </div>
+                        </div>
+                        {cleanupTimeMessage && (
+                          <p className={`mt-2 text-[11px] ${cleanupTimeMessage.ok ? "text-emerald-600" : "text-destructive"}`}>
+                            {cleanupTimeMessage.text}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 {/* TAB 2: FEATURE TOGGLES & EMERGENCY SWITCHES */}
