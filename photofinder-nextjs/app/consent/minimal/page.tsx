@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Info } from "lucide-react"
+import { ShieldAlert } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 
 export default function MinimalConsentPage() {
@@ -22,8 +22,8 @@ export default function MinimalConsentPage() {
               <CardDescription>{t("consent.minimal.desc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex gap-3 p-4 bg-muted/50 border border-border/30 rounded-lg">
-                <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm space-y-2">
                   <p className="font-semibold text-foreground">{t("consent.minimal.access_title")}</p>
                   <ul className="space-y-1 list-disc list-inside text-muted-foreground">

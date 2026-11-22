@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Facebook, MessageCircle, Info, Eye, Download } from "lucide-react"
+import { Trash2, AlertCircle, Share2, Loader2, Heart, ZoomIn, ZoomOut, Maximize2, Minimize2, Info, Eye, Download } from "lucide-react"
 import { format } from 'date-fns'
 import { downloadPhoto } from "@/lib/download"
 import { apiClient } from "@/lib/api-client"
-import { sharePhotoOriginal, sharePhotoToChannel, type ShareChannel } from "@/lib/share"
+import { sharePhotoOriginal, type ShareChannel } from "@/lib/share"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
 import { useLanguage } from "@/lib/language-context"
 
@@ -151,19 +151,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
     }
   }
 
-  const handleQuickShare = async (channel: "line" | "facebook") => {
-    try {
-      setActiveShareChannel(channel)
-      await sharePhotoToChannel(photo, "original", channel)
-      trackPhotoEngagement(photo.id, "SHARE")
-    } catch (error) {
-      console.error(`Failed to share photo to ${channel}:`, error)
-      alert("Unable to open share right now. Please try again.")
-    } finally {
-      setActiveShareChannel(null)
-    }
-  }
-
   const handleToggleFavorite = async () => {
     try {
       setIsFavoriteLoading(true)
@@ -279,7 +266,7 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">ไม่สามารถโหลดรูปภาพได้</p>
                   <p className="text-xs text-muted-foreground max-w-xs">
-                    ไฟล์ภาพต้นฉบับบน Cloudinary อาจถูกลบ ย้าย หรือลิงก์หมดอายุ (HTTP 404)
+                    ไฟล์ภาพต้นฉบับบน MinIO อาจถูกลบ ย้าย หรือลิงก์หมดอายุ (HTTP 404)
                   </p>
                 </div>
               </div>
@@ -418,27 +405,6 @@ export function PhotoDetailModal({ photo, isOpen, onClose, initialShareOpen = fa
                     </span>
                     <span className="text-sm font-bold tracking-tight">Original</span>
                   </div>
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => handleQuickShare("line")}
-                  disabled={isSubmitting || activeShareChannel !== null}
-                  variant="outline"
-                  className="justify-center gap-2"
-                >
-                  {activeShareChannel === "line" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-                  LINE
-                </Button>
-                <Button
-                  onClick={() => handleQuickShare("facebook")}
-                  disabled={isSubmitting || activeShareChannel !== null}
-                  variant="outline"
-                  className="justify-center gap-2"
-                >
-                  {activeShareChannel === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
-                  Facebook
                 </Button>
               </div>
             </div>
