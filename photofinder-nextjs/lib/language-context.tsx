@@ -345,6 +345,16 @@ const translations: Record<Language, Record<string, string>> = {
     "low_value.modal_purge_selected_desc": "คุณกำลังจะลบภาพที่เลือกจำนวน {count} ภาพ ออกจาก MinIO และฐานข้อมูลอย่างถาวร",
     "low_value.purge_success": "ลบภาพเรียบร้อยแล้ว {count} ภาพ คืนพื้นที่สำเร็จ",
     "low_value.purge_error": "เกิดข้อผิดพลาดในการลบภาพ",
+    "low_value.view_grid": "แกลเลอรี (Grid)",
+    "low_value.view_table": "ตาราง (Table)",
+    "low_value.quick_preview": "ดูภาพขยาย",
+    "low_value.modal_inspect_title": "ตรวจสอบรายละเอียดภาพมูลค่าต่ำ",
+    "low_value.modal_inspect_desc": "รายละเอียดและเหตุผลที่ภาพนี้ไม่เกิดประโยชน์ต่อการค้นหาใบหน้า",
+    "low_value.selected_count_bar": "เลือกแล้ว {count} ภาพ (~{mb} MB)",
+    "low_value.purge_this_photo": "ลบภาพนี้ออกจากระบบ",
+    "low_value.reason_expl_no_faces": "AI ประมวลผลภาพเสร็จสมบูรณ์ แต่ไม่พบโครงสร้างใบหน้ามนุษย์แม้แต่ใบหน้าเดียว (0 Faces) จึงไม่มีเวกเตอร์ให้นักศึกษาค้นหาได้",
+    "low_value.reason_expl_failed": "การประมวลผลไฟล์ภาพล้มเหลว (Failed) เนื่องจากไฟล์รูปภาพมีปัญหา แตกหัก หรือระบบ AI เกิดข้อผิดพลาด",
+    "low_value.click_to_inspect": "คลิกที่ภาพเพื่อดูรายละเอียด",
 
     // Events Tab
     "events.title": "รายการกิจกรรมทั้งหมด (Events List)",
@@ -1323,6 +1333,16 @@ const translations: Record<Language, Record<string, string>> = {
     "low_value.modal_purge_selected_desc": "You are about to permanently delete {count} selected photo(s) from MinIO storage and database.",
     "low_value.purge_success": "Successfully purged {count} low-value photo(s) and reclaimed storage.",
     "low_value.purge_error": "Failed to purge low-value photos.",
+    "low_value.view_grid": "Gallery",
+    "low_value.view_table": "Table",
+    "low_value.quick_preview": "Inspect Photo",
+    "low_value.modal_inspect_title": "Inspect Low-Value Photo",
+    "low_value.modal_inspect_desc": "Detailed diagnostics on why this image has zero utility for facial search.",
+    "low_value.selected_count_bar": "Selected {count} photos (~{mb} MB)",
+    "low_value.purge_this_photo": "Purge This Photo",
+    "low_value.reason_expl_no_faces": "AI completed face scan but detected 0 human faces. There are no facial vectors stored, meaning no students can ever match this photo.",
+    "low_value.reason_expl_failed": "Facial processing failed due to a corrupted file, unsupported format, or AI service timeout.",
+    "low_value.click_to_inspect": "Click card to inspect",
 
     // Events Tab
     "events.title": "Events List",

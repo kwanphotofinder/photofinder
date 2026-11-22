@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Sliders, ExternalLink, Clock, HardDrive, CheckSquare, Square } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Sliders, ExternalLink, Clock, HardDrive, CheckSquare, Square, LayoutGrid, List, Eye, Check } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
@@ -81,6 +81,9 @@ export default function AdminDashboardPage() {
   const [showPurgeSelectedLowValueModal, setShowPurgeSelectedLowValueModal] = useState(false)
   const [isPurgingLowValue, setIsPurgingLowValue] = useState(false)
   const [lowValueActionMessage, setLowValueActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [lowValueViewMode, setLowValueViewMode] = useState<"grid" | "table">("grid")
+  const [inspectingLowValuePhoto, setInspectingLowValuePhoto] = useState<any | null>(null)
+  const [isInspectModalOpen, setIsInspectModalOpen] = useState(false)
 
   const filteredLowValuePhotos = useMemo(() => {
     let list = lowValuePhotos
@@ -2099,9 +2102,9 @@ export default function AdminDashboardPage() {
                               variant="outline"
                               onClick={() => fetchLowValuePhotos(lowValueReasonFilter)}
                               disabled={lowValueLoading}
-                              className="h-8 text-xs border-slate-300"
+                              className="h-8 text-xs border-slate-300 rounded bg-white hover:bg-slate-50"
                             >
-                              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${lowValueLoading ? "animate-spin" : ""}`} />
+                              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${lowValueLoading ? "animate-spin text-[#82181a]" : "text-slate-500"}`} />
                               {t("low_value.refresh_btn")}
                             </Button>
                             <Button
@@ -2109,21 +2112,32 @@ export default function AdminDashboardPage() {
                               variant="destructive"
                               onClick={() => setShowPurgeAllLowValueModal(true)}
                               disabled={lowValueLoading || lowValuePhotos.length === 0}
-                              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium"
+                              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium rounded shadow-xs"
                             >
                               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                              {t("low_value.purge_all")}
+                              {t("low_value.purge_all")} ({lowValueSummary.totalCount})
                             </Button>
                           </div>
                         </div>
                       </CardHeader>
 
-                      {/* Stat Metrics Grid */}
+                      {/* Stat Metrics Grid (Clickable to quickly filter) */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50/40 border-b border-slate-200">
                         {/* Stat 1: Total */}
-                        <div className="p-3 bg-white border border-slate-200 rounded shadow-2xs">
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("ALL")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("ALL")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "ALL"
+                              ? "border-rose-400 ring-2 ring-rose-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
                           <div className="flex items-center justify-between text-slate-500 text-xs">
-                            <span>{t("low_value.stat_total")}</span>
+                            <span className="font-medium">{t("low_value.stat_total")}</span>
                             <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                           </div>
                           <div className="text-xl font-bold text-slate-800 mt-1">
@@ -2133,9 +2147,20 @@ export default function AdminDashboardPage() {
                         </div>
 
                         {/* Stat 2: 0 Faces */}
-                        <div className="p-3 bg-white border border-slate-200 rounded shadow-2xs">
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("NO_FACES")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("NO_FACES")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "NO_FACES"
+                              ? "border-amber-400 ring-2 ring-amber-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
                           <div className="flex items-center justify-between text-slate-500 text-xs">
-                            <span>{t("low_value.stat_no_faces")}</span>
+                            <span className="font-medium">{t("low_value.stat_no_faces")}</span>
                             <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
                           </div>
                           <div className="text-xl font-bold text-slate-800 mt-1">
@@ -2145,9 +2170,20 @@ export default function AdminDashboardPage() {
                         </div>
 
                         {/* Stat 3: Failed */}
-                        <div className="p-3 bg-white border border-slate-200 rounded shadow-2xs">
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("FAILED")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("FAILED")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "FAILED"
+                              ? "border-red-400 ring-2 ring-red-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
                           <div className="flex items-center justify-between text-slate-500 text-xs">
-                            <span>{t("low_value.stat_failed")}</span>
+                            <span className="font-medium">{t("low_value.stat_failed")}</span>
                             <Ban className="w-3.5 h-3.5 text-red-500" />
                           </div>
                           <div className="text-xl font-bold text-slate-800 mt-1">
@@ -2159,7 +2195,7 @@ export default function AdminDashboardPage() {
                         {/* Stat 4: Storage Reclaim */}
                         <div className="p-3 bg-white border border-slate-200 rounded shadow-2xs">
                           <div className="flex items-center justify-between text-slate-500 text-xs">
-                            <span>{t("low_value.stat_storage_saved")}</span>
+                            <span className="font-medium">{t("low_value.stat_storage_saved")}</span>
                             <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
                           </div>
                           <div className="text-xl font-bold text-emerald-700 mt-1">
@@ -2197,234 +2233,403 @@ export default function AdminDashboardPage() {
                       )}
 
                       {/* Filter & Selection Bar */}
-                      <div className="px-4 py-3 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="px-4 py-3 bg-white border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        {/* Left: Search & Filter Tabs */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1">
                           {/* Search */}
-                          <div className="relative w-full sm:max-w-[280px]">
+                          <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                             <Input
                               type="search"
                               placeholder={t("low_value.search_placeholder")}
                               value={lowValueSearchQuery}
                               onChange={(e) => setLowValueSearchQuery(e.target.value)}
-                              className="h-8 pl-8 text-xs border-slate-300 rounded bg-white w-full shadow-2xs"
+                              className="h-8 pl-8 text-xs border-slate-300 rounded bg-white w-full"
                             />
                           </div>
 
-                          {/* Reason Filter */}
-                          <Select
-                            value={lowValueReasonFilter}
-                            onValueChange={(val) => {
-                              setLowValueReasonFilter(val)
-                              setSelectedLowValuePhotoIds([])
-                              fetchLowValuePhotos(val)
-                            }}
-                          >
-                            <SelectTrigger size="sm" className="w-full sm:w-[200px] h-8 text-xs border-slate-300 bg-white rounded shadow-2xs">
-                              <div className="flex items-center">
-                                <Filter className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
-                                <SelectValue />
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent className="text-xs">
-                              <SelectItem value="ALL">{t("low_value.filter_all")}</SelectItem>
-                              <SelectItem value="NO_FACES">{t("low_value.filter_no_faces")}</SelectItem>
-                              <SelectItem value="FAILED">{t("low_value.filter_failed")}</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          {/* Filter Segmented Pills */}
+                          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 self-start sm:self-auto overflow-x-auto">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("ALL")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("ALL")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "ALL"
+                                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_all")} ({lowValueSummary.totalCount})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("NO_FACES")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("NO_FACES")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "NO_FACES"
+                                  ? "bg-white text-amber-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_no_faces")} ({lowValueSummary.noFacesCount})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("FAILED")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("FAILED")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "FAILED"
+                                  ? "bg-white text-red-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_failed")} ({lowValueSummary.failedCount})
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Batch selection buttons */}
+                        {/* Right: Select All & View Toggle */}
                         <div className="flex items-center gap-2 self-end sm:self-auto">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={toggleSelectAllLowValue}
                             disabled={filteredLowValuePhotos.length === 0}
-                            className="h-8 text-xs border-slate-300 text-slate-700"
+                            className="h-8 text-xs border-slate-300 rounded text-slate-700 bg-white"
                           >
                             {selectedLowValuePhotoIds.length > 0 && selectedLowValuePhotoIds.length === filteredLowValuePhotos.length ? (
                               <>
-                                <Square className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                                <Square className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
                                 {t("low_value.deselect_all")}
                               </>
                             ) : (
                               <>
-                                <CheckSquare className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                                <CheckSquare className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
                                 {t("low_value.select_all")}
                               </>
                             )}
                           </Button>
 
-                          {selectedLowValuePhotoIds.length > 0 && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setShowPurgeSelectedLowValueModal(true)}
-                              disabled={isPurgingLowValue}
-                              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-2xs"
+                          {/* View Switcher (Grid vs Table) */}
+                          <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => setLowValueViewMode("grid")}
+                              className={`p-1.5 rounded transition-all ${
+                                lowValueViewMode === "grid"
+                                  ? "bg-white text-[#82181a] shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700"
+                              }`}
+                              title={t("low_value.view_grid")}
                             >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              {t("low_value.purge_selected").replace("{count}", selectedLowValuePhotoIds.length.toString())}
-                            </Button>
-                          )}
+                              <LayoutGrid className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLowValueViewMode("table")}
+                              className={`p-1.5 rounded transition-all ${
+                                lowValueViewMode === "table"
+                                  ? "bg-white text-[#82181a] shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700"
+                              }`}
+                              title={t("low_value.view_table")}
+                            >
+                              <List className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Content Table */}
-                      <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-slate-50 border-b border-slate-200 hover:bg-slate-50">
-                                <TableHead className="w-10 px-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={
-                                      filteredLowValuePhotos.length > 0 &&
-                                      selectedLowValuePhotoIds.length === filteredLowValuePhotos.length
-                                    }
-                                    onChange={toggleSelectAllLowValue}
-                                    aria-label="Select all photos"
-                                    className="rounded border-slate-300 text-[#82181a] focus:ring-[#82181a] cursor-pointer"
+                      {/* Main Content Area */}
+                      <CardContent className="p-4">
+                        {lowValueLoading ? (
+                          <div className="py-16 text-center text-slate-500 text-xs">
+                            <Loader2 className="w-7 h-7 animate-spin mx-auto text-[#82181a] mb-2" />
+                            <p className="font-semibold text-slate-700">Scanning catalog for zero-utility photos...</p>
+                          </div>
+                        ) : filteredLowValuePhotos.length === 0 ? (
+                          <div className="py-16 text-center text-slate-500 p-6">
+                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                              <CheckCircle2 className="w-7 h-7" />
+                            </div>
+                            <p className="font-bold text-slate-800 text-base">{t("low_value.empty_title")}</p>
+                            <p className="text-slate-500 text-xs mt-1.5 max-w-md mx-auto">{t("low_value.empty_desc")}</p>
+                          </div>
+                        ) : lowValueViewMode === "grid" ? (
+                          /* GALLERY / GRID VIEW */
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                            {filteredLowValuePhotos.map((photo) => {
+                              const isSelected = selectedLowValuePhotoIds.includes(photo.id)
+                              const isFailed = photo.reason === "FAILED"
+
+                              return (
+                                <div
+                                  key={photo.id}
+                                  className={`group relative aspect-[4/3] rounded border overflow-hidden bg-slate-100 transition-all shadow-2xs hover:shadow cursor-pointer ${
+                                    isSelected
+                                      ? "border-[#82181a] ring-2 ring-[#82181a]"
+                                      : "border-slate-200 hover:border-slate-400"
+                                  }`}
+                                  onClick={() => toggleSelectOneLowValue(photo.id)}
+                                >
+                                  {/* Photo Image */}
+                                  <img
+                                    src={photo.thumbnailUrl || photo.storageUrl}
+                                    alt={photo.id}
+                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      ;(e.currentTarget as HTMLElement).style.display = "none"
+                                    }}
                                   />
-                                </TableHead>
-                                <TableHead className="w-[15%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_preview")}</TableHead>
-                                <TableHead className="w-[30%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_event")}</TableHead>
-                                <TableHead className="w-[20%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_reason")}</TableHead>
-                                <TableHead className="w-[15%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_dimensions")}</TableHead>
-                                <TableHead className="w-[10%] text-xs font-bold text-slate-700 uppercase h-10 px-3 text-right">{t("low_value.col_actions")}</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody className="divide-y divide-slate-100">
-                              {lowValueLoading ? (
-                                <TableRow>
-                                  <TableCell colSpan={6} className="h-44 text-center text-slate-500 text-xs">
-                                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#82181a] mb-2" />
-                                    <p className="text-xs">Scanning catalog for low-value images...</p>
-                                  </TableCell>
-                                </TableRow>
-                              ) : filteredLowValuePhotos.length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={6} className="h-48 text-center text-slate-500 text-xs p-6">
-                                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-                                      <CheckCircle2 className="w-6 h-6" />
+
+                                  {/* Selection Checkbox (Top Left) */}
+                                  <div
+                                    className={`absolute top-2 left-2 z-10 w-5 h-5 rounded flex items-center justify-center transition-all ${
+                                      isSelected
+                                        ? "bg-[#82181a] text-white shadow-xs"
+                                        : "bg-black/40 text-white hover:bg-black/60 opacity-80 group-hover:opacity-100"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleSelectOneLowValue(photo.id)
+                                    }}
+                                  >
+                                    {isSelected ? (
+                                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                    ) : (
+                                      <div className="w-3 h-3 rounded-xs border border-white" />
+                                    )}
+                                  </div>
+
+                                  {/* Issue Badge (Top Right) */}
+                                  <div className="absolute top-2 right-2 z-10">
+                                    {isFailed ? (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white shadow-xs">
+                                        <Ban className="w-2.5 h-2.5" />
+                                        Failed
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-xs">
+                                        <AlertCircle className="w-2.5 h-2.5" />
+                                        0 Faces
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Desktop Hover Quick Action Toolbar (Center) */}
+                                  <div
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setInspectingLowValuePhoto(photo)
+                                        setIsInspectModalOpen(true)
+                                      }}
+                                      className="h-8 w-8 p-0 rounded-full bg-white text-slate-800 hover:bg-slate-100 shadow-md border-0"
+                                      title={t("low_value.quick_preview")}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDeleteSingleLowValue(photo.id)}
+                                      disabled={isPurgingLowValue}
+                                      className="h-8 w-8 p-0 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-md border-0"
+                                      title={t("low_value.delete_single")}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+
+                                  {/* Bottom Info Overlay */}
+                                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-2 text-white pointer-events-none">
+                                    <p className="text-[11px] font-semibold truncate leading-tight" title={photo.eventName}>
+                                      {photo.eventName}
+                                    </p>
+                                    <div className="flex items-center justify-between text-[9px] text-slate-300 mt-0.5">
+                                      <span className="font-mono truncate max-w-[90px]">ID: {photo.id.slice(0, 8)}...</span>
+                                      <span>{photo.width && photo.height ? `${photo.width}×${photo.height}` : ""}</span>
                                     </div>
-                                    <p className="font-bold text-slate-800 text-sm">{t("low_value.empty_title")}</p>
-                                    <p className="text-slate-500 text-xs mt-1 max-w-md mx-auto">{t("low_value.empty_desc")}</p>
-                                  </TableCell>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          /* TABLE VIEW */
+                          <div className="overflow-x-auto border border-slate-200 rounded">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-slate-50 border-b border-slate-200">
+                                  <TableHead className="w-10 px-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        filteredLowValuePhotos.length > 0 &&
+                                        selectedLowValuePhotoIds.length === filteredLowValuePhotos.length
+                                      }
+                                      onChange={toggleSelectAllLowValue}
+                                      className="rounded border-slate-300 text-[#82181a] focus:ring-[#82181a] cursor-pointer"
+                                    />
+                                  </TableHead>
+                                  <TableHead className="w-[12%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_preview")}</TableHead>
+                                  <TableHead className="w-[28%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_event")}</TableHead>
+                                  <TableHead className="w-[22%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_reason")}</TableHead>
+                                  <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_dimensions")}</TableHead>
+                                  <TableHead className="w-[20%] text-xs font-bold text-slate-700 uppercase h-10 px-3 text-right">{t("low_value.col_actions")}</TableHead>
                                 </TableRow>
-                              ) : (
-                                filteredLowValuePhotos.map((photo) => {
+                              </TableHeader>
+                              <TableBody className="divide-y divide-slate-100">
+                                {filteredLowValuePhotos.map((photo) => {
                                   const isSelected = selectedLowValuePhotoIds.includes(photo.id)
                                   const isFailed = photo.reason === "FAILED"
 
                                   return (
                                     <TableRow
                                       key={photo.id}
-                                      className={`hover:bg-slate-50/70 text-xs transition-colors ${
+                                      className={`hover:bg-slate-50/70 text-xs transition-colors cursor-pointer ${
                                         isSelected ? "bg-rose-50/40" : ""
                                       }`}
+                                      onClick={() => toggleSelectOneLowValue(photo.id)}
                                     >
-                                      {/* Checkbox */}
-                                      <TableCell className="px-3 py-2.5 text-center">
+                                      <TableCell className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                                         <input
                                           type="checkbox"
                                           checked={isSelected}
                                           onChange={() => toggleSelectOneLowValue(photo.id)}
-                                          aria-label={`Select photo ${photo.id}`}
                                           className="rounded border-slate-300 text-[#82181a] focus:ring-[#82181a] cursor-pointer"
                                         />
                                       </TableCell>
-
-                                      {/* Preview */}
-                                      <TableCell className="px-3 py-2.5">
+                                      <TableCell className="px-3 py-2">
                                         <div className="w-16 h-12 rounded bg-slate-100 overflow-hidden relative border border-slate-200 shrink-0">
-                                          {photo.storageUrl ? (
-                                            <img
-                                              src={photo.thumbnailUrl || photo.storageUrl}
-                                              alt={photo.id}
-                                              className="w-full h-full object-cover"
-                                              loading="lazy"
-                                              onError={(e) => {
-                                                ;(e.currentTarget as HTMLElement).style.display = "none"
-                                              }}
-                                            />
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                              <ImageIcon className="w-4 h-4" />
-                                            </div>
-                                          )}
+                                          <img
+                                            src={photo.thumbnailUrl || photo.storageUrl}
+                                            alt={photo.id}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                          />
                                         </div>
                                       </TableCell>
-
-                                      {/* Event & ID */}
-                                      <TableCell className="px-3 py-2.5">
+                                      <TableCell className="px-3 py-2">
                                         <div className="flex flex-col min-w-0">
                                           <span className="font-semibold text-slate-800 truncate text-xs" title={photo.eventName}>
                                             {photo.eventName}
                                           </span>
-                                          <span className="text-[10px] text-slate-400 font-mono truncate" title={photo.id}>
-                                            ID: {photo.id}
+                                          <span className="text-[10px] text-slate-400 font-mono truncate">ID: {photo.id}</span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2">
+                                        {isFailed ? (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                            <Ban className="w-3 h-3 text-rose-600" />
+                                            {t("low_value.reason_failed")}
                                           </span>
-                                        </div>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                            <AlertCircle className="w-3 h-3 text-amber-600" />
+                                            {t("low_value.reason_no_faces")}
+                                          </span>
+                                        )}
                                       </TableCell>
-
-                                      {/* Reason Badge */}
-                                      <TableCell className="px-3 py-2.5">
-                                        <div className="flex items-center gap-1.5">
-                                          {isFailed ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                                              <Ban className="w-3 h-3 text-rose-600" />
-                                              {t("low_value.reason_failed")}
-                                            </span>
-                                          ) : (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                                              <AlertCircle className="w-3 h-3 text-amber-600" />
-                                              {t("low_value.reason_no_faces")}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </TableCell>
-
-                                      {/* Dimensions & Date */}
-                                      <TableCell className="px-3 py-2.5 text-slate-500">
+                                      <TableCell className="px-3 py-2 text-slate-500">
                                         <div className="flex flex-col">
                                           <span className="font-mono text-[11px] text-slate-700">
                                             {photo.width && photo.height ? `${photo.width} × ${photo.height}` : "—"}
                                           </span>
                                           <span className="text-[10px] text-slate-400">
-                                            {new Date(photo.createdAt).toLocaleDateString(undefined, {
-                                              month: "short",
-                                              day: "numeric",
-                                              year: "numeric",
-                                            })}
+                                            {new Date(photo.createdAt).toLocaleDateString()}
                                           </span>
                                         </div>
                                       </TableCell>
-
-                                      {/* Actions */}
-                                      <TableCell className="px-3 py-2.5 text-right">
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => handleDeleteSingleLowValue(photo.id)}
-                                          disabled={isPurgingLowValue}
-                                          className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
-                                          title={t("low_value.delete_single")}
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </Button>
+                                      <TableCell className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              setInspectingLowValuePhoto(photo)
+                                              setIsInspectModalOpen(true)
+                                            }}
+                                            className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900 rounded"
+                                          >
+                                            <Eye className="w-3.5 h-3.5 mr-1" />
+                                            Inspect
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteSingleLowValue(photo.id)}
+                                            disabled={isPurgingLowValue}
+                                            className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )
-                                })
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
+
+                    {/* Floating Batch Selection Bar */}
+                    {selectedLowValuePhotoIds.length > 0 && (
+                      <div className="sticky bottom-4 z-20 mx-auto max-w-xl bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 border border-slate-800">
+                        <div className="flex items-center gap-2 text-xs">
+                          <div className="w-5 h-5 rounded-full bg-[#82181a] flex items-center justify-center font-bold text-[11px]">
+                            {selectedLowValuePhotoIds.length}
+                          </div>
+                          <span className="font-medium">
+                            {t("low_value.selected_count_bar")
+                              .replace("{count}", selectedLowValuePhotoIds.length.toString())
+                              .replace("{mb}", (selectedLowValuePhotoIds.length * 2.5).toFixed(1))}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedLowValuePhotoIds([])}
+                            className="h-7 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                          >
+                            {t("low_value.deselect_all")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setShowPurgeSelectedLowValueModal(true)}
+                            disabled={isPurgingLowValue}
+                            className="h-7 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 rounded shadow-xs"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                            {t("low_value.purge_selected").replace(
+                              "{count}",
+                              selectedLowValuePhotoIds.length.toString()
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
               )}
@@ -2618,6 +2823,138 @@ export default function AdminDashboardPage() {
         isLoading={isPurgingLowValue}
         onConfirm={handlePurgeSelectedLowValue}
       />
+
+      {/* Inspect Low-Value Photo Dialog Modal */}
+      <Dialog
+        open={isInspectModalOpen}
+        onOpenChange={(open) => {
+          setIsInspectModalOpen(open)
+          if (!open) setInspectingLowValuePhoto(null)
+        }}
+      >
+        <DialogContent className="max-w-2xl rounded-lg border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
+          <DialogHeader className="bg-slate-50 border-b border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#82181a]" />
+                {t("low_value.modal_inspect_title")}
+              </DialogTitle>
+              {inspectingLowValuePhoto?.reason === "FAILED" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                  <Ban className="w-3 h-3 text-rose-600" />
+                  {t("low_value.reason_failed")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  <AlertCircle className="w-3 h-3 text-amber-600" />
+                  {t("low_value.reason_no_faces")}
+                </span>
+              )}
+            </div>
+            <DialogDescription className="text-xs text-slate-500 mt-0.5">
+              {inspectingLowValuePhoto?.eventName || "Event Photo"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 space-y-4">
+            {/* Full Image Preview */}
+            <div className="relative aspect-[16/10] w-full rounded bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-200">
+              {inspectingLowValuePhoto && (
+                <img
+                  src={inspectingLowValuePhoto.storageUrl || inspectingLowValuePhoto.thumbnailUrl}
+                  alt="Preview"
+                  className="w-full h-full object-contain"
+                />
+              )}
+            </div>
+
+            {/* Diagnostics & Explanation Box */}
+            <div
+              className={`p-3 rounded border text-xs leading-relaxed ${
+                inspectingLowValuePhoto?.reason === "FAILED"
+                  ? "bg-rose-50/60 border-rose-200 text-rose-900"
+                  : "bg-amber-50/60 border-amber-200 text-amber-900"
+              }`}
+            >
+              <p className="font-semibold text-xs flex items-center gap-1.5 mb-1">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {inspectingLowValuePhoto?.reason === "FAILED"
+                  ? "สาเหตุ: ประมวลผลล้มเหลว (Corrupted / AI Processing Failed)"
+                  : "สาเหตุ: ไม่พบใบหน้ามนุษย์ (0 Detected Faces)"}
+              </p>
+              <p className="text-[11px] opacity-90">
+                {inspectingLowValuePhoto?.reason === "FAILED"
+                  ? t("low_value.reason_expl_failed")
+                  : t("low_value.reason_expl_no_faces")}
+              </p>
+            </div>
+
+            {/* Photo Metadata Details */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded border border-slate-200">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Event</span>
+                <p className="font-medium text-slate-800 truncate" title={inspectingLowValuePhoto?.eventName}>
+                  {inspectingLowValuePhoto?.eventName}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Photo ID</span>
+                <p className="font-mono text-slate-800 truncate text-[11px]" title={inspectingLowValuePhoto?.id}>
+                  {inspectingLowValuePhoto?.id}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Resolution</span>
+                <p className="font-medium text-slate-800">
+                  {inspectingLowValuePhoto?.width && inspectingLowValuePhoto?.height
+                    ? `${inspectingLowValuePhoto.width} × ${inspectingLowValuePhoto.height}`
+                    : "Unknown"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Uploaded</span>
+                <p className="font-medium text-slate-800">
+                  {inspectingLowValuePhoto ? new Date(inspectingLowValuePhoto.createdAt).toLocaleDateString() : "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="bg-slate-50 border-t border-slate-200 p-3 flex sm:justify-between items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsInspectModalOpen(false)
+                setInspectingLowValuePhoto(null)
+              }}
+              className="h-8 text-xs border-slate-300 rounded"
+            >
+              Close
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isPurgingLowValue}
+              onClick={async () => {
+                if (inspectingLowValuePhoto) {
+                  const id = inspectingLowValuePhoto.id
+                  setIsInspectModalOpen(false)
+                  setInspectingLowValuePhoto(null)
+                  await handleDeleteSingleLowValue(id)
+                }
+              }}
+              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded font-medium shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {t("low_value.purge_this_photo")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
