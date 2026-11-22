@@ -107,8 +107,12 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
     const a = document.createElement('a');
     a.href = blobUrl;
 
-    const date = new Date(eventDate).toISOString().split('T')[0];
-    const safeEventName = eventName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    const parsedDate = eventDate ? new Date(eventDate) : new Date();
+    const date = (!Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date()).toISOString().split('T')[0];
+    const safeEventName = (eventName || 'photo')
+      .replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
     a.download = `${safeEventName || 'photo'}_${date}.jpg`;
 
     document.body.appendChild(a);
@@ -200,7 +204,7 @@ async function createWatermarkedBlob(image: HTMLImageElement, eventName: string,
   context.fillRect(0, canvas.height - barHeight, canvas.width, canvas.height)
 
   const folderName = sanitizeText(eventName || 'Photo Folder')
-  const timeText = formatDayMonthYear(eventDate)
+  const timeText = eventDate ? formatDayMonthYear(eventDate) : formatDayMonthYear(new Date().toISOString())
   const infoText = `${timeText} ● ${folderName}`
 
   const logoMaxHeight = Math.max(72, Math.round(canvas.height * 0.12))
