@@ -1,5 +1,20 @@
 import JSZip from "jszip"
 
+let cachedLogosPromise: Promise<[HTMLImageElement, HTMLImageElement]> | null = null
+
+function getLogos() {
+  if (!cachedLogosPromise) {
+    cachedLogosPromise = Promise.all([
+      loadAssetImage('/Logo.png'),
+      loadAssetImage('/Logo2.png'),
+    ]).catch((err) => {
+      cachedLogosPromise = null
+      throw err
+    })
+  }
+  return cachedLogosPromise
+}
+
 export async function downloadPhotosAsZip(
   photos: Array<{ url: string; eventName?: string; eventDate?: string; uploadDate?: string; id?: string }>,
   zipFilename = "photofinder_selected_photos.zip",
@@ -18,16 +33,29 @@ export async function downloadPhotosAsZip(
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const blob = await response.blob()
 
+      let fileBlob: Blob = blob
+      try {
+        const image = await loadImage(blob)
+        fileBlob = await createWatermarkedBlob(
+          image,
+          photo.eventName || "PhotoFinder",
+          photo.eventDate || photo.uploadDate || new Date().toISOString()
+        )
+      } catch (watermarkErr) {
+        console.warn(`Failed to watermark photo ${i + 1}, using original image:`, watermarkErr)
+        fileBlob = blob
+      }
+
       const safeEvent = (photo.eventName || "photo")
         .replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, "_")
         .replace(/_+/g, "_")
         .slice(0, 30)
       const dateVal = photo.uploadDate || photo.eventDate
       const dateStr = dateVal ? new Date(dateVal).toISOString().split("T")[0] : `photo`
-      const ext = blob.type === "image/png" ? "png" : "jpg"
+      const ext = "jpg"
       const fileName = `${safeEvent || "photo"}_${dateStr}_${i + 1}.${ext}`
 
-      folder.file(fileName, blob)
+      folder.file(fileName, fileBlob)
       if (onProgress) {
         onProgress(Math.round(((i + 1) / total) * 80), i + 1, total)
       }
@@ -179,10 +207,7 @@ async function createWatermarkedBlob(image: HTMLImageElement, eventName: string,
   const logoMaxWidth = Math.max(220, Math.round(canvas.width * 0.22))
   const universitySize = Math.max(72, Math.round(canvas.height * 0.12))
 
-  const [photoFinderLogo, universityLogo] = await Promise.all([
-    loadAssetImage('/Logo.png'),
-    loadAssetImage('/Logo2.png'),
-  ])
+  const [photoFinderLogo, universityLogo] = await getLogos()
 
   const leftLogoSize = getContainedSize(photoFinderLogo, logoMaxWidth, logoMaxHeight)
   const leftLogoX = padding
