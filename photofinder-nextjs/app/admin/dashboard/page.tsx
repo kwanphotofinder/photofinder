@@ -33,6 +33,9 @@ export default function AdminDashboardPage() {
   const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
   const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
   const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
+  const [showApproveAllLowConfidenceModal, setShowApproveAllLowConfidenceModal] = useState(false)
+  const [showDeleteAllLowConfidenceModal, setShowDeleteAllLowConfidenceModal] = useState(false)
+  const [isBulkLowConfidenceAction, setIsBulkLowConfidenceAction] = useState(false)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -276,6 +279,58 @@ export default function AdminDashboardPage() {
       alert("Failed to refresh low-confidence queue")
     } finally {
       setLowConfidenceLoading(false)
+    }
+  }
+
+  const confirmApproveAllLowConfidence = async () => {
+    setIsBulkLowConfidenceAction(true)
+    try {
+      const res = await apiClient.approveAllLowConfidencePhotos(lowConfidenceThreshold)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      setShowApproveAllLowConfidenceModal(false)
+      await refreshLowConfidenceQueue()
+
+      const photosRes = await apiClient.getAllPhotos()
+      if (photosRes.error) {
+        throw new Error(photosRes.error)
+      }
+      if (photosRes.data && Array.isArray(photosRes.data)) {
+        setPhotos(photosRes.data)
+      }
+    } catch (error) {
+      console.error("Failed to approve all low-confidence photos", error)
+      alert("Failed to approve all queue items")
+    } finally {
+      setIsBulkLowConfidenceAction(false)
+    }
+  }
+
+  const confirmDeleteAllLowConfidence = async () => {
+    setIsBulkLowConfidenceAction(true)
+    try {
+      const res = await apiClient.deleteAllLowConfidencePhotos(lowConfidenceThreshold)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      setShowDeleteAllLowConfidenceModal(false)
+      await refreshLowConfidenceQueue()
+
+      const photosRes = await apiClient.getAllPhotos()
+      if (photosRes.error) {
+        throw new Error(photosRes.error)
+      }
+      if (photosRes.data && Array.isArray(photosRes.data)) {
+        setPhotos(photosRes.data)
+      }
+    } catch (error) {
+      console.error("Failed to delete all low-confidence photos", error)
+      alert("Failed to delete all queue items")
+    } finally {
+      setIsBulkLowConfidenceAction(false)
     }
   }
 
@@ -892,6 +947,23 @@ export default function AdminDashboardPage() {
                           className="h-8 border-slate-300 text-xs rounded bg-white"
                         >
                           {lowConfidenceLoading ? t("lc.refreshing") : t("lc.refresh")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowApproveAllLowConfidenceModal(true)}
+                          disabled={lowConfidenceLoading || isBulkLowConfidenceAction || lowConfidencePhotos.length === 0}
+                          className="h-8 rounded bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                        >
+                          {t("lc.approve_all")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setShowDeleteAllLowConfidenceModal(true)}
+                          disabled={lowConfidenceLoading || isBulkLowConfidenceAction || lowConfidencePhotos.length === 0}
+                          className="h-8 rounded text-xs"
+                        >
+                          {t("lc.delete_all")}
                         </Button>
                       </div>
                     </div>
@@ -1822,6 +1894,30 @@ export default function AdminDashboardPage() {
           </Tabs>
         </div>
       </main>
+
+      <ConfirmationModal
+        open={showApproveAllLowConfidenceModal}
+        onOpenChange={setShowApproveAllLowConfidenceModal}
+        title={t("lc.approve_all")}
+        description="Are you sure you want to approve all photos matching the current AI review threshold?"
+        confirmText={t("lc.approve_all")}
+        cancelText="Cancel"
+        variant="default"
+        isLoading={isBulkLowConfidenceAction}
+        onConfirm={confirmApproveAllLowConfidence}
+      />
+
+      <ConfirmationModal
+        open={showDeleteAllLowConfidenceModal}
+        onOpenChange={setShowDeleteAllLowConfidenceModal}
+        title={t("lc.delete_all")}
+        description="Are you sure you want to permanently delete all photos matching the current AI review threshold? This cannot be undone."
+        confirmText={t("lc.delete_all")}
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isBulkLowConfidenceAction}
+        onConfirm={confirmDeleteAllLowConfidence}
+      />
 
       {/* Delete Photo Confirmation Modal */}
       <ConfirmationModal
