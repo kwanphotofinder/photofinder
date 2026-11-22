@@ -315,6 +315,25 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ photoId }),
     }),
+  approveAllLowConfidencePhotos: (threshold = 0.65) =>
+    apiCall<any>("/admin/low-confidence", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "approve-all", threshold }),
+    }),
+  deleteAllLowConfidencePhotos: (threshold = 0.65) =>
+    apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`, {
+      method: "DELETE",
+    }),
+  getLowValuePhotos: (reason?: string) => {
+    const query = new URLSearchParams()
+    if (reason && reason !== "ALL") query.set("reason", reason)
+    return apiCall<any>(`/admin/low-value-detector?${query.toString()}`)
+  },
+  purgeLowValuePhotos: (payload: { photoIds?: string[]; reasonFilter?: string }) =>
+    apiCall<any>("/admin/low-value-detector", {
+      method: "DELETE",
+      body: JSON.stringify(payload),
+    }),
   getAuditLogs: (params?: { category?: string; search?: string; page?: number; limit?: number }) => {
     const query = new URLSearchParams()
     if (params?.category) query.set("category", params.category)

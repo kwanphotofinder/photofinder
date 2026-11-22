@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { uploadToStorage, deleteFromStorage } from '@/lib/storage';
 import { extractFaces } from '@/lib/ai';
 import { optimizeForStorage } from '@/lib/image';
+import { recordAuditLog } from '@/lib/audit-logger';
 
 export const maxDuration = 180; // Allow AI to wake up 
 
@@ -105,6 +106,20 @@ export async function POST(req: NextRequest) {
       await deleteFromStorage(existingFace.imageUrl);
     }
 
+    // 6. Record Audit Log for Biometric Face Registration
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: 'REGISTER_REFERENCE_FACE',
+      category: 'BIOMETRICS',
+      targetType: 'USER',
+      targetId: user.sub,
+      targetLabel: user.email,
+      details: JSON.stringify({ storageUrl }),
+      ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null,
+    });
+
     return NextResponse.json({ message: 'Reference face saved successfully!', imageUrl: storageUrl });
 
   } catch (error) {
@@ -127,6 +142,20 @@ export async function DELETE(req: NextRequest) {
     if (existingFace) {
       if (existingFace.imageUrl) await deleteFromStorage(existingFace.imageUrl);
       await prisma.userFace.delete({ where: { userId: user.sub } });
+
+      // Record Audit Log for Biometric Face Deletion (Right to Erasure)
+      await recordAuditLog({
+        actorId: user.sub,
+        actorEmail: user.email,
+        actorRole: user.role,
+        action: 'DELETE_REFERENCE_FACE',
+        category: 'BIOMETRICS',
+        targetType: 'USER',
+        targetId: user.sub,
+        targetLabel: user.email,
+        details: 'User deleted reference face and facial embeddings (PDPA Right to Erasure)',
+        ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null,
+      });
     }
 
     return NextResponse.json({ message: 'Reference face deleted successfully' });
