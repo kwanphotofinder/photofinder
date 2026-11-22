@@ -34,6 +34,12 @@ export function middleware(req: NextRequest) {
     tier = RATE_LIMIT_TIERS.UPLOAD
   } else if (pathname.startsWith("/api/auth")) {
     tier = RATE_LIMIT_TIERS.AUTH
+  } else if (
+    pathname.startsWith("/api/admin/low-value-detector") ||
+    pathname.startsWith("/api/admin/system/cleanup") ||
+    pathname.startsWith("/api/admin/system/test-logs")
+  ) {
+    tier = RATE_LIMIT_TIERS.ADMIN_SENSITIVE
   }
 
   const result = checkRateLimit(req, tier)

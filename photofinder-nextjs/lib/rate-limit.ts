@@ -29,6 +29,9 @@ export const RATE_LIMIT_TIERS = {
   // Auth endpoints: Prevent credential stuffing & token abuse
   AUTH: { limit: 15, windowMs: 60 * 1000, name: "Auth" },
 
+  // Sensitive Administrative endpoints: Mass deletions, batch purge, system maintenance
+  ADMIN_SENSITIVE: { limit: 20, windowMs: 60 * 1000, name: "Admin Sensitive Operations" },
+
   // General read APIs: Listing events, viewing public albums
   GENERAL: { limit: 120, windowMs: 60 * 1000, name: "General API" },
 } as const

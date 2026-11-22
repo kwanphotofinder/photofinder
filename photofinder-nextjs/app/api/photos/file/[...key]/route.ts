@@ -15,9 +15,33 @@ export async function GET(
   { params }: { params: Promise<{ key: string[] }> },
 ) {
   const { key } = await params
-  const objectKey = (key || []).join("/")
-  if (!objectKey) {
+  if (!key || !Array.isArray(key) || key.length === 0) {
     return new NextResponse("Bad request", { status: 400 })
+  }
+
+  // Path Traversal & Injection Protection
+  const segmentPattern = /^[a-zA-Z0-9_\-\.]+$/
+  for (const segment of key) {
+    if (
+      !segment ||
+      segment === "." ||
+      segment === ".." ||
+      segment.includes("..") ||
+      segment.includes("\\") ||
+      segment.includes("%2e") ||
+      segment.includes("%2E") ||
+      segment.includes("\0") ||
+      !segmentPattern.test(segment)
+    ) {
+      return new NextResponse("Invalid path segment", { status: 400 })
+    }
+  }
+
+  const objectKey = key.join("/")
+
+  // Only allow access to supported storage prefixes
+  if (!objectKey.startsWith("events/") && !objectKey.startsWith("faces/")) {
+    return new NextResponse("Access denied: Invalid object prefix", { status: 403 })
   }
 
   let obj
@@ -36,6 +60,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": obj.contentType || "image/webp",
+      "X-Content-Type-Options": "nosniff",
       // Photos are immutable at a given key; the blur flow busts cache with a ?v= suffix.
       "Cache-Control": "public, max-age=31536000, immutable",
     },
