@@ -408,16 +408,6 @@ export function PhotoGrid({
                     >
                       <Download className="w-4 h-4" />
                     </Button>
-                    {showShare && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="bg-white/90 hover:bg-white text-black shadow-lg"
-                        onClick={(e) => handleShare(photo, e)}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                    )}
                     {onRemove && (
                       <Button
                         size="sm"
@@ -500,17 +490,6 @@ export function PhotoGrid({
                   >
                     <Download className="w-4 h-4" />
                   </Button>
-                  {showShare && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg"
-                      onClick={(e) => handleShare(photo, e)}
-                      title="แชร์"
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </Button>
-                  )}
                   {onRemove && (
                     <Button
                       size="sm"
