@@ -1190,7 +1190,7 @@ const translations: Record<Language, Record<string, string>> = {
     "menu.health": "System Health",
     "menu.log_tap": "Log TAP & Error Tracking",
     "menu.audit_logs": "Audit Logs (Super Admin)",
-    "menu.low_value_detector": "Low-Value Detector (Super Admin)",
+    "menu.low_value_detector": "Low-Value Image Detector",
 
     // Log TAP & Error Tracking Dashboard
     "log_tap.traffic_title": "Traffic TAP (24h)",

@@ -2086,9 +2086,6 @@ export default function AdminDashboardPage() {
                                 <Trash2 className="w-4 h-4 text-rose-600" />
                                 {t("low_value.title")}
                               </CardTitle>
-                              <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
-                                {t("low_value.badge_super_admin")}
-                              </span>
                             </div>
                             <CardDescription className="text-xs text-slate-500 mt-1">
                               {t("low_value.desc")}
