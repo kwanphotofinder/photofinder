@@ -1246,25 +1246,36 @@ export default function AdminDashboardPage() {
                       </div>
                     )}
 
-                    <DialogFooter className="gap-2 sm:justify-between border-t border-slate-100 pt-3 mt-3">
-                      <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
-                        {t("lc.modal.preview_btn")}
-                      </Button>
-                      <div className="flex flex-wrap gap-2">
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-100 pt-3 mt-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
+                          <Eye className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                          {t("lc.modal.preview_btn")}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs text-slate-600 hover:text-slate-900">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          {t("lc.modal.goto_event")}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeleteFromModal}
+                          className="h-8 text-xs rounded border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          {t("lc.modal.delete_btn")}
+                        </Button>
                         <Button
                           variant="default"
                           size="sm"
                           onClick={handleDismissFromModal}
                           disabled={lowConfidenceLoading}
-                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4"
                         >
+                          <Check className="mr-1.5 h-3.5 w-3.5" />
                           {lowConfidenceLoading ? t("lc.modal.approving") : t("lc.modal.approve_btn")}
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteFromModal} className="h-8 text-xs rounded">
-                          {t("lc.modal.delete_btn")}
-                        </Button>
-                        <Button size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#9c1f22] text-white">
-                          {t("lc.modal.goto_event")}
                         </Button>
                       </div>
                     </DialogFooter>
