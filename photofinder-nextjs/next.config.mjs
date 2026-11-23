@@ -10,6 +10,7 @@ const nextConfig = {
   },
   output: 'standalone',
   experimental: {
+    agentUpgrade: 'security',
     cpus: 1,
     workerThreads: false,
   },
