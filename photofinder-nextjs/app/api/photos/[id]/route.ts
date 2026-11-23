@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
-import { deleteFromCloudinary } from '@/lib/cloudinary';
+import { deleteFromStorage } from '@/lib/storage';
 
 export async function DELETE(
   req: NextRequest,
@@ -36,7 +36,7 @@ export async function DELETE(
     });
 
     // 3. Delete original file from Cloudinary 
-    await deleteFromCloudinary(photo.storageUrl);
+    await deleteFromStorage(photo.storageUrl);
 
     const { recordAuditLog } = await import("@/lib/audit-logger");
     await recordAuditLog({

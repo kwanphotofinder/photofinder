@@ -44,13 +44,13 @@ The platform supports four distinct user roles, managed via Google OAuth and tar
 ### 4.1. Core Stack
 * **Frontend:** Next.js 16 (App Router), React, Tailwind CSS, Shadcn UI, Lucide Icons, ECharts (for Admin Dashboard).
 * **Backend:** Next.js API routes (`/app/api/...`).
-* **Database:** PostgreSQL hosted on Neon DB.
+* **Database:** PostgreSQL on the university server (Kubernetes).
 * **ORM:** Prisma Client.
 * **Vector Search:** `pgvector` PostgreSQL extension for storing and querying AI facial embeddings.
 * **Image Storage:** Cloudinary (optimized storage and delivery).
 
 ### 4.2. AI Pipeline
-* **Microservice:** A separate AI service, such as Python/FastAPI hosted on Hugging Face Spaces or locally, handles facial detection and encoding.
+* **Microservice:** A separate AI service, built with Python/FastAPI and running on the university server (or locally via Docker Compose), handles facial detection and encoding.
 * **Embeddings:** Faces are converted into mathematical vectors, such as 512-dimensional arrays, and stored in the database.
 * **Matching Logic:** Searches run at the database level using Cosine Similarity (`<=>` in pgvector) to calculate distance between a search face and event faces.
 

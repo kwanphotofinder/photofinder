@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { uploadToStorage, deleteFromStorage } from '@/lib/storage';
 import { extractFaces } from '@/lib/ai';
 import { optimizeForStorage } from '@/lib/image';
+import { recordAuditLog } from '@/lib/audit-logger';
 
 export const maxDuration = 180; // Allow AI to wake up 
 
@@ -36,12 +37,8 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!user.pdpaConsent) return NextResponse.json({ error: 'PDPA Consent required' }, { status: 403 });
 
-    if (!process.env.CLOUDINARY_URL) {
-      return NextResponse.json({ error: 'CLOUDINARY_URL is not configured' }, { status: 500 });
-    }
-
-    if (process.env.CLOUDINARY_URL.includes('api_key:api_secret@cloud_name')) {
-      return NextResponse.json({ error: 'CLOUDINARY_URL is still using placeholder values' }, { status: 500 });
+    if (!process.env.MINIO_ENDPOINT) {
+      return NextResponse.json({ error: 'Storage (MINIO_ENDPOINT) is not configured' }, { status: 500 });
     }
 
     if (!process.env.AI_SERVICE_URL) {
@@ -66,20 +63,20 @@ export async function POST(req: NextRequest) {
 
     // 2. Optimize and upload the new selfie to storage (resize + WebP)
     const optimized = await optimizeForStorage(fileBuffer);
-    storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer);
+    storageUrl = await uploadToStorage(file.name, 'image/webp', optimized.buffer);
 
     // 3. Extract face math using AI (send ORIGINAL buffer for best accuracy)
     const faces = await extractFaces(fileBuffer, file.name);
     
     if (!faces || faces.length === 0) {
       // If AI detects no face, delete the image we just uploaded
-      await deleteFromCloudinary(storageUrl);
+      await deleteFromStorage(storageUrl);
       return NextResponse.json({ error: 'No face detected in the image. Please use a closer selfie.' }, { status: 400 });
     }
 
     if (faces.length > 1) {
       // If there are multiple faces, it's not a good reference photo
-      await deleteFromCloudinary(storageUrl);
+      await deleteFromStorage(storageUrl);
       return NextResponse.json({ error: 'Multiple faces detected. Please upload a solo selfie.' }, { status: 400 });
     }
 
@@ -106,15 +103,29 @@ export async function POST(req: NextRequest) {
 
     // 5. Remove previous image only after new save succeeds
     if (existingFace?.imageUrl && existingFace.imageUrl !== storageUrl) {
-      await deleteFromCloudinary(existingFace.imageUrl);
+      await deleteFromStorage(existingFace.imageUrl);
     }
+
+    // 6. Record Audit Log for Biometric Face Registration
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: 'REGISTER_REFERENCE_FACE',
+      category: 'BIOMETRICS',
+      targetType: 'USER',
+      targetId: user.sub,
+      targetLabel: user.email,
+      details: JSON.stringify({ storageUrl }),
+      ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null,
+    });
 
     return NextResponse.json({ message: 'Reference face saved successfully!', imageUrl: storageUrl });
 
   } catch (error) {
     console.error('POST /api/me/reference-face error:', error);
     if (storageUrl) {
-      await deleteFromCloudinary(storageUrl);
+      await deleteFromStorage(storageUrl);
     }
     const errorMessage = error instanceof Error ? error.message : 'Failed to save reference face';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
@@ -129,8 +140,22 @@ export async function DELETE(req: NextRequest) {
 
     const existingFace = await prisma.userFace.findUnique({ where: { userId: user.sub } });
     if (existingFace) {
-      if (existingFace.imageUrl) await deleteFromCloudinary(existingFace.imageUrl);
+      if (existingFace.imageUrl) await deleteFromStorage(existingFace.imageUrl);
       await prisma.userFace.delete({ where: { userId: user.sub } });
+
+      // Record Audit Log for Biometric Face Deletion (Right to Erasure)
+      await recordAuditLog({
+        actorId: user.sub,
+        actorEmail: user.email,
+        actorRole: user.role,
+        action: 'DELETE_REFERENCE_FACE',
+        category: 'BIOMETRICS',
+        targetType: 'USER',
+        targetId: user.sub,
+        targetLabel: user.email,
+        details: 'User deleted reference face and facial embeddings (PDPA Right to Erasure)',
+        ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null,
+      });
     }
 
     return NextResponse.json({ message: 'Reference face deleted successfully' });

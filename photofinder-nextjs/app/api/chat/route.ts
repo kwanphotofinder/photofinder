@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSystemSecret } from '@/lib/system-settings';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -61,7 +62,9 @@ export async function POST(req: Request) {
 
     const systemPrompt = isTrollMode ? trollPrompt : normalPrompt;
 
-    if (!process.env.GROQ_API_KEY) {
+    const groqApiKey = (await getSystemSecret('GROQ_API_KEY')) || process.env.GROQ_API_KEY;
+
+    if (!groqApiKey) {
       return new NextResponse(
         JSON.stringify({ error: 'GROQ_API_KEY is not configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
     let groqResponse = await fetch(GROQ_API_URL, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${groqApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -119,7 +122,7 @@ export async function POST(req: Request) {
       groqResponse = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${groqApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

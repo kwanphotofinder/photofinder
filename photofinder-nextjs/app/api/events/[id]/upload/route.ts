@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { uploadToCloudinary } from "@/lib/cloudinary"
+import { uploadToStorage } from "@/lib/storage"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { optimizeForStorage } from "@/lib/image"
@@ -8,7 +8,7 @@ import { aiQueue } from "@/lib/ai-queue"
 // POST /api/events/:id/upload - Upload multiple photos to an event
 // This mirrors the photographer upload flow which sends files per event
 
-// Allow Vercel Hobby tier to wait up to 60 seconds for Hugging Face AI to wake up
+// Allow up to 60 seconds for the AI service to wake up
 export const maxDuration = 60;
 
 export async function POST(
@@ -79,7 +79,7 @@ export async function POST(
       }
 
       // 3. Upload OPTIMIZED version to Cloudinary (saves ~70-80% storage)
-      const storageUrl = await uploadToCloudinary(file.name, 'image/webp', optimized.buffer, eventId)
+      const storageUrl = await uploadToStorage(file.name, 'image/webp', optimized.buffer, eventId)
 
       // 4. Create Photo Record with PENDING status
       const photo = await prisma.photo.create({

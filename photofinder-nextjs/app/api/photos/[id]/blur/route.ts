@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { v2 as cloudinary } from "cloudinary"
+import {
+  getObjectBuffer,
+  putObject,
+  deleteFromStorage,
+  keyFromUrl,
+  urlForKey,
+} from "@/lib/storage"
+
+export const runtime = "nodejs"
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000"
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_URL?.split("@")[1],
-  api_key: process.env.CLOUDINARY_URL?.split("//")[1].split(":")[0],
-  api_secret: process.env.CLOUDINARY_URL?.split(":")[2].split("@")[0],
-})
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     // 1. Auth check using standard helper
     const user = await getUserFromRequest(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    
+
     if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -38,18 +40,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (!photo.faces || photo.faces.length <= 1) {
       console.log(`[BLUR] Photo ${photoId} has ${photo.faces?.length || 0} faces. Deleting photo completely instead of blurring.`)
       if (photo.storageUrl) {
-        try {
-          const urlParts = photo.storageUrl.split('/upload/')
-          if (urlParts.length === 2) {
-            let endPath = decodeURIComponent(urlParts[1])
-            if (endPath.match(/^v\d+\//)) endPath = endPath.replace(/^v\d+\//, '')
-            const lastDotIndex = endPath.lastIndexOf('.')
-            const publicId = lastDotIndex !== -1 ? endPath.substring(0, lastDotIndex) : endPath
-            await cloudinary.uploader.destroy(publicId)
-          }
-        } catch (cErr) {
-          console.warn("[BLUR] Cloudinary deletion error:", cErr)
-        }
+        await deleteFromStorage(photo.storageUrl)
       }
       await prisma.photo.delete({ where: { id: photoId } })
       return NextResponse.json({ success: true, deleted: true, message: "Solo photo was deleted to save storage." })
@@ -58,14 +49,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     console.log(`[BLUR] Photo storageUrl: ${photo.storageUrl}`)
     console.log(`[BLUR] Photo dimensions in DB: ${photo.width}x${photo.height}`)
 
-    // 3. Download image from Cloudinary
-    const imageRes = await fetch(photo.storageUrl)
-    const imageBlob = await imageRes.blob()
-    console.log(`[BLUR] Downloaded image blob: ${imageBlob.size} bytes, type: ${imageBlob.type}`)
+    const objectKey = keyFromUrl(photo.storageUrl)
+    if (!objectKey) throw new Error("Could not resolve storage key from photo URL")
+
+    // 3. Download original image from storage
+    const originalBuffer = await getObjectBuffer(objectKey)
+    console.log(`[BLUR] Downloaded image: ${originalBuffer.byteLength} bytes`)
 
     // 4. Call AI Service to Blur
     const formData = new FormData()
-    formData.append("file", imageBlob, "image.jpg")
+    formData.append("file", new Blob([new Uint8Array(originalBuffer)], { type: "image/webp" }), "image.webp")
     formData.append("bboxes", bboxes)
 
     console.log(`[BLUR] Sending to AI service: ${AI_SERVICE_URL}/blur`)
@@ -83,36 +76,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const blurredImageBuffer = await blurRes.arrayBuffer()
     console.log(`[BLUR] Received blurred image: ${blurredImageBuffer.byteLength} bytes`)
 
-    // 5. Upload blurred image back to Cloudinary (Overwrite)
-    const urlParts = photo.storageUrl.split('/upload/')
-    if (urlParts.length !== 2) throw new Error("Invalid Cloudinary URL")
-    
-    let endPath = decodeURIComponent(urlParts[1])
-    if (endPath.match(/^v\d+\//)) {
-      endPath = endPath.replace(/^v\d+\//, '')
-    }
-    const lastDotIndex = endPath.lastIndexOf('.')
-    const publicId = lastDotIndex !== -1 ? endPath.substring(0, lastDotIndex) : endPath
-
-    const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream({
-        public_id: publicId,
-        overwrite: true,
-        invalidate: true,
-        resource_type: "image",
-      }, (error, result) => {
-        if (error) reject(error)
-        else resolve(result)
-      }).end(Buffer.from(blurredImageBuffer))
-    }) as any
+    // 5. Overwrite the object at the same key with the blurred version
+    await putObject(objectKey, Buffer.from(blurredImageBuffer), "image/webp")
 
     // 6. Delete the blurred face embedding from the faces table so it no longer matches in search
     if (bboxes) {
       const coords = bboxes.split(",").map((n: string) => parseFloat(n.trim()))
       if (coords.length === 4 && !coords.some(isNaN)) {
-        const [bx, by, bw, bh] = coords
-        // Delete face matching close coordinates (+- 20px tolerance)
-        const matchingFace = photo.faces.find(f => 
+        const [bx, by] = coords
+        // Delete face matching close coordinates (+- 30px tolerance)
+        const matchingFace = photo.faces.find(f =>
           f.x !== null && f.y !== null &&
           Math.abs((f.x ?? 0) - bx) < 30 &&
           Math.abs((f.y ?? 0) - by) < 30
@@ -123,10 +96,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       }
     }
 
-    // Update DB with the new secure_url (which has a new version string, breaking browser cache)
+    // Update DB with a cache-busting URL (same key, new ?v=) so browsers refetch the blurred image
+    const newUrl = `${urlForKey(objectKey)}?v=${Date.now()}`
     await prisma.photo.update({
       where: { id: photoId },
-      data: { storageUrl: uploadResult.secure_url }
+      data: { storageUrl: newUrl },
     })
 
     const { recordAuditLog } = await import("@/lib/audit-logger")
@@ -143,7 +117,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
     })
 
-    return NextResponse.json({ success: true, url: uploadResult.secure_url, remainingFaces: photo.faces.length - 1 })
+    return NextResponse.json({ success: true, url: newUrl, remainingFaces: photo.faces.length - 1 })
 
   } catch (error: any) {
     console.error("Blur error:", error)

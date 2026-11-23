@@ -3,8 +3,10 @@ import prisma from "@/lib/prisma"
 import { getUserFromRequest } from "@/lib/auth"
 import { recordAuditLog } from "@/lib/audit-logger"
 
-const SETTING_KEY = "biometric_match_confidence"
-const DEFAULT_CONFIDENCE = 0.5
+// Unified with the general settings page: stored as a whole percent (e.g. 60) under
+// "face_match_threshold", which drives both the student photo search and notifications.
+const SETTING_KEY = "face_match_threshold"
+const DEFAULT_CONFIDENCE = 60
 
 async function getConfidenceSetting() {
   const settings = await prisma.$queryRawUnsafe<Array<{ value: number | string }>>(
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Super Admin privileges required." }, { status: 403 })
     }
 
-    return NextResponse.json({ percentage: Math.round((await getConfidenceSetting()) * 100) })
+    return NextResponse.json({ percentage: Math.round(await getConfidenceSetting()) })
   } catch (error) {
     console.error("GET /api/admin/system-settings/confidence error:", error)
     return NextResponse.json({ error: "Failed to load confidence setting" }, { status: 500 })
@@ -39,9 +41,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const percentage = Number(body.percentage)
     if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
-      return NextResponse.json({ error: "Confidence must be a whole number between 1% and 100%." }, { status: 400 })
+      return NextResponse.json({ error: "Threshold must be a whole number between 1% and 100%." }, { status: 400 })
     }
-    const confidence = percentage / 100
 
     const previousConfidence = await getConfidenceSetting()
     await prisma.$executeRawUnsafe(
@@ -49,7 +50,7 @@ export async function PATCH(request: NextRequest) {
        VALUES ($1, $2)
        ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = CURRENT_TIMESTAMP`,
       SETTING_KEY,
-      confidence,
+      percentage,
     )
 
     await recordAuditLog({
@@ -59,8 +60,8 @@ export async function PATCH(request: NextRequest) {
       action: "BIOMETRIC_CONFIDENCE_UPDATE",
       category: "BIOMETRICS",
       targetType: "SYSTEM",
-      targetLabel: "Biometric match confidence",
-      details: `Changed biometric match confidence from ${(previousConfidence * 100).toFixed(0)}% to ${(confidence * 100).toFixed(0)}%.`,
+      targetLabel: "Face match threshold",
+      details: `Changed face match threshold from ${Math.round(previousConfidence)}% to ${percentage}%.`,
     })
 
     return NextResponse.json({ percentage })

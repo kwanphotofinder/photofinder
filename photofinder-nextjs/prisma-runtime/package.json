@@ -1,0 +1,15 @@
+{
+  "name": "photofinder-prisma-runtime",
+  "private": true,
+  "dependencies": {
+    "@prisma/adapter-pg": "7.7.0",
+    "dotenv": "16.6.1",
+    "pg": "8.20.0",
+    "prisma": "7.7.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.0",
+    "mysql2": "3.22.0",
+    "effect": "^3.22.1"
+  }
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary"
+import { uploadToStorage, deleteFromStorage } from "@/lib/storage"
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000"
 
@@ -40,11 +40,11 @@ export async function POST(req: NextRequest) {
     const existingFace = await prisma.userFace.findUnique({ where: { userId } })
     if (existingFace?.imageUrl) {
       console.log(`[IdentityGuard] Deleting old selfie: ${existingFace.imageUrl}`)
-      await deleteFromCloudinary(existingFace.imageUrl)
+      await deleteFromStorage(existingFace.imageUrl)
     }
 
     // 5. Success! Upload Selfie image to Cloudinary using existing helper
-    const storageUrl = await uploadToCloudinary(
+    const storageUrl = await uploadToStorage(
       `user_${userId}_reference.jpg`,
       "image/jpeg",
       Buffer.from(await selfieBlob.arrayBuffer())

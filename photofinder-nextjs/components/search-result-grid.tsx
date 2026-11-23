@@ -80,7 +80,7 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
   const handleDownload = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     await trackPhotoEngagement(photo.id, "DOWNLOAD")
-    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate, photo.id)
+    await downloadPhoto(photo.url, photo.eventName, photo.uploadDate || photo.eventDate)
   }
 
   const handleShare = (photo: Photo, e: React.MouseEvent) => {
@@ -173,14 +173,6 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
                 >
                   <Download className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="bg-white/90 hover:bg-white text-black shadow-lg"
-                  onClick={(e) => handleShare(photo, e)}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
               </div>
 
               {/* Confidence Badge */}
@@ -212,46 +204,41 @@ export function SearchResultGrid({ photos }: SearchResultGridProps) {
             </div>
 
             {/* Action Buttons - Always visible below the image */}
-            <CardContent className="p-3 2xl:hidden">
-              <div className="flex gap-2">
+            <CardContent className="p-2 sm:p-3 2xl:hidden">
+              <div className="flex items-center gap-1.5 justify-between">
                 <Button
                   size="sm"
                   variant="outline"
-                  className={`flex-1 ${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary' : ''}`}
+                  className={`flex-1 h-9 p-0 flex items-center justify-center rounded-lg ${savedPhotoIds.includes(photo.id) ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-primary' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSavePhoto(photo.id, e)
                   }}
+                  title={savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
                 >
-                  <Heart className={`w-4 h-4 mr-1 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''} ${savingPhotoIds.includes(photo.id) ? 'animate-pulse' : ''}`} />
-                  {savedPhotoIds.includes(photo.id) ? 'Saved' : 'Save'}
+                  <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? 'fill-current' : ''} ${savingPhotoIds.includes(photo.id) ? 'animate-pulse' : ''}`} />
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg"
                   onClick={(e) => {
                     e.stopPropagation()
                     setSelectedPhoto(photo)
                     setShowDetail(true)
                   }}
+                  title="View"
                 >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View
+                  <Eye className="w-4 h-4" />
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
+                  className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary hover:text-white border-primary/30 text-primary transition-colors"
                   onClick={(e) => handleDownload(photo, e)}
+                  title="Download"
                 >
                   <Download className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => handleShare(photo, e)}
-                >
-                  <Share2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>

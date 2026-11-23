@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { deleteFromCloudinary } from "@/lib/cloudinary"
+import { deleteFromStorage } from "@/lib/storage"
 
 
 export async function POST(req: NextRequest) {
@@ -26,10 +26,10 @@ export async function POST(req: NextRequest) {
     for (const face of userFaces) {
       if (face.imageUrl) {
         try {
-          await deleteFromCloudinary(face.imageUrl)
+          await deleteFromStorage(face.imageUrl)
           deletedCount++
         } catch (err) {
-          console.error(`Failed to delete from Cloudinary: ${face.imageUrl}`)
+          console.error(`Failed to delete from MinIO: ${face.imageUrl}`)
         }
       }
     }
@@ -47,13 +47,13 @@ export async function POST(req: NextRequest) {
       category: "BIOMETRICS",
       targetType: "SYSTEM",
       targetLabel: "Student Biometric Profiles",
-      details: `Wiped ${deletedCount} selfie images from Cloudinary and ${dbResult.count} facial vector records from DB.`,
+      details: `Wiped ${deletedCount} selfie images from MinIO and ${dbResult.count} facial vector records from DB.`,
       ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
     })
 
     return NextResponse.json({ 
       success: true, 
-      message: `Clean-up complete. ${deletedCount} images removed from Cloudinary, ${dbResult.count} records removed from DB.` 
+      message: `Clean-up complete. ${deletedCount} images removed from MinIO, ${dbResult.count} records removed from DB.` 
     })
 
   } catch (error: any) {

@@ -8,6 +8,7 @@ import { optimizeImageWithStats } from "@/lib/client-image-optimizer"
 import { uploadFileInChunks } from "@/lib/chunked-uploader"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   AlertCircle,
@@ -18,6 +19,8 @@ import {
   XCircle,
   Clock,
   FolderUp,
+  FolderDown,
+  Info,
   Trash2,
   Trash,
   Images,
@@ -104,7 +107,7 @@ async function extractFilesFromDataTransfer(dataTransfer: DataTransfer): Promise
 
 export default function PhotographerPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +125,7 @@ export default function PhotographerPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
+  const [uploadSummary, setUploadSummary] = useState<{ success: number; failed: { name: string; reason: string }[] } | null>(null)
   const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError] = useState<string | null>(null)
@@ -149,12 +153,25 @@ export default function PhotographerPage() {
   const [trendDays, setTrendDays] = useState<7 | 14>(14)
   const [isNotifying, setIsNotifying] = useState(false)
   const [notifyStatus, setNotifyStatus] = useState<string | null>(null)
-  
+
+  // Google Drive (gdown) Import States
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false)
+  const [driveUrlInput, setDriveUrlInput] = useState("")
+  const [isDriveImporting, setIsDriveImporting] = useState(false)
+  const [driveImportStatus, setDriveImportStatus] = useState<string | null>(null)
+  const [driveImportError, setDriveImportError] = useState<string | null>(null)
+  const [driveImportResult, setDriveImportResult] = useState<{
+    imported: number
+    skipped: number
+    total: number
+    eventName: string
+  } | null>(null)
+
   useEffect(() => {
     // Silently wake up the AI service in the background
-    fetch('/api/ai-health').catch(() => {})
+    fetch('/api/ai-health').catch(() => { })
   }, [])
-  
+
   // Fetch real events and photos from backend
   const loadData = async (photographerId?: string) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
@@ -394,25 +411,25 @@ export default function PhotographerPage() {
   const filterValidFiles = (files: File[]) => {
     const valid: File[] = [];
     const oversized: string[] = [];
-    
+
     for (const file of files) {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif', 'tiff'].includes(ext);
       const isHeic = file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
-      
+
       if (!file.type.startsWith("image/") && !isHeic && !isImageExt) continue;
-      
+
       if (file.size > MAX_FILE_SIZE) {
         oversized.push(file.name);
       } else {
         valid.push(file);
       }
     }
-    
+
     if (oversized.length > 0) {
       alert(`The following files were skipped because they exceed the 15MB limit:\n${oversized.slice(0, 5).join('\n')}${oversized.length > 5 ? '\n...and more' : ''}`);
     }
-    
+
     return valid;
   };
 
@@ -487,6 +504,10 @@ export default function PhotographerPage() {
 
     setIsUploading(true)
 
+    // Track this batch's outcome locally (state updates are async and would be stale here)
+    const succeeded: string[] = []
+    const failed: { name: string; reason: string }[] = []
+
     // Upload files sequentially with resumable chunk support
     for (let i = 0; i < selectedFiles.length; i++) {
       const rawFile = selectedFiles[i]
@@ -511,7 +532,7 @@ export default function PhotographerPage() {
 
         // Client-side optimization: Convert HEIC, resize according to selected preset, compress to WebP
         setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "⚡ Optimizing image on client..." }))
-        
+
         let file = rawFile
         if (compressionPreset !== "raw") {
           const optOptions = compressionPreset === "high"
@@ -558,26 +579,36 @@ export default function PhotographerPage() {
         if (result.success) {
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: 100 }))
           setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Completed & Enqueued" }))
+          succeeded.push(rawFile.name)
         } else {
+          const reason = result.error || "Upload failed"
           setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
           setUploadErrors((prev) => ({
             ...prev,
-            [rawFile.name]: result.error || "Upload failed",
+            [rawFile.name]: reason,
           }))
           setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Failed" }))
+          failed.push({ name: rawFile.name, reason })
         }
       } catch (error: any) {
         console.error("[v0] Upload error:", error)
+        const reason = error?.message || "Network error"
         setUploadProgress((prev) => ({ ...prev, [rawFile.name]: -1 }))
         setUploadErrors((prev) => ({
           ...prev,
-          [rawFile.name]: error?.message || "Network error",
+          [rawFile.name]: reason,
         }))
         setUploadChunkStatuses((prev) => ({ ...prev, [rawFile.name]: "Network error" }))
+        failed.push({ name: rawFile.name, reason })
       }
     }
 
     setIsUploading(false)
+
+    // Show a completion summary (how many succeeded / failed with reasons).
+    if (succeeded.length + failed.length > 0) {
+      setUploadSummary({ success: succeeded.length, failed })
+    }
 
     // After uploads, reload this photographer's photos
     await loadData(photographerUser?.id)
@@ -616,6 +647,103 @@ export default function PhotographerPage() {
       setNotifyStatus("Error: Network failure")
     } finally {
       setIsNotifying(false)
+    }
+  }
+
+  const playCompletionChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = "sine"
+      const now = ctx.currentTime
+      osc.frequency.setValueAtTime(1046.5, now) // C6
+      osc.frequency.setValueAtTime(1318.5, now + 0.12) // E6
+      gain.gain.setValueAtTime(0.18, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
+      osc.start(now)
+      osc.stop(now + 0.6)
+    } catch (_) { }
+  }
+
+  const handleDriveImport = async () => {
+    if (!selectedEvent) {
+      alert(t("photo.upload.drive_prompt_select_event"))
+      return
+    }
+    if (!driveUrlInput.trim()) {
+      alert(t("photo.upload.drive_prompt_enter_url"))
+      return
+    }
+
+    // Ask for browser desktop notification permission if not yet decided
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      try {
+        await Notification.requestPermission()
+      } catch (_) { }
+    }
+
+    try {
+      setIsDriveImporting(true)
+      setDriveImportStatus(t("photo.upload.drive_importing"))
+      setDriveImportError(null)
+      setDriveImportResult(null)
+
+      const token = localStorage.getItem("auth_token")
+      const res = await fetch("/api/photos/import-drive", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          eventId: selectedEvent,
+          driveUrl: driveUrlInput.trim(),
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || data.details || "Failed to import from Google Drive")
+      }
+
+      // Play completion chime audio
+      playCompletionChime()
+
+      // Show Desktop Notification
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          const notifTitle = lang === "th" ? "Photo Finder — นำเข้ารูปภาพสำเร็จ!" : "Photo Finder — Import Successful!"
+          const notifBody = lang === "th"
+            ? `นำเข้า ${data.imported || 0} ภาพ เข้าสู่อีเวนต์ '${selectedEventName}' เรียบร้อยแล้ว (AI กำลังประมวลผล)`
+            : `Imported ${data.imported || 0} photos into '${selectedEventName}' (AI background processing).`
+          new Notification(notifTitle, {
+            body: notifBody,
+            icon: "/Logo2.png",
+          })
+        } catch (_) { }
+      }
+
+      setDriveImportResult({
+        imported: data.imported ?? 0,
+        skipped: data.skipped ?? 0,
+        total: data.total ?? 0,
+        eventName: selectedEventName,
+      })
+
+      await loadData(photographerUser?.id)
+      await loadPhotographerAnalytics()
+      setDriveImportStatus(null)
+    } catch (err: any) {
+      console.error("Drive import error:", err)
+      setDriveImportError(err.message || (lang === "th" ? "เกิดข้อผิดพลาดในการนำเข้าภาพ" : "Failed to import photos from Google Drive"))
+    } finally {
+      setIsDriveImporting(false)
+      setDriveImportStatus(null)
     }
   }
 
@@ -915,11 +1043,10 @@ export default function PhotographerPage() {
               <button
                 type="button"
                 onClick={() => setActiveWorkspaceTab("upload")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
-                  activeWorkspaceTab === "upload"
-                    ? "border-[#82181a] text-[#82181a] bg-slate-50"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${activeWorkspaceTab === "upload"
+                  ? "border-[#82181a] text-[#82181a] bg-slate-50"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
+                  }`}
               >
                 <Upload className="w-4 h-4" />
                 <span>{t("photo.tab.upload")}</span>
@@ -927,11 +1054,10 @@ export default function PhotographerPage() {
               <button
                 type="button"
                 onClick={() => setActiveWorkspaceTab("manage_uploads")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
-                  activeWorkspaceTab === "manage_uploads"
-                    ? "border-[#82181a] text-[#82181a] bg-slate-50"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${activeWorkspaceTab === "manage_uploads"
+                  ? "border-[#82181a] text-[#82181a] bg-slate-50"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
+                  }`}
               >
                 <Images className="w-4 h-4" />
                 <span>{t("photo.tab.manage")}</span>
@@ -942,11 +1068,10 @@ export default function PhotographerPage() {
               <button
                 type="button"
                 onClick={() => setActiveWorkspaceTab("analytics")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
-                  activeWorkspaceTab === "analytics"
-                    ? "border-[#82181a] text-[#82181a] bg-slate-50"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${activeWorkspaceTab === "analytics"
+                  ? "border-[#82181a] text-[#82181a] bg-slate-50"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50/60"
+                  }`}
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>{t("photo.tab.analytics")}</span>
@@ -1028,33 +1153,30 @@ export default function PhotographerPage() {
                         <button
                           type="button"
                           onClick={() => setCompressionPreset("fast")}
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                            compressionPreset === "fast"
-                              ? "bg-emerald-600 text-white shadow-xs"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${compressionPreset === "fast"
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
                         >
                           ⚡ Fast (WebP 2048px, -85%)
                         </button>
                         <button
                           type="button"
                           onClick={() => setCompressionPreset("high")}
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                            compressionPreset === "high"
-                              ? "bg-blue-600 text-white shadow-xs"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${compressionPreset === "high"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
                         >
                           🎯 High-Res (4K 3840px)
                         </button>
                         <button
                           type="button"
                           onClick={() => setCompressionPreset("raw")}
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-                            compressionPreset === "raw"
-                              ? "bg-slate-800 text-white shadow-xs"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${compressionPreset === "raw"
+                            ? "bg-slate-800 text-white shadow-xs"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
                         >
                           Original
                         </button>
@@ -1095,6 +1217,24 @@ export default function PhotographerPage() {
                             </span>
                           </Button>
                         </label>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            if (!selectedEvent) {
+                              alert(t("photo.upload.drive_prompt_select_event"))
+                              return
+                            }
+                            setIsDriveModalOpen(true)
+                          }}
+                          className="border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold rounded h-9 px-4 cursor-pointer bg-white"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <FolderDown className="w-3.5 h-3.5 text-[#82181a]" />
+                            {t("photo.upload.btn_drive_import")}
+                          </span>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -1306,9 +1446,9 @@ export default function PhotographerPage() {
                     >
                       <CheckSquare className="w-3.5 h-3.5 text-slate-600" />
                       {filteredUploadedPhotos.length > 0 &&
-                      filteredUploadedPhotos.every((p) => selectedPhotoIds.includes(p.id))
-                        ? "Deselect All"
-                        : "Select All"}
+                        filteredUploadedPhotos.every((p) => selectedPhotoIds.includes(p.id))
+                        ? t("photo.manage.deselect_all")
+                        : t("photo.manage.select_all")}
                     </Button>
                   )}
 
@@ -1321,7 +1461,7 @@ export default function PhotographerPage() {
                       className="h-8 text-xs gap-1.5 bg-red-600 hover:bg-red-700 text-white shadow-xs font-semibold"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Delete Selected ({selectedPhotoIds.length})
+                      {t("photo.manage.delete_selected")} ({selectedPhotoIds.length})
                     </Button>
                   )}
 
@@ -1354,11 +1494,10 @@ export default function PhotographerPage() {
                     return (
                       <div
                         key={photo.id}
-                        className={`border rounded bg-white overflow-hidden shadow-2xs transition-all flex flex-col relative ${
-                          isSelected
-                            ? "border-[#82181a] ring-2 ring-[#82181a]/25 shadow-sm"
-                            : "border-slate-200 hover:border-slate-300"
-                        }`}
+                        className={`border rounded bg-white overflow-hidden shadow-2xs transition-all flex flex-col relative ${isSelected
+                          ? "border-[#82181a] ring-2 ring-[#82181a]/25 shadow-sm"
+                          : "border-slate-200 hover:border-slate-300"
+                          }`}
                       >
                         <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden border-b border-slate-100 group">
                           <img
@@ -1376,11 +1515,10 @@ export default function PhotographerPage() {
                                 e.stopPropagation()
                                 toggleSelectPhoto(photo.id)
                               }}
-                              className={`w-6 h-6 rounded flex items-center justify-center transition-colors shadow-xs ${
-                                isSelected
-                                  ? "bg-[#82181a] text-white border-2 border-white"
-                                  : "bg-black/50 hover:bg-black/70 text-white/90 border border-white/60"
-                              }`}
+                              className={`w-6 h-6 rounded flex items-center justify-center transition-colors shadow-xs ${isSelected
+                                ? "bg-[#82181a] text-white border-2 border-white"
+                                : "bg-black/50 hover:bg-black/70 text-white/90 border border-white/60"
+                                }`}
                               title={isSelected ? "Deselect photo" : "Select photo"}
                             >
                               {isSelected ? (
@@ -1404,39 +1542,39 @@ export default function PhotographerPage() {
                           </div>
                         </div>
 
-                      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
-                        <div>
-                          <p className="text-xs font-bold text-slate-800 truncate" title={photo.filename}>
-                            {photo.filename}
-                          </p>
-                          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
-                            <span className="truncate max-w-[120px]">{photo.eventName}</span>
-                            <span>{new Date(photo.uploadDate).toLocaleDateString()}</span>
+                        <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 truncate" title={photo.filename}>
+                              {photo.filename}
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                              <span className="truncate max-w-[120px]">{photo.eventName}</span>
+                              <span>{new Date(photo.uploadDate).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <Badge variant={getStatusDisplay(photo.status).variant} className="gap-1 shadow-none text-[10px] font-medium">
+                              {getStatusDisplay(photo.status).icon}
+                              {getStatusDisplay(photo.status).label}
+                            </Badge>
+
+                            {photo.status === "failed" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRetryFailed(photo.id)}
+                                className="h-6 px-2 text-[10px] text-amber-700 border-amber-300 hover:bg-amber-50"
+                              >
+                                <RefreshCw className="w-2.5 h-2.5 mr-1" />
+                                {t("photo.manage.retry")}
+                              </Button>
+                            )}
                           </div>
                         </div>
-
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <Badge variant={getStatusDisplay(photo.status).variant} className="gap-1 shadow-none text-[10px] font-medium">
-                            {getStatusDisplay(photo.status).icon}
-                            {getStatusDisplay(photo.status).label}
-                          </Badge>
-
-                          {photo.status === "failed" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRetryFailed(photo.id)}
-                              className="h-6 px-2 text-[10px] text-amber-700 border-amber-300 hover:bg-amber-50"
-                            >
-                              <RefreshCw className="w-2.5 h-2.5 mr-1" />
-                              {t("photo.manage.retry")}
-                            </Button>
-                          )}
-                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1455,18 +1593,16 @@ export default function PhotographerPage() {
                     <button
                       type="button"
                       onClick={() => setTrendDays(7)}
-                      className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-                        trendDays === 7 ? "bg-[#82181a] text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${trendDays === 7 ? "bg-[#82181a] text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                        }`}
                     >
                       {t("photo.analytics.7days")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setTrendDays(14)}
-                      className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-                        trendDays === 14 ? "bg-[#82181a] text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${trendDays === 14 ? "bg-[#82181a] text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                        }`}
                     >
                       {t("photo.analytics.14days")}
                     </button>
@@ -1586,10 +1722,10 @@ export default function PhotographerPage() {
       <ConfirmationModal
         open={!!photoToDelete}
         onOpenChange={(open) => !open && setPhotoToDelete(null)}
-        title="Delete Photo"
-        description="Are you sure you want to delete this photo? This action cannot be undone and will remove all facial matches associated with it."
-        confirmText="Delete Photo"
-        cancelText="Cancel"
+        title={t("photo.manage.single_delete_title")}
+        description={t("photo.manage.single_delete_desc")}
+        confirmText={t("photo.manage.single_delete_confirm")}
+        cancelText={t("photo.manage.cancel")}
         variant="destructive"
         isLoading={isDeletingPhoto}
         onConfirm={confirmDeletePhoto}
@@ -1598,14 +1734,257 @@ export default function PhotographerPage() {
       <ConfirmationModal
         open={isBulkDeleteModalOpen}
         onOpenChange={(open) => !open && setIsBulkDeleteModalOpen(false)}
-        title={`Delete ${selectedPhotoIds.length} Selected Photo${selectedPhotoIds.length > 1 ? "s" : ""}`}
-        description={`Are you sure you want to permanently delete these ${selectedPhotoIds.length} photos? This action cannot be undone and will remove all facial recognition matches associated with them.`}
-        confirmText={`Delete ${selectedPhotoIds.length} Photos`}
-        cancelText="Cancel"
+        title={
+          lang === "th"
+            ? `ยืนยันการลบภาพถ่ายที่เลือก (${selectedPhotoIds.length} ภาพ)`
+            : `Delete ${selectedPhotoIds.length} Selected Photo${selectedPhotoIds.length > 1 ? "s" : ""}`
+        }
+        description={
+          lang === "th"
+            ? `คุณแน่ใจหรือไม่ว่าต้องการลบภาพถ่ายที่เลือกจำนวน ${selectedPhotoIds.length} ภาพอย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้ และจะลบข้อมูลการจับคู่ใบหน้าทั้งหมดที่เกี่ยวข้อง`
+            : `Are you sure you want to permanently delete these ${selectedPhotoIds.length} photos? This action cannot be undone and will remove all facial recognition matches associated with them.`
+        }
+        confirmText={
+          lang === "th"
+            ? `ลบ ${selectedPhotoIds.length} ภาพ`
+            : `Delete ${selectedPhotoIds.length} Photo${selectedPhotoIds.length > 1 ? "s" : ""}`
+        }
+        cancelText={t("photo.manage.cancel")}
         variant="destructive"
         isLoading={isBulkDeleting}
         onConfirm={handleBulkDeleteConfirm}
       />
+
+      {/* Upload completion summary */}
+      <Dialog open={uploadSummary !== null} onOpenChange={(open) => !open && setUploadSummary(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              {uploadSummary && uploadSummary.failed.length === 0 ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              )}
+              {lang === "th" ? "สรุปผลการอัปโหลด" : "Upload Summary"}
+            </DialogTitle>
+          </DialogHeader>
+          {uploadSummary && (
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <CheckCircle className="w-4 h-4" />
+                  {uploadSummary.success} {lang === "th" ? "สำเร็จ" : "uploaded"}
+                </span>
+                {uploadSummary.failed.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-red-700">
+                    <XCircle className="w-4 h-4" />
+                    {uploadSummary.failed.length} {lang === "th" ? "ล้มเหลว" : "failed"}
+                  </span>
+                )}
+              </div>
+              {uploadSummary.failed.length > 0 && (
+                <div className="max-h-48 space-y-1.5 overflow-y-auto rounded border border-red-100 bg-red-50/60 p-2">
+                  {uploadSummary.failed.map((f) => (
+                    <div key={f.name} className="text-xs">
+                      <p className="truncate font-semibold text-red-800">{f.name}</p>
+                      <p className="text-red-600">{f.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {uploadSummary.failed.length > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  {lang === "th"
+                    ? "ใช้ปุ่ม \"อัปโหลดใหม่เฉพาะที่ล้มเหลว\" เพื่อลองอีกครั้ง"
+                    : 'Use the "Retry failed" button to try the failed ones again.'}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button size="sm" onClick={() => setUploadSummary(null)} className="h-8 text-xs">
+              {lang === "th" ? "ปิด" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Google Drive (gdown) Import Modal */}
+      <Dialog
+        open={isDriveModalOpen}
+        onOpenChange={(open) => {
+          if (!isDriveImporting) {
+            setIsDriveModalOpen(open)
+            if (!open) {
+              setDriveImportResult(null)
+              setDriveImportError(null)
+              setDriveImportStatus(null)
+            }
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg bg-white border border-slate-200 shadow-md rounded p-6">
+          <DialogHeader className="space-y-1.5 pb-2 border-b border-slate-100">
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FolderDown className="w-4 h-4 text-[#82181a]" />
+              {t("photo.upload.drive_modal_title")}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              {t("photo.upload.drive_modal_desc")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {driveImportResult ? (
+            <div className="space-y-4 pt-2">
+              {/* Success Hero Header */}
+              <div className="flex flex-col items-center justify-center text-center p-4 bg-emerald-50/70 border border-emerald-200/80 rounded">
+                <div className="w-11 h-11 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 mb-2">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-emerald-950">
+                  {t("photo.upload.drive_success_title")}
+                </h4>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  {t("photo.upload.drive_success_sub")}
+                  {driveImportResult.eventName && (
+                    <span className="font-semibold block text-emerald-900 mt-0.5">
+                      &ldquo;{driveImportResult.eventName}&rdquo;
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Metric Stat Boxes */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="p-3 rounded border border-emerald-200 bg-emerald-50/60 text-center">
+                  <p className="text-[11px] font-medium text-emerald-800">{t("photo.upload.drive_stat_imported")}</p>
+                  <p className="text-xl font-bold text-emerald-900 mt-0.5">{driveImportResult.imported}</p>
+                  <p className="text-[10px] text-emerald-700/80">{t("photo.upload.drive_stat_unit")}</p>
+                </div>
+                <div className="p-3 rounded border border-amber-200 bg-amber-50/60 text-center">
+                  <p className="text-[11px] font-medium text-amber-800">{t("photo.upload.drive_stat_duplicates")}</p>
+                  <p className="text-xl font-bold text-amber-900 mt-0.5">{driveImportResult.skipped}</p>
+                  <p className="text-[10px] text-amber-700/80">{t("photo.upload.drive_stat_unit")}</p>
+                </div>
+                <div className="p-3 rounded border border-slate-200 bg-slate-50 text-center">
+                  <p className="text-[11px] font-medium text-slate-600">{t("photo.upload.drive_stat_total")}</p>
+                  <p className="text-xl font-bold text-slate-800 mt-0.5">{driveImportResult.total}</p>
+                  <p className="text-[10px] text-slate-500">{t("photo.upload.drive_stat_unit")}</p>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDriveImportResult(null)
+                    setDriveUrlInput("")
+                    setDriveImportStatus(null)
+                    setDriveImportError(null)
+                  }}
+                  className="text-xs h-9 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium rounded"
+                >
+                  {t("photo.upload.drive_btn_another")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setIsDriveModalOpen(false)
+                    setDriveImportResult(null)
+                    setDriveUrlInput("")
+                    setDriveImportStatus(null)
+                    setDriveImportError(null)
+                    setActiveWorkspaceTab("manage_uploads")
+                  }}
+                  className="bg-[#82181a] hover:bg-[#641416] text-white text-xs font-semibold h-9 px-4 rounded"
+                >
+                  {t("photo.upload.drive_btn_manage")}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              {/* Tip Card */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <p className="font-semibold text-slate-800">{t("photo.upload.drive_tip_title")}</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    {t("photo.upload.drive_tip_desc")}
+                  </p>
+                </div>
+              </div>
+
+              {/* URL Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-800 block">
+                  {t("photo.upload.drive_url_label")}
+                </label>
+                <input
+                  type="url"
+                  value={driveUrlInput}
+                  onChange={(e) => setDriveUrlInput(e.target.value)}
+                  placeholder={t("photo.upload.drive_url_placeholder")}
+                  className="w-full text-xs px-3 h-9 border border-slate-300 rounded focus:outline-none focus:border-[#82181a] focus:ring-1 focus:ring-[#82181a] font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans transition-colors"
+                  disabled={isDriveImporting}
+                />
+              </div>
+
+              {/* Live Loading Indicator (Only shown while actively importing) */}
+              {isDriveImporting && (
+                <div className="p-3.5 rounded bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 font-semibold text-slate-800">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#82181a] shrink-0" />
+                    <span>{driveImportStatus || t("photo.upload.drive_importing")}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 pl-6 leading-relaxed">
+                    {t("photo.upload.drive_importing_sub")}
+                  </p>
+                </div>
+              )}
+
+              {/* Error Alert */}
+              {driveImportError && (
+                <div className="p-3 rounded bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <span className="flex-1 leading-relaxed font-medium">{driveImportError}</span>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsDriveModalOpen(false)}
+                  disabled={isDriveImporting}
+                  className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 h-9 font-medium rounded"
+                >
+                  {t("photo.upload.drive_btn_cancel")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDriveImport}
+                  disabled={isDriveImporting || !driveUrlInput.trim()}
+                  className="bg-[#82181a] hover:bg-[#641416] text-white text-xs font-semibold h-9 px-4 rounded transition-colors disabled:opacity-50"
+                >
+                  {isDriveImporting ? (
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {t("photo.upload.drive_importing")}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <FolderDown className="w-3.5 h-3.5" />
+                      {t("photo.upload.drive_btn_start")}
+                    </span>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

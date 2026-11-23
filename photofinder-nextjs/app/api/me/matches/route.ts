@@ -2,16 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getPhotosEngagementBatch } from '@/lib/photo-engagement';
+import { getSystemSetting } from '@/lib/system-settings';
 
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const thresholdQuery = searchParams.get('threshold') || searchParams.get('confidence');
     const requestedThreshold = thresholdQuery ? parseFloat(thresholdQuery) : NaN;
-    // Default to 0.60, allow tuning from 0.35 (broad/more photos) to 0.95 (strict/precise)
+    // Default comes from the admin-set Face Match Threshold (stored as a whole percent, e.g. 60).
+    // A per-request ?threshold= still overrides it. Allowed range 0.35 (broad) to 0.95 (strict).
+    let defaultConfidence = 0.60;
+    try {
+      const pct = await getSystemSetting('face_match_threshold');
+      if (Number.isFinite(pct) && pct > 0) {
+        defaultConfidence = Math.max(0.35, Math.min(0.95, pct / 100));
+      }
+    } catch {
+      defaultConfidence = 0.60;
+    }
     const matchConfidence = Number.isFinite(requestedThreshold)
       ? Math.max(0.35, Math.min(0.95, requestedThreshold))
-      : 0.60;
+      : defaultConfidence;
 
     const limitParam = parseInt(searchParams.get('limit') || '60', 10);
     const limit = Number.isFinite(limitParam) ? Math.min(100, Math.max(10, limitParam)) : 60;

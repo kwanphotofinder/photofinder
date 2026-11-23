@@ -1,0 +1,366 @@
+default:
+  tags: [mfu-dev]
+
+workflow:
+  rules:
+    - if: '$REGISTRY_PREFLIGHT == "true" && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "production"'
+    - when: never
+
+stages: [validate, test, build, scan, package, resolve, configure, cutover, deploy, verify, rollback]
+
+variables:
+  GIT_DEPTH: "0"
+  HARBOR_HOST: "hub-registry.mfu.ac.th"
+  HARBOR_INTERNAL_IP: "192.168.17.9"
+  WEB_IMAGE_REPOSITORY: "$HARBOR_HOST/photofinder/web"
+  AI_IMAGE_REPOSITORY: "$HARBOR_HOST/photofinder/ai-service"
+  HELM_RELEASE_PROD: "photofinder"
+  KUBE_NAMESPACE_PROD: "mfu-apps-prod"
+  INGRESS_HOST_PROD: "photofinder.mfu.ac.th"
+  K8S_RUNTIME_SECRET_PROD: "photofinder-runtime"
+  HARBOR_IMAGE_PULL_SECRET_PROD: "harbor-registry"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: "1"
+
+.all_flow_rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "production")'
+
+.source_gate_rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
+
+.develop_release_rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop" && $CI_COMMIT_REF_PROTECTED == "true"'
+
+.registry_preflight_rules:
+  rules:
+    - if: '$REGISTRY_PREFLIGHT == "true" && $CI_COMMIT_REF_PROTECTED == "true"'
+
+.production_rules:
+  tags: [mfu-prod]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "production" && $CI_COMMIT_REF_PROTECTED == "true"'
+
+.docker_engine:
+  image: docker:27.5.1-cli
+  services:
+    - name: docker:27.5.1-dind
+      alias: docker
+      entrypoint: ["/bin/sh", "-ec"]
+      command:
+        - |
+          printf '%s %s\n' "$HARBOR_INTERNAL_IP" "$HARBOR_HOST" >> /etc/hosts
+          apk add --no-cache openssl >/dev/null
+          mkdir -p "/etc/docker/certs.d/$HARBOR_HOST"
+          openssl s_client -connect "$HARBOR_INTERNAL_IP:443" -servername "$HARBOR_HOST" -showcerts </dev/null 2>/dev/null \
+            | awk '/BEGIN CERTIFICATE/{flag=1} flag{print} /END CERTIFICATE/{exit}' \
+            > "/etc/docker/certs.d/$HARBOR_HOST/ca.crt"
+          test "$(openssl x509 -in "/etc/docker/certs.d/$HARBOR_HOST/ca.crt" -noout -fingerprint -sha256 | cut -d= -f2)" = "5E:DE:35:7C:A9:9B:70:04:F5:61:2A:D7:ED:D9:C9:4B:6E:F9:11:04:E6:CE:1C:AB:F3:2B:F6:BC:84:A0:67:12"
+          exec dockerd-entrypoint.sh --tls=false
+
+.docker_login:
+  extends: .docker_engine
+  before_script:
+    - test -n "$HARBOR_USERNAME" || (echo "HARBOR_USERNAME is required." >&2 && exit 1)
+    - test -n "$HARBOR_PASSWORD" || (echo "HARBOR_PASSWORD is required." >&2 && exit 1)
+    - echo "$HARBOR_PASSWORD" | docker login "$HARBOR_HOST" -u "$HARBOR_USERNAME" --password-stdin
+
+.kube_config_prod:
+  tags: [mfu-prod]
+  before_script:
+    - apk add --no-cache kubectl curl bash openssh-client sshpass
+    - mkdir -p ~/.kube
+    - test -n "$KUBE_CONFIG_PROD" || (echo "KUBE_CONFIG_PROD is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_HOST" || (echo "PROD_SSH_HOST is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_USER" || (echo "PROD_SSH_USER is required." >&2 && exit 1)
+    - test -n "$PROD_SSH_PASSWORD_B64" || (echo "PROD_SSH_PASSWORD_B64 is required." >&2 && exit 1)
+    - test -n "$PROD_KUBE_API_HOST" || (echo "PROD_KUBE_API_HOST is required." >&2 && exit 1)
+    - if [ -f "$KUBE_CONFIG_PROD" ]; then cp "$KUBE_CONFIG_PROD" ~/.kube/config; else printf '%s' "$KUBE_CONFIG_PROD" > ~/.kube/config; fi
+    - chmod 600 ~/.kube/config
+    - export SSHPASS="$(printf '%s' "$PROD_SSH_PASSWORD_B64" | base64 -d)"
+    - sshpass -e ssh -fNT -o BatchMode=no -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -L "127.0.0.1:16443:${PROD_KUBE_API_HOST}:6443" "${PROD_SSH_USER}@${PROD_SSH_HOST}"
+    - KUBE_CLUSTER_NAME="$(kubectl config view --minify -o jsonpath='{.contexts[0].context.cluster}')"
+    - test -n "$KUBE_CLUSTER_NAME" || (echo "Kubeconfig cluster name is missing." >&2 && exit 1)
+    - kubectl config set-cluster "$KUBE_CLUSTER_NAME" --server=https://127.0.0.1:16443 --tls-server-name="$PROD_KUBE_API_HOST" >/dev/null
+    - kubectl version --request-timeout=15s >/dev/null
+
+validate-source:
+  stage: validate
+  extends: .all_flow_rules
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  script:
+    - apk add --no-cache bash git
+    - sh scripts/ci/check-release-contract.sh
+    - sh scripts/ci/test-release-contract.sh
+    - helm lint deploy/helm/photofinder -f deploy/values/prod.yaml
+    - helm template "$HELM_RELEASE_PROD" deploy/helm/photofinder -n "$KUBE_NAMESPACE_PROD" -f deploy/values/prod.yaml --set-string web.image.tag="$CI_COMMIT_SHA" --set-string ai.image.tag="$CI_COMMIT_SHA" >/tmp/photofinder.yaml
+    - git diff --check
+
+web-test:
+  stage: test
+  extends: .source_gate_rules
+  image: node:22-alpine
+  variables:
+    DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+    DIRECT_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+    JWT_SECRET: "ci-only-not-for-production-000000000000"
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: "ci-client-id"
+  before_script: ["cd photofinder-nextjs", "npm ci --no-audit --no-fund"]
+  script: ["npx prisma generate", "npm run lint"]
+
+ai-test:
+  stage: test
+  extends: .source_gate_rules
+  image: python:3.11-slim-bookworm
+  script: ["python -m compileall -q ai-service"]
+
+# A merge request is not mergeable until the exact production Dockerfiles can
+# build and both resulting images pass the same actionable vulnerability gate
+# used by the protected develop release pipeline.
+preflight-images:
+  stage: build
+  extends: .docker_engine
+  needs: [validate-source, web-test, ai-test]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="ci-client-id" -t "photofinder-preflight-web:$CI_COMMIT_SHA" photofinder-nextjs
+    - docker build --pull -t "photofinder-preflight-ai:$CI_COMMIT_SHA" ai-service
+    - docker image inspect "photofinder-preflight-web:$CI_COMMIT_SHA" >/dev/null
+    - docker image inspect "photofinder-preflight-ai:$CI_COMMIT_SHA" >/dev/null
+    - docker run --rm "photofinder-preflight-web:$CI_COMMIT_SHA" ./node_modules/.bin/prisma version
+    - docker run -d --name "photofinder-preflight-ai-$CI_PIPELINE_ID" "photofinder-preflight-ai:$CI_COMMIT_SHA"
+    - sleep 15
+    - docker exec "photofinder-preflight-ai-$CI_PIPELINE_ID" python -c "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1:7860/', timeout=10); assert response.status == 200"
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID"
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v photofinder-trivy-cache:/root/.cache/ aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-web:$CI_COMMIT_SHA"
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v photofinder-trivy-cache:/root/.cache/ aquasec/trivy:0.54.1 image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "photofinder-preflight-ai:$CI_COMMIT_SHA"
+  after_script:
+    - docker rm -f "photofinder-preflight-ai-$CI_PIPELINE_ID" >/dev/null 2>&1 || true
+
+# Maintainers protect the source branch temporarily and trigger this pipeline
+# before merge. This tests the real authenticated Harbor upload path without
+# exposing protected credentials to ordinary merge-request pipelines.
+registry-preflight:
+  stage: build
+  extends: [.registry_preflight_rules, .docker_login]
+  script:
+    - PREFLIGHT_TAG="preflight-$CI_COMMIT_SHA"
+    - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="ci-client-id" -t "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" photofinder-nextjs
+    - docker build --pull -t "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG" ai-service
+    - docker run --rm "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" ./node_modules/.bin/prisma version
+    - docker push "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG"
+    - docker push "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG"
+    - docker pull "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" >/dev/null
+    - docker pull "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG" >/dev/null
+    - docker image inspect "$WEB_IMAGE_REPOSITORY:$PREFLIGHT_TAG" --format '{{index .RepoDigests 0}}'
+    - docker image inspect "$AI_IMAGE_REPOSITORY:$PREFLIGHT_TAG" --format '{{index .RepoDigests 0}}'
+
+build-toolchain-smoke:
+  stage: validate
+  extends: [.develop_release_rules, .docker_login]
+  script:
+    - apk add --no-cache bash curl git
+    - git --version
+    - docker version
+    - curl --version
+    - sh scripts/ci/check-release-contract.sh
+    - sh scripts/ci/test-release-contract.sh
+
+build-images:
+  stage: build
+  extends: [.develop_release_rules, .docker_login]
+  needs: [validate-source, web-test, ai-test, build-toolchain-smoke]
+  script:
+    - test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" || (echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID is required." >&2 && exit 1)
+    - docker build --pull --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="$NEXT_PUBLIC_GOOGLE_CLIENT_ID" -t "$WEB_IMAGE_REPOSITORY:$CI_COMMIT_SHA" photofinder-nextjs
+    - docker build --pull -t "$AI_IMAGE_REPOSITORY:$CI_COMMIT_SHA" ai-service
+    - docker push "$WEB_IMAGE_REPOSITORY:$CI_COMMIT_SHA"
+    - docker push "$AI_IMAGE_REPOSITORY:$CI_COMMIT_SHA"
+    - sh scripts/ci/create-release-manifest.sh
+  artifacts:
+    paths: [release/release.env]
+    reports: { dotenv: release/release.env }
+    expire_in: 90 days
+
+scan-images:
+  stage: scan
+  extends: .develop_release_rules
+  image: { name: "aquasec/trivy:0.54.1", entrypoint: [""] }
+  variables: { TRIVY_USERNAME: "$HARBOR_USERNAME", TRIVY_PASSWORD: "$HARBOR_PASSWORD", TRIVY_NO_PROGRESS: "true" }
+  needs: [{ job: build-images, artifacts: true }]
+  script:
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
+    - trivy image --ignore-unfixed --exit-code 1 --severity CRITICAL,HIGH "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
+
+package-release:
+  stage: package
+  extends: [.develop_release_rules, .docker_login]
+  needs: [{ job: build-images, artifacts: true }, { job: scan-images }]
+  script:
+    - apk add --no-cache curl
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - sh scripts/ci/verify-image-digest.sh "$WEB_IMAGE_REPOSITORY" "$RELEASE_IMAGE_TAG" "$WEB_IMAGE_DIGEST"
+    - sh scripts/ci/verify-image-digest.sh "$AI_IMAGE_REPOSITORY" "$RELEASE_IMAGE_TAG" "$AI_IMAGE_DIGEST"
+    - if sh scripts/ci/verify-image-digest.sh "$WEB_IMAGE_REPOSITORY" "$RELEASE_IMAGE_TAG" "sha256:0000000000000000000000000000000000000000000000000000000000000000"; then echo "Digest mismatch regression failed." >&2; exit 1; fi
+    - sh scripts/ci/publish-release-manifest.sh
+  artifacts:
+    paths: [release/release.env]
+    reports: { dotenv: release/release.env }
+    expire_in: 90 days
+
+resolve-production-release:
+  stage: resolve
+  extends: .production_rules
+  image: alpine:3.20
+  script: ["apk add --no-cache curl git", "sh scripts/ci/resolve-production-release.sh"]
+  artifacts:
+    paths: [release/release.env]
+    reports: { dotenv: release/release.env }
+    expire_in: 90 days
+
+promotion-digest-guard:
+  stage: resolve
+  extends: [.production_rules, .docker_login]
+  needs: [{ job: resolve-production-release, artifacts: true }]
+  script:
+    - EXPECTED_WEB_IMAGE_REPOSITORY="$WEB_IMAGE_REPOSITORY" EXPECTED_AI_IMAGE_REPOSITORY="$AI_IMAGE_REPOSITORY" sh scripts/ci/validate-release-env.sh release/release.env
+    - sh scripts/ci/verify-image-digest.sh "$WEB_IMAGE_REPOSITORY" "$RELEASE_IMAGE_TAG" "$WEB_IMAGE_DIGEST"
+    - sh scripts/ci/verify-image-digest.sh "$AI_IMAGE_REPOSITORY" "$RELEASE_IMAGE_TAG" "$AI_IMAGE_DIGEST"
+  artifacts:
+    paths: [release/release.env]
+    reports: { dotenv: release/release.env }
+    expire_in: 90 days
+
+render-production:
+  stage: configure
+  extends: .production_rules
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs: [{ job: promotion-digest-guard, artifacts: true }]
+  script:
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - mkdir -p rendered
+    - helm template "$HELM_RELEASE_PROD" deploy/helm/photofinder -n "$KUBE_NAMESPACE_PROD" -f deploy/values/prod.yaml --set-string web.image.repository="$WEB_IMAGE_REPOSITORY" --set-string web.image.tag="$RELEASE_IMAGE_TAG" --set-string web.image.digest="$WEB_IMAGE_DIGEST" --set-string ai.image.repository="$AI_IMAGE_REPOSITORY" --set-string ai.image.tag="$RELEASE_IMAGE_TAG" --set-string ai.image.digest="$AI_IMAGE_DIGEST" --set-string ingress.host="$INGRESS_HOST_PROD" --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD" --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD" > rendered/photofinder-prod.yaml
+  artifacts: { paths: [rendered/photofinder-prod.yaml, release/release.env], expire_in: 90 days }
+
+preflight-production:
+  stage: configure
+  extends: [.production_rules, .kube_config_prod]
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs: [{ job: promotion-digest-guard, artifacts: true }]
+  resource_group: photofinder-production
+  script:
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - kubectl --request-timeout=15s get serviceaccount photofinder-gitlab-deployer -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s auth can-i get deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
+    - kubectl --request-timeout=15s auth can-i create deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
+    - kubectl --request-timeout=15s auth can-i patch deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
+    - kubectl --request-timeout=15s auth can-i delete deployments -n "$KUBE_NAMESPACE_PROD" | grep -qx yes
+    - kubectl --request-timeout=15s get secret "$K8S_RUNTIME_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s get secret "$HARBOR_IMAGE_PULL_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s get service photofinder-postgres -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl --request-timeout=15s get statefulset photofinder-postgres -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - test "$(kubectl --request-timeout=15s get pvc pgdata-photofinder-postgres-0 -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.status.phase}')" = "Bound"
+    - kubectl wait --for=condition=Ready pod/photofinder-postgres-0 -n "$KUBE_NAMESPACE_PROD" --timeout=60s
+    - helm list -n "$KUBE_NAMESPACE_PROD" --filter "^$HELM_RELEASE_PROD$"
+
+capture-production-baseline:
+  stage: configure
+  extends: [.production_rules, .kube_config_prod]
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs:
+    - job: promotion-digest-guard
+      artifacts: true
+    - job: preflight-production
+  resource_group: photofinder-production
+  script:
+    - mkdir -p release/baseline
+    - helm list -n "$KUBE_NAMESPACE_PROD" --filter "^$HELM_RELEASE_PROD$" -o yaml > release/baseline/helm-list.yaml
+    - helm history "$HELM_RELEASE_PROD" -n "$KUBE_NAMESPACE_PROD" -o yaml > release/baseline/helm-history.yaml || true
+    - kubectl get deployments -n "$KUBE_NAMESPACE_PROD" -l 'app.kubernetes.io/name in (photofinder-web,photofinder-ai)' -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[*].image,READY:.status.readyReplicas' > release/baseline/workload-images.txt
+    - kubectl get pods -n "$KUBE_NAMESPACE_PROD" -l 'app.kubernetes.io/name in (photofinder-web,photofinder-ai)' -o custom-columns='NAME:.metadata.name,IMAGE_ID:.status.containerStatuses[*].imageID' > release/baseline/pod-image-ids.txt
+    - kubectl get ingress photofinder -n "$KUBE_NAMESPACE_PROD" -o custom-columns='NAME:.metadata.name,HOST:.spec.rules[*].host,ADDRESS:.status.loadBalancer.ingress[*].ip' > release/baseline/ingress.txt || true
+  artifacts:
+    paths: [release/baseline]
+    expire_in: 90 days
+
+sync-production-env:
+  stage: configure
+  extends: [.production_rules, .kube_config_prod]
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs: [{ job: promotion-digest-guard, artifacts: true }, { job: preflight-production }]
+  resource_group: photofinder-production
+  environment: { name: production, action: prepare }
+  script: ["sh scripts/ci/validate-release-env.sh release/release.env", "bash scripts/ci/sync-runtime-env.sh"]
+
+replace-legacy-production:
+  stage: cutover
+  extends: .kube_config_prod
+  tags: [mfu-prod]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "production" && $CI_COMMIT_REF_PROTECTED == "true" && $RECREATE_LEGACY_PRODUCTION == "true"'
+  needs:
+    - job: promotion-digest-guard
+      artifacts: true
+    - job: preflight-production
+    - job: capture-production-baseline
+      artifacts: true
+    - job: sync-production-env
+  resource_group: photofinder-production
+  environment: { name: production, action: prepare }
+  script:
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - helm status "$HELM_RELEASE_PROD" -n "$KUBE_NAMESPACE_PROD" >/dev/null || (echo "Exact legacy Helm release is absent; refusing to guess a destructive target." >&2 && exit 1)
+    - test -s release/baseline/helm-history.yaml || (echo "Rollback baseline is missing." >&2 && exit 1)
+    - helm uninstall "$HELM_RELEASE_PROD" -n "$KUBE_NAMESPACE_PROD" --wait --timeout 10m
+    - if helm status "$HELM_RELEASE_PROD" -n "$KUBE_NAMESPACE_PROD" >/dev/null 2>&1; then echo "Legacy Helm release still exists." >&2; exit 1; fi
+    - kubectl get secret "$K8S_RUNTIME_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+    - kubectl get secret "$HARBOR_IMAGE_PULL_SECRET_PROD" -n "$KUBE_NAMESPACE_PROD" -o name >/dev/null
+
+deploy-production:
+  stage: deploy
+  extends: [.production_rules, .kube_config_prod]
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs: [{ job: promotion-digest-guard, artifacts: true }, { job: render-production, artifacts: true }, { job: preflight-production }, { job: capture-production-baseline, artifacts: true }, { job: sync-production-env }, { job: replace-legacy-production, optional: true }]
+  resource_group: photofinder-production
+  environment: { name: production, url: "https://photofinder.mfu.ac.th" }
+  script:
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - helm upgrade --install "$HELM_RELEASE_PROD" deploy/helm/photofinder --namespace "$KUBE_NAMESPACE_PROD" --atomic --wait --timeout 15m -f deploy/values/prod.yaml --set-string web.image.repository="$WEB_IMAGE_REPOSITORY" --set-string web.image.tag="$RELEASE_IMAGE_TAG" --set-string web.image.digest="$WEB_IMAGE_DIGEST" --set-string ai.image.repository="$AI_IMAGE_REPOSITORY" --set-string ai.image.tag="$RELEASE_IMAGE_TAG" --set-string ai.image.digest="$AI_IMAGE_DIGEST" --set-string ingress.host="$INGRESS_HOST_PROD" --set-string runtimeSecret="$K8S_RUNTIME_SECRET_PROD" --set-string imagePullSecret="$HARBOR_IMAGE_PULL_SECRET_PROD"
+
+verify-production:
+  stage: verify
+  extends: [.production_rules, .kube_config_prod]
+  image: { name: "alpine/helm:3.15.4", entrypoint: [""] }
+  needs: [{ job: promotion-digest-guard, artifacts: true }, { job: deploy-production }]
+  script:
+    - apk add --no-cache curl
+    - sh scripts/ci/validate-release-env.sh release/release.env
+    - kubectl rollout status deployment/photofinder-web -n "$KUBE_NAMESPACE_PROD" --timeout=8m
+    - kubectl rollout status deployment/photofinder-ai -n "$KUBE_NAMESPACE_PROD" --timeout=8m
+    - test "$(kubectl get deployment photofinder-web -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "$WEB_IMAGE_REPOSITORY@$WEB_IMAGE_DIGEST"
+    - test "$(kubectl get deployment photofinder-ai -n "$KUBE_NAMESPACE_PROD" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "$AI_IMAGE_REPOSITORY@$AI_IMAGE_DIGEST"
+    - kubectl get pods -n "$KUBE_NAMESPACE_PROD" -l app.kubernetes.io/name=photofinder-web -o jsonpath='{.items[*].status.containerStatuses[*].imageID}' | grep -F "$WEB_IMAGE_DIGEST" >/dev/null
+    - kubectl get pods -n "$KUBE_NAMESPACE_PROD" -l app.kubernetes.io/name=photofinder-ai -o jsonpath='{.items[*].status.containerStatuses[*].imageID}' | grep -F "$AI_IMAGE_DIGEST" >/dev/null
+    - curl --fail --silent --show-error --retry 18 --retry-delay 5 --max-time 30 "https://$INGRESS_HOST_PROD/" >/dev/null
+    - curl --fail --silent --show-error --retry 6 --retry-delay 5 --max-time 30 "https://$INGRESS_HOST_PROD/api/ai-health" >/dev/null
+
+rollback-production:
+  stage: rollback
+  extends: .kube_config_prod
+  tags: [mfu-prod]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "production" && $CI_COMMIT_REF_PROTECTED == "true"'
+      when: manual
+  resource_group: photofinder-production
+  environment: { name: production }
+  script: ["helm rollback \"$HELM_RELEASE_PROD\" 0 -n \"$KUBE_NAMESPACE_PROD\" --wait --timeout 15m"]

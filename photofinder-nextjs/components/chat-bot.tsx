@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle, Sparkles, Ghost, Info } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
 type ChatMessage = {
@@ -212,10 +214,16 @@ export function ChatBot() {
                 <div className={cn(
                   "rounded-2xl px-4 py-2 text-sm",
                   m.role === 'user'
-                    ? "bg-slate-100 text-slate-800 rounded-tr-none"
+                    ? "bg-slate-100 text-slate-800 rounded-tr-none whitespace-pre-wrap"
                     : "bg-primary/10 text-slate-800 rounded-tl-none border border-primary/10"
                 )}>
-                  {m.content}
+                  {m.role === 'user' ? (
+                    m.content
+                  ) : (
+                    <div className="break-words [&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-0.5 [&_a]:underline [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-slate-200 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-semibold">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

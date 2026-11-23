@@ -9,6 +9,7 @@ import { Eye, Trash2, Heart, Download, Share2, CheckSquare, Square, Archive, Loa
 import { PhotoDetailModal } from "./photo-detail-modal"
 import { downloadPhoto, downloadPhotosAsZip } from "@/lib/download"
 import { trackPhotoEngagement } from "@/lib/engagement-client"
+import { useLanguage } from "@/lib/language-context"
 
 interface Photo {
   id: string
@@ -34,6 +35,7 @@ interface PhotoGridProps {
   showConfidence?: boolean
   showShare?: boolean
   showEngagement?: boolean
+  showStats?: boolean
   enableBatchDownload?: boolean
 }
 
@@ -51,9 +53,12 @@ export function PhotoGrid({
   compact = false,
   showConfidence = true,
   showShare = true,
-  showEngagement = true,
+  showEngagement: showEngagementProp = true,
+  showStats,
   enableBatchDownload = true,
 }: PhotoGridProps) {
+  const { t } = useLanguage()
+  const showEngagement = showStats !== undefined ? showStats : showEngagementProp
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [openShareSheet, setOpenShareSheet] = useState(false)
@@ -131,6 +136,42 @@ export function PhotoGrid({
       setSelectedPhotoIds(new Set())
     } else {
       setSelectedPhotoIds(new Set(photos.map((p) => p.id)))
+    }
+  }
+
+  const handleDownloadAllZip = async () => {
+    if (!photos.length || isZipping) return
+
+    setIsZipping(true)
+    setZipProgress({ percent: 0, current: 0, total: photos.length })
+
+    try {
+      // Record download engagement for all photos
+      photos.forEach((p) => trackPhotoEngagement(p.id, "DOWNLOAD"))
+
+      const safeEvent = photos[0]?.eventName
+        ? photos[0].eventName.replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, "_").slice(0, 20)
+        : "my_photos"
+
+      await downloadPhotosAsZip(
+        photos.map((p) => ({
+          url: p.url,
+          eventName: p.eventName,
+          uploadDate: p.uploadDate,
+          eventDate: p.eventDate,
+          id: p.id,
+        })),
+        `photofinder_${safeEvent}_${photos.length}_photos.zip`,
+        (percent, current, total) => {
+          setZipProgress({ percent, current, total })
+        }
+      )
+    } catch (err) {
+      console.error("Batch download all photos as zip failed:", err)
+      alert("Failed to create ZIP file. Please try downloading individually.")
+    } finally {
+      setIsZipping(false)
+      setZipProgress(null)
     }
   }
 
@@ -220,75 +261,134 @@ export function PhotoGrid({
     <>
       {/* Batch Selection Bar */}
       {enableBatchDownload && photos.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3 shadow-xs">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={isSelectMode ? "secondary" : "outline"}
-              onClick={() => {
-                if (isSelectMode) {
-                  setSelectedPhotoIds(new Set())
-                  setIsSelectMode(false)
-                } else {
-                  setIsSelectMode(true)
-                }
-              }}
-              className="font-medium text-xs sm:text-sm"
-            >
-              {isSelectMode ? (
-                <>
-                  <Square className="mr-1.5 h-3.5 w-3.5" />
-                  ยกเลิกเลือกหลายภาพ (Cancel)
-                </>
-              ) : (
-                <>
-                  <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                  เลือกหลายภาพ (Select Photos)
-                </>
-              )}
-            </Button>
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3 shadow-xs">
+            {isSelectMode ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setSelectedPhotoIds(new Set())
+                      setIsSelectMode(false)
+                    }}
+                    disabled={isZipping}
+                    className="font-medium text-xs sm:text-sm"
+                  >
+                    <Square className="mr-1.5 h-3.5 w-3.5" />
+                    {t("photo.cancel_selection") || "ยกเลิก (Cancel)"}
+                  </Button>
 
-            {isSelectMode && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleSelectAll}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                {selectedPhotoIds.size === photos.length ? "ล้างที่เลือก (Deselect All)" : "เลือกทั้งหมด (Select All)"}
-              </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSelectAll}
+                    disabled={isZipping}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {selectedPhotoIds.size === photos.length
+                      ? (t("photo.deselect_all") || "ล้างที่เลือก (Deselect All)")
+                      : (t("photo.select_all") || "เลือกทั้งหมด (Select All)")}
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {t("photo.selected_count")
+                      ? t("photo.selected_count").replace("{count}", String(selectedPhotoIds.size))
+                      : `เลือกแล้ว ${selectedPhotoIds.size} จาก ${photos.length} ภาพ`}
+                  </span>
+
+                  {selectedPhotoIds.size > 0 && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      disabled={isZipping}
+                      onClick={handleBatchZipDownload}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+                    >
+                      {isZipping ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                          กำลังเตรียม ZIP ({zipProgress?.percent || 0}%)...
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-1.5 h-4 w-4" />
+                          {t("photo.download_zip_selected")
+                            ? t("photo.download_zip_selected").replace("{count}", String(selectedPhotoIds.size))
+                            : `ดาวน์โหลด ZIP (${selectedPhotoIds.size} ภาพ)`}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    disabled={isZipping}
+                    onClick={handleDownloadAllZip}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs text-xs sm:text-sm"
+                  >
+                    {isZipping ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        กำลังเตรียม ZIP ({zipProgress?.percent || 0}%)...
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-1.5 h-4 w-4" />
+                        {t("photo.download_all_zip")
+                          ? t("photo.download_all_zip").replace("{count}", String(photos.length))
+                          : `ดาวน์โหลดรูปทั้งหมด (${photos.length} ภาพ) .zip`}
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isZipping}
+                    onClick={() => setIsSelectMode(true)}
+                    className="font-medium text-xs sm:text-sm border-slate-300 dark:border-slate-700"
+                  >
+                    <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                    {t("photo.select") || "เลือกหลายภาพ (Select Photos)"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    ทั้งหมด {photos.length} ภาพ
+                  </span>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {isSelectMode && (
-              <span className="text-xs font-semibold text-muted-foreground">
-                เลือกแล้ว <strong className="text-foreground">{selectedPhotoIds.size}</strong> จาก {photos.length} รูป
-              </span>
-            )}
-
-            {isSelectMode && selectedPhotoIds.size > 0 && (
-              <Button
-                size="sm"
-                variant="default"
-                disabled={isZipping}
-                onClick={handleBatchZipDownload}
-                className="bg-primary text-primary-foreground font-semibold shadow-xs"
-              >
-                {isZipping ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                    กำลังสร้าง ZIP ({zipProgress?.percent || 0}%)...
-                  </>
-                ) : (
-                  <>
-                    <Archive className="mr-1.5 h-4 w-4" />
-                    ดาวน์โหลด ZIP ({selectedPhotoIds.size} รูป)
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          {/* Progress Bar when Zipping */}
+          {isZipping && zipProgress && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5">
+              <div className="flex items-center justify-between text-xs text-primary font-medium mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  กำลังใส่ลายน้ำและบีบอัดไฟล์ ZIP ({zipProgress.current}/{zipProgress.total} ภาพ)...
+                </span>
+                <span>{zipProgress.percent}%</span>
+              </div>
+              <div className="w-full bg-primary/15 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-primary h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${Math.max(5, zipProgress.percent)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -405,16 +505,6 @@ export function PhotoGrid({
                     >
                       <Download className="w-4 h-4" />
                     </Button>
-                    {showShare && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="bg-white/90 hover:bg-white text-black shadow-lg"
-                        onClick={(e) => handleShare(photo, e)}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                    )}
                     {onRemove && (
                       <Button
                         size="sm"
@@ -461,60 +551,54 @@ export function PhotoGrid({
               </div>
 
               {/* Action Buttons - Mobile / Small screen visible below the image */}
-              <div className="p-3 pt-0 2xl:hidden">
-                <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="p-2 sm:p-3 pt-0 2xl:hidden">
+                <div className="flex items-center gap-1.5 justify-between">
                   <Button
                     size="sm"
                     variant="outline"
-                    className={`shrink-0 ${savedPhotoIds.includes(photo.id) ? "bg-primary hover:bg-primary/90 text-primary-foreground border-primary" : ""}`}
+                    className={`flex-1 h-9 p-0 flex items-center justify-center rounded-lg ${savedPhotoIds.includes(photo.id) ? "bg-primary hover:bg-primary/90 text-primary-foreground border-primary" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleSavePhoto(photo.id, e)
                     }}
+                    title="บันทึก"
                   >
                     <Heart className={`w-4 h-4 ${savedPhotoIds.includes(photo.id) ? "fill-current" : ""}`} />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0"
+                    className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg"
                     onClick={(e) => {
                       e.stopPropagation()
                       setSelectedPhoto(photo)
                       setShowDetail(true)
                     }}
+                    title="ดูภาพขยาย"
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0"
+                    className="flex-1 h-9 p-0 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary hover:text-white border-primary/30 text-primary transition-colors"
                     onClick={(e) => handleDownload(photo, e)}
+                    title="ดาวน์โหลดภาพ"
                   >
                     <Download className="w-4 h-4" />
                   </Button>
-                  {showShare && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={(e) => handleShare(photo, e)}
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </Button>
-                  )}
                   {onRemove && (
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="shrink-0"
+                      className="h-9 px-2.5 flex items-center justify-center rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation()
                         if (confirm("Remove this photo from My Photos?")) {
                           onRemove(photo.id)
                         }
                       }}
+                      title="ลบ"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

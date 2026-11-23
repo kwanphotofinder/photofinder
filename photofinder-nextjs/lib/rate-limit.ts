@@ -18,12 +18,19 @@ export interface RateLimitResult {
 export const RATE_LIMIT_TIERS = {
   // Heavy AI GPU/CPU endpoints: Face matching, liveness, embedding extraction
   AI_SEARCH: { limit: 15, windowMs: 60 * 1000, name: "AI Search" },
+
+  // Live camera liveness frames: small, cheap landmark checks sent several times
+  // per second while a student blinks and turns their head.
+  LIVENESS: { limit: 480, windowMs: 60 * 1000, name: "Liveness" },
   
   // Media upload endpoints: Cloudinary storage & worker queue
   UPLOAD: { limit: 30, windowMs: 60 * 1000, name: "Photo Upload" },
 
   // Auth endpoints: Prevent credential stuffing & token abuse
   AUTH: { limit: 15, windowMs: 60 * 1000, name: "Auth" },
+
+  // Sensitive Administrative endpoints: Mass deletions, batch purge, system maintenance
+  ADMIN_SENSITIVE: { limit: 20, windowMs: 60 * 1000, name: "Admin Sensitive Operations" },
 
   // General read APIs: Listing events, viewing public albums
   GENERAL: { limit: 120, windowMs: 60 * 1000, name: "General API" },

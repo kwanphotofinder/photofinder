@@ -1,5 +1,20 @@
 import JSZip from "jszip"
 
+let cachedLogosPromise: Promise<[HTMLImageElement, HTMLImageElement]> | null = null
+
+function getLogos() {
+  if (!cachedLogosPromise) {
+    cachedLogosPromise = Promise.all([
+      loadAssetImage('/Logo.png'),
+      loadAssetImage('/Logo2.png'),
+    ]).catch((err) => {
+      cachedLogosPromise = null
+      throw err
+    })
+  }
+  return cachedLogosPromise
+}
+
 export async function downloadPhotosAsZip(
   photos: Array<{ url: string; eventName?: string; eventDate?: string; uploadDate?: string; id?: string }>,
   zipFilename = "photofinder_selected_photos.zip",
@@ -18,16 +33,29 @@ export async function downloadPhotosAsZip(
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const blob = await response.blob()
 
+      let fileBlob: Blob = blob
+      try {
+        const image = await loadImage(blob)
+        fileBlob = await createWatermarkedBlob(
+          image,
+          photo.eventName || "PhotoFinder",
+          photo.eventDate || photo.uploadDate || new Date().toISOString()
+        )
+      } catch (watermarkErr) {
+        console.warn(`Failed to watermark photo ${i + 1}, using original image:`, watermarkErr)
+        fileBlob = blob
+      }
+
       const safeEvent = (photo.eventName || "photo")
         .replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, "_")
         .replace(/_+/g, "_")
         .slice(0, 30)
       const dateVal = photo.uploadDate || photo.eventDate
       const dateStr = dateVal ? new Date(dateVal).toISOString().split("T")[0] : `photo`
-      const ext = blob.type === "image/png" ? "png" : "jpg"
+      const ext = "jpg"
       const fileName = `${safeEvent || "photo"}_${dateStr}_${i + 1}.${ext}`
 
-      folder.file(fileName, blob)
+      folder.file(fileName, fileBlob)
       if (onProgress) {
         onProgress(Math.round(((i + 1) / total) * 80), i + 1, total)
       }
@@ -60,7 +88,7 @@ export async function downloadPhotosAsZip(
   }
 }
 
-export async function downloadPhoto(url: string, eventName: string, eventDate: string) {
+export async function downloadPhoto(url: string, eventName: string, eventDate: string, _photoId?: string) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -79,8 +107,12 @@ export async function downloadPhoto(url: string, eventName: string, eventDate: s
     const a = document.createElement('a');
     a.href = blobUrl;
 
-    const date = new Date(eventDate).toISOString().split('T')[0];
-    const safeEventName = eventName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    const parsedDate = eventDate ? new Date(eventDate) : new Date();
+    const date = (!Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date()).toISOString().split('T')[0];
+    const safeEventName = (eventName || 'photo')
+      .replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
     a.download = `${safeEventName || 'photo'}_${date}.jpg`;
 
     document.body.appendChild(a);
@@ -102,15 +134,35 @@ function sanitizeText(value: string) {
     .replace(/[^\p{L}\p{N}\p{P}\p{S} ]/gu, '')
 }
 
-function formatEventTime(eventDate: string) {
+function formatDayMonthYear(eventDate: string) {
   const parsed = new Date(eventDate)
   if (Number.isNaN(parsed.getTime())) {
     return eventDate
   }
 
-  return new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium',
-  }).format(parsed)
+  const day = String(parsed.getDate()).padStart(2, '0')
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const year = parsed.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+function loadAssetImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Failed to load watermark asset: ${src}`))
+    image.src = src
+  })
+}
+
+function getContainedSize(image: HTMLImageElement, maxWidth: number, maxHeight: number) {
+  const width = image.naturalWidth || image.width
+  const height = image.naturalHeight || image.height
+  const scale = Math.min(maxWidth / width, maxHeight / height)
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
 }
 
 async function loadImage(blob: Blob) {
@@ -151,38 +203,34 @@ async function createWatermarkedBlob(image: HTMLImageElement, eventName: string,
   context.fillStyle = gradient
   context.fillRect(0, canvas.height - barHeight, canvas.width, canvas.height)
 
-  const label = 'MFU PhotoFinder'
   const folderName = sanitizeText(eventName || 'Photo Folder')
-  const timeText = formatEventTime(eventDate)
+  const timeText = eventDate ? formatDayMonthYear(eventDate) : formatDayMonthYear(new Date().toISOString())
+  const infoText = `${timeText} ● ${folderName}`
 
-  const titleFontSize = Math.max(15, Math.round(canvas.width * 0.02))
-  const bodyFontSize = Math.max(12, Math.round(canvas.width * 0.012))
-  const badgeSize = Math.max(28, Math.round(canvas.width * 0.032))
+  const logoMaxHeight = Math.max(72, Math.round(canvas.height * 0.12))
+  const logoMaxWidth = Math.max(220, Math.round(canvas.width * 0.22))
+  const universitySize = Math.max(72, Math.round(canvas.height * 0.12))
+
+  const [photoFinderLogo, universityLogo] = await getLogos()
+
+  const leftLogoSize = getContainedSize(photoFinderLogo, logoMaxWidth, logoMaxHeight)
+  const leftLogoX = padding
+  const bodyFontSize = Math.max(16, Math.round(canvas.width * 0.018))
+  const leftLogoY = canvas.height - padding - leftLogoSize.height
+  context.drawImage(photoFinderLogo, leftLogoX, leftLogoY, leftLogoSize.width, leftLogoSize.height)
 
   context.textAlign = 'left'
-  context.textBaseline = 'alphabetic'
-
-  context.fillStyle = 'rgba(255, 255, 255, 0.96)'
-  context.font = `700 ${titleFontSize}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`
-  context.fillText(label, padding, canvas.height - barHeight + padding + titleFontSize)
-
-  context.font = `600 ${bodyFontSize}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`
-  context.fillStyle = 'rgba(255, 255, 255, 0.9)'
-  context.fillText(`Folder: ${folderName}`, padding, canvas.height - barHeight + padding + titleFontSize + Math.round(bodyFontSize * 1.25))
-  context.fillText(`Date: ${timeText}`, padding, canvas.height - barHeight + padding + titleFontSize + Math.round(bodyFontSize * 2.25))
-
-  const badgeX = canvas.width - padding - badgeSize
-  const badgeY = canvas.height - padding - badgeSize
-  context.beginPath()
-  context.roundRect(badgeX, badgeY, badgeSize, badgeSize, badgeSize / 2)
-  context.fillStyle = 'rgba(255, 255, 255, 0.16)'
-  context.fill()
-
-  context.fillStyle = 'rgba(255, 255, 255, 0.95)'
-  context.font = `700 ${Math.max(12, Math.round(canvas.width * 0.014))}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`
-  context.textAlign = 'center'
   context.textBaseline = 'middle'
-  context.fillText('PF', badgeX + badgeSize / 2, badgeY + badgeSize / 2 + 1)
+  context.fillStyle = 'rgba(255, 255, 255, 0.96)'
+  context.font = `600 ${bodyFontSize}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`
+  const infoX = leftLogoX + leftLogoSize.width + Math.max(12, Math.round(canvas.width * 0.012))
+  const infoY = leftLogoY + leftLogoSize.height / 2
+  context.fillText(infoText, infoX, infoY)
+
+  const universityLogoSize = getContainedSize(universityLogo, universitySize, universitySize)
+  const universityX = canvas.width - padding - universityLogoSize.width
+  const universityY = canvas.height - padding - universityLogoSize.height
+  context.drawImage(universityLogo, universityX, universityY, universityLogoSize.width, universityLogoSize.height)
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((outputBlob) => {

@@ -18,11 +18,12 @@ interface EventData {
     name: string
     date: string
     status: "DRAFT" | "PUBLISHED"
+    expiresAt?: string | null
 }
 
 export default function EditEventPage() {
     const router = useRouter()
-    const { t } = useLanguage()
+    const { t, lang } = useLanguage()
     const params = useParams()
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -33,6 +34,7 @@ export default function EditEventPage() {
         name: "",
         date: "",
         status: "DRAFT" as "DRAFT" | "PUBLISHED" | "ARCHIVED",
+        expiryDays: 0,
     })
 
     useEffect(() => {
@@ -55,10 +57,20 @@ export default function EditEventPage() {
                 const response = await apiClient.getEvent(params.id as string)
                 if (response.data) {
                     const eventData = response.data as EventData
+                    // Back-compute the expiry "days after event date" from the stored delete date.
+                    let expiryDays = 0
+                    if (eventData.expiresAt) {
+                        const diffDays = Math.round(
+                            (new Date(eventData.expiresAt).getTime() - new Date(eventData.date).getTime()) /
+                                (1000 * 60 * 60 * 24)
+                        )
+                        expiryDays = Math.max(0, Math.min(30, diffDays))
+                    }
                     setFormData({
                         name: eventData.name,
                         date: new Date(eventData.date).toISOString().split('T')[0],
                         status: eventData.status,
+                        expiryDays,
                     })
                 } else {
                     setError("Event not found")
@@ -73,7 +85,7 @@ export default function EditEventPage() {
         fetchEvent()
     }, [router, params.id])
 
-    const handleInputChange = (field: string, value: string | boolean) => {
+    const handleInputChange = (field: string, value: string | boolean | number) => {
         setFormData((prev) => ({
             ...prev,
             [field]: value,
@@ -100,11 +112,20 @@ export default function EditEventPage() {
                 return
             }
 
+            // Recompute the delete date from the (possibly edited) event date + expiry days.
+            let expiresAt: string | null = null
+            if (formData.expiryDays > 0) {
+                const d = new Date(formData.date)
+                d.setDate(d.getDate() + formData.expiryDays)
+                expiresAt = d.toISOString()
+            }
+
             // Call API to update event
             const response = await apiClient.updateEvent(params.id as string, {
                 name: formData.name.trim(),
                 date: new Date(formData.date).toISOString(),
                 status: formData.status,
+                expiresAt,
             })
 
             if (response.error) {
@@ -221,6 +242,89 @@ export default function EditEventPage() {
                                         disabled={isSubmitting}
                                     />
                                     <p className="text-[11px] text-slate-400">{t("event_form.date_help")}</p>
+                                </div>
+
+                                {/* Expiry Settings */}
+                                <div className="space-y-3 p-4 border border-slate-200 rounded bg-slate-50/70">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                            <AlertCircle className="w-3.5 h-3.5 text-[#82181a]" />
+                                            {t("event_form.timer_label")}
+                                        </Label>
+                                        <p className="text-[11px] text-slate-500">{t("event_form.timer_desc")}</p>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 max-w-md">
+                                        {[7, 14, 30].map((days) => (
+                                            <Button
+                                                key={days}
+                                                type="button"
+                                                variant={formData.expiryDays === days ? "default" : "outline"}
+                                                className={`flex-1 h-8 text-xs rounded ${formData.expiryDays === days ? "bg-[#82181a] hover:bg-[#9c1f22] text-white" : "border-slate-300 bg-white text-slate-700"}`}
+                                                onClick={() => handleInputChange("expiryDays", days)}
+                                                disabled={isSubmitting}
+                                            >
+                                                {days} {t("event_form.days_unit")}
+                                            </Button>
+                                        ))}
+                                        <Button
+                                            type="button"
+                                            variant={formData.expiryDays === 0 ? "default" : "outline"}
+                                            className={`flex-1 h-8 text-xs rounded ${formData.expiryDays === 0 ? "bg-slate-700 text-white" : "border-slate-300 bg-white text-slate-700"}`}
+                                            onClick={() => handleInputChange("expiryDays", 0)}
+                                            disabled={isSubmitting}
+                                        >
+                                            {lang === "th" ? "ไม่ลบ" : "No expiry"}
+                                        </Button>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 pt-1">
+                                        <Label htmlFor="customDays" className="text-xs text-slate-600">{t("event_form.custom_days")}</Label>
+                                        <Input
+                                            id="customDays"
+                                            type="number"
+                                            min="0"
+                                            max="30"
+                                            value={formData.expiryDays}
+                                            onChange={(e) => {
+                                                let val = parseInt(e.target.value) || 0
+                                                if (val > 30) val = 30
+                                                if (val < 0) val = 0
+                                                handleInputChange("expiryDays", val)
+                                            }}
+                                            className="w-20 h-7 text-xs border-slate-300 rounded bg-white"
+                                            disabled={isSubmitting}
+                                        />
+                                        <span className="text-[11px] text-slate-400">{t("event_form.max_days")}</span>
+                                    </div>
+
+                                    {/* Live delete-date preview + past-date warning */}
+                                    {formData.expiryDays > 0 && formData.date && (() => {
+                                        const deleteDate = new Date(formData.date)
+                                        deleteDate.setDate(deleteDate.getDate() + formData.expiryDays)
+                                        const isPast = deleteDate.getTime() <= Date.now()
+                                        const dateStr = deleteDate.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                        })
+                                        return (
+                                            <div
+                                                className={`rounded px-3 py-2 text-[11px] border ${
+                                                    isPast
+                                                        ? "bg-red-50 border-red-200 text-red-700"
+                                                        : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                                }`}
+                                            >
+                                                <p className="font-semibold">
+                                                    {isPast
+                                                        ? `⚠️ ${t("event_form.expiry_past")} (${dateStr})`
+                                                        : `🗑️ ${t("event_form.expiry_on")} ${dateStr}`}
+                                                </p>
+                                                <p className="mt-0.5 opacity-80 text-[10px]">{t("event_form.expiry_hint")}</p>
+                                            </div>
+                                        )
+                                    })()}
                                 </div>
 
                                 {/* Status */}

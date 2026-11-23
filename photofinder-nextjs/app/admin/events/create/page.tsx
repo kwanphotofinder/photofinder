@@ -17,7 +17,7 @@ import { useLanguage } from "@/lib/language-context"
 
 export default function CreateEventPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -286,6 +286,34 @@ export default function CreateEventPage() {
                     />
                     <span className="text-[11px] text-slate-400">{t("event_form.max_days")}</span>
                   </div>
+
+                  {/* Live delete-date preview + past-date warning */}
+                  {formData.expiryDays > 0 && formData.date && (() => {
+                    const deleteDate = new Date(formData.date)
+                    deleteDate.setDate(deleteDate.getDate() + formData.expiryDays)
+                    const isPast = deleteDate.getTime() <= Date.now()
+                    const dateStr = deleteDate.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
+                    return (
+                      <div
+                        className={`rounded px-3 py-2 text-[11px] border ${
+                          isPast
+                            ? "bg-red-50 border-red-200 text-red-700"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        }`}
+                      >
+                        <p className="font-semibold">
+                          {isPast
+                            ? `⚠️ ${t("event_form.expiry_past")} (${dateStr})`
+                            : `🗑️ ${t("event_form.expiry_on")} ${dateStr}`}
+                        </p>
+                        <p className="mt-0.5 opacity-80 text-[10px]">{t("event_form.expiry_hint")}</p>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100">

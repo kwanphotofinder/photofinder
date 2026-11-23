@@ -570,7 +570,7 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
 
 3. **View Performance Stats**
    - **Average Search Time**: How long face matching takes
-   - **AI Service Health**: Is Hugging Face Space online?
+   - **AI Service Health**: Is the AI service online?
    - **Database Health**: Connection status, disk usage
    - **API Response Times**: Average latency
 
@@ -581,15 +581,15 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
 
 5. **Common Issues & Solutions**
    - **AI Service Down**: Photos can't be processed
-     - Wait for Hugging Face to wake up (1-3 min)
+     - Wait about a minute in case the AI service is restarting, then retry the failed photos
      - Or contact IT support
    
    - **Database Slow**: Queries taking too long
-     - Check disk space on Neon
+     - Ask the server administrator to check the database server's disk space
      - Optimize indexes if needed
    
    - **API Rate Limited**: Too many requests
-     - Contact Vercel support
+     - Contact the server administrator
      - Check for spam/bot activity
 
 ---
@@ -640,12 +640,12 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
 
 ### "The page is loading slowly"
 **Possible Causes:**
-- AI service (Hugging Face) is waking up (free tier cold start)
+- AI service is restarting or busy processing many photos
 - Network connection is slow
 - Database is busy
 
 **Solutions:**
-1. Wait 2-3 minutes (AI service may be sleeping)
+1. Wait a minute and try again
 2. Try refreshing page (Ctrl+R)
 3. Check your internet connection
 4. Contact support if issue persists
@@ -739,7 +739,7 @@ A comprehensive guide for Students, Photographers, and Admins on how to use the 
 
 **Solutions:**
 1. Review and delete old archived events
-2. Contact Neon support to upgrade tier
+2. Ask the server administrator to increase the database storage
 3. Archive events not needed anymore
 
 ---

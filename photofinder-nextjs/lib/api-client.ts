@@ -231,10 +231,108 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ percentage }),
     }),
+  getCleanupTime: () =>
+    apiCall<{ minutes: number; lastRunAt: string | null }>("/admin/system-settings/cleanup-time"),
+  updateCleanupTime: (minutes: number) =>
+    apiCall<{ minutes: number; lastRunAt: string | null }>("/admin/system-settings/cleanup-time", {
+      method: "PATCH",
+      body: JSON.stringify({ minutes }),
+    }),
+  getSystemSettings: () =>
+    apiCall<{
+      settings: Record<string, number>
+      definitions: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        descriptionTh: string
+        descriptionEn: string
+        category: "business" | "features"
+        type: "number" | "boolean"
+        defaultValue: number
+        min?: number
+        max?: number
+        step?: number
+        unit?: string
+        isDangerous?: boolean
+      }>
+      secrets: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        service: string
+        descriptionTh: string
+        descriptionEn: string
+        docsUrl?: string
+        placeholder: string
+        isPassword?: boolean
+        isConfigured: boolean
+        maskedValue: string
+        source: "database" | "env" | "none"
+        updatedAt: string | null
+      }>
+      callerRole: string
+      callerEmail: string
+    }>("/admin/system-settings"),
+  updateSystemSettings: (payload: {
+    settings?: Record<string, number>
+    secrets?: Record<string, string>
+  }) =>
+    apiCall<{
+      success: boolean
+      settings: Record<string, number>
+      secrets: Array<{
+        key: string
+        nameTh: string
+        nameEn: string
+        service: string
+        descriptionTh: string
+        descriptionEn: string
+        docsUrl?: string
+        placeholder: string
+        isPassword?: boolean
+        isConfigured: boolean
+        maskedValue: string
+        source: "database" | "env" | "none"
+        updatedAt: string | null
+      }>
+      changedCount: number
+    }>("/admin/system-settings", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  resetSystemSettings: () =>
+    apiCall<{
+      success: boolean
+      settings: Record<string, number>
+      secrets: any[]
+    }>("/admin/system-settings", {
+      method: "POST",
+      body: JSON.stringify({ action: "reset" }),
+    }),
   dismissLowConfidencePhoto: (photoId: string) =>
     apiCall<any>("/admin/low-confidence", {
       method: "PATCH",
       body: JSON.stringify({ photoId }),
+    }),
+  approveAllLowConfidencePhotos: (threshold = 0.65) =>
+    apiCall<any>("/admin/low-confidence", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "approve-all", threshold }),
+    }),
+  deleteAllLowConfidencePhotos: (threshold = 0.65) =>
+    apiCall<any>(`/admin/low-confidence?threshold=${encodeURIComponent(threshold)}`, {
+      method: "DELETE",
+    }),
+  getLowValuePhotos: (reason?: string) => {
+    const query = new URLSearchParams()
+    if (reason && reason !== "ALL") query.set("reason", reason)
+    return apiCall<any>(`/admin/low-value-detector?${query.toString()}`)
+  },
+  purgeLowValuePhotos: (payload: { photoIds?: string[]; reasonFilter?: string }) =>
+    apiCall<any>("/admin/low-value-detector", {
+      method: "DELETE",
+      body: JSON.stringify(payload),
     }),
   getAuditLogs: (params?: { category?: string; search?: string; page?: number; limit?: number }) => {
     const query = new URLSearchParams()

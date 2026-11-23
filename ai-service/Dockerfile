@@ -1,41 +1,47 @@
-FROM python:3.10-slim
+FROM python:3.11-slim-bookworm
 
-# Install system dependencies for OpenCV, InsightFace, MediaPipe, and wget
-RUN apt-get update && apt-get install -y \
+# Install only runtime libraries; Python wheels no longer require a compiler.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libgles2 \
     libegl1 \
     libdbus-1-3 \
-    gcc \
-    g++ \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
 RUN useradd -m -u 1000 user
 
 ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
+    PATH=/home/user/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1
 
-# Set working directory for the app and change ownership
 WORKDIR $HOME/app
-RUN chown -R user:user $HOME/app
+
+# Install python dependencies system-wide for reliability
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade \
+        "wheel>=0.46.2" \
+        "jaraco.context>=6.1.0" \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip setuptools wheel jaraco.context
+
+# Copy application code
+COPY --chown=user:user . .
+
+# Ensure app directory and home are owned by user
+RUN chown -R user:user $HOME
 
 USER user
 
-# Copy requirements and install
-COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Ensure face_landmarker.task exists (fallback download only if missing from git)
+RUN if [ ! -s face_landmarker.task ]; then \
+        python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', 'face_landmarker.task')"; \
+    fi
 
-# Copy application code
-COPY --chown=user . .
-
-# Download InsightFace models during build using CPU-only runtime settings
+# Pre-cache the InsightFace model so production startup does not depend on the
+# public model host.
 RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']).prepare(ctx_id=-1)"
-
-# Download MediaPipe face landmarker model
-RUN wget -q -O face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 
 EXPOSE 7860
 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { getSystemSetting } from "@/lib/system-settings";
+import { deleteFromStorage } from "@/lib/storage";
+import { recordAuditLog } from "@/lib/audit-logger";
 
 async function requireAdmin(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -17,10 +20,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 
-    const thresholdParam = Number(req.nextUrl.searchParams.get("threshold") ?? "0.65");
+    // Default comes from the admin-set Low-Confidence Review Threshold (stored as a whole
+    // percent, e.g. 65). A per-request ?threshold= (0-1) still overrides it.
+    let defaultThreshold = 0.65;
+    try {
+      const pct = await getSystemSetting("low_confidence_threshold");
+      if (Number.isFinite(pct) && pct > 0) {
+        defaultThreshold = Math.min(1, Math.max(0, pct / 100));
+      }
+    } catch {
+      defaultThreshold = 0.65;
+    }
+    const rawThreshold = req.nextUrl.searchParams.get("threshold");
+    const thresholdParam = rawThreshold !== null ? Number(rawThreshold) : defaultThreshold;
     const threshold = Number.isFinite(thresholdParam) && thresholdParam > 0 && thresholdParam <= 1
       ? thresholdParam
-      : 0.65;
+      : defaultThreshold;
 
     const photos = await prisma.photo.findMany({
       where: {
@@ -88,6 +103,45 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
+    if (body?.action === "approve-all") {
+      const thresholdParam = Number(body.threshold);
+      const threshold = Number.isFinite(thresholdParam) && thresholdParam > 0 && thresholdParam <= 1
+        ? thresholdParam
+        : 0.65;
+
+      const photos = await prisma.photo.findMany({
+        where: {
+          lowConfidenceDismissedAt: null,
+          faces: {
+            some: {
+              confidence: {
+                lt: threshold,
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      if (photos.length === 0) {
+        return NextResponse.json({ status: "success", approvedCount: 0 });
+      }
+
+      const now = new Date();
+      await prisma.photo.updateMany({
+        where: { id: { in: photos.map((photo) => photo.id) } },
+        data: {
+          lowConfidenceDismissedAt: now,
+          lowConfidenceDismissedBy: user.sub,
+        },
+      });
+
+      return NextResponse.json({
+        status: "success",
+        approvedCount: photos.length,
+      });
+    }
+
     const photoId = typeof body?.photoId === "string" ? body.photoId : "";
 
     if (!photoId) {
@@ -106,5 +160,72 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error("PATCH /api/admin/low-confidence error:", error);
     return NextResponse.json({ error: "Failed to dismiss low-confidence photo" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await requireAdmin(req);
+    if (!user) {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
+    const thresholdParam = Number(req.nextUrl.searchParams.get("threshold"));
+    const threshold = Number.isFinite(thresholdParam) && thresholdParam > 0 && thresholdParam <= 1
+      ? thresholdParam
+      : 0.65;
+
+    const photos = await prisma.photo.findMany({
+      where: {
+        lowConfidenceDismissedAt: null,
+        faces: {
+          some: {
+            confidence: {
+              lt: threshold,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        storageUrl: true,
+      },
+    });
+
+    if (photos.length === 0) {
+      return NextResponse.json({ status: "success", deletedCount: 0 });
+    }
+
+    const photoIds = photos.map((photo) => photo.id);
+    await prisma.photo.deleteMany({
+      where: { id: { in: photoIds } },
+    });
+
+    await Promise.allSettled(
+      photos
+        .filter((photo) => photo.storageUrl)
+        .map((photo) => deleteFromStorage(photo.storageUrl)),
+    );
+
+    await recordAuditLog({
+      actorId: user.sub,
+      actorEmail: user.email || "unknown_user",
+      actorRole: user.role,
+      action: "BULK_DELETE_PHOTOS",
+      category: "CONTENT",
+      targetType: "PHOTO_BATCH",
+      targetId: photoIds[0],
+      targetLabel: `Low-confidence queue bulk delete (${photos.length} photos)`,
+      details: `Deleted ${photos.length} low-confidence photo(s) and their associated facial vectors.`,
+      ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    });
+
+    return NextResponse.json({
+      status: "success",
+      deletedCount: photos.length,
+    });
+  } catch (error) {
+    console.error("DELETE /api/admin/low-confidence error:", error);
+    return NextResponse.json({ error: "Failed to delete all low-confidence photos" }, { status: 500 });
   }
 }

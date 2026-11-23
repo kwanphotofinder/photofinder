@@ -2,9 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, RefreshCw, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Eye } from "lucide-react"
+import { Camera, RefreshCw, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Eye, StopCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UploadLoader } from "@/components/upload-loader"
+import { useLanguage } from "@/lib/language-context"
 
 interface IdentityVerificationProps {
   onSuccess: (frontSelfie: string) => void
@@ -21,13 +22,23 @@ interface LivenessDetectionResult {
   confidence: number;
 }
 
+// Liveness frames only need enough pixels for landmark detection. Smaller
+// uploads make the first "Face Detected" response arrive much sooner.
+const LIVENESS_FRAME_MAX_WIDTH = 480
+
+const createLivenessSessionId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+
 const challengeSteps = [
-  { key: "blink", label: "Blink both eyes slowly", icon: Eye },
-  { key: "turn_left", label: "Turn head slowly left", icon: ArrowLeft },
-  { key: "turn_right", label: "Turn head slowly right", icon: ArrowRight },
+  { key: "blink", labelKey: "liveness.challenge_blink", icon: Eye },
+  { key: "turn_left", labelKey: "liveness.challenge_turn_left", icon: ArrowLeft },
+  { key: "turn_right", labelKey: "liveness.challenge_turn_right", icon: ArrowRight },
 ]
 
 export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificationProps) {
+  const { t } = useLanguage()
   const [step, setStep] = useState<VerificationStep>("start")
   const [error, setError] = useState<string | null>(null)
 
@@ -41,8 +52,12 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   // Refs for video processing
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const livenessCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const livenessSessionIdRef = useRef<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const frameTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const livenessRunIdRef = useRef(0)
   const isRunningRef = useRef(false)
   const frameInFlightRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -59,11 +74,17 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
   const stopLivenessDetection = useCallback(() => {
     isRunningRef.current = false
+    livenessRunIdRef.current += 1
     frameInFlightRef.current = false
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    if (frameTimeoutRef.current) {
+      clearTimeout(frameTimeoutRef.current)
+      frameTimeoutRef.current = null
     }
   }, [])
 
@@ -123,6 +144,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
   const startCamera = async () => {
     try {
+      stopCamera()
       setError(null)
       await prepareCompletionSound()
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -131,7 +153,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
       streamRef.current = stream
       setStep("liveness")
     } catch (err) {
-      setError("Unable to access camera. Please check permissions.")
+      setError(t("liveness.err_camera"))
       setStep("error")
     }
   }
@@ -181,32 +203,48 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   const startLivenessDetection = () => {
     if (isRunningRef.current) return
     isRunningRef.current = true
+    const runId = ++livenessRunIdRef.current
+    livenessSessionIdRef.current = createLivenessSessionId()
 
     const processFrame = async () => {
-      if (!isRunningRef.current || !videoRef.current || !canvasRef.current) return
+      let nextFrameDelayMs = 120
+      if (runId !== livenessRunIdRef.current || !isRunningRef.current || !videoRef.current || !canvasRef.current) return
 
       const video = videoRef.current
-      const canvas = canvasRef.current
       if (
         video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
         video.videoWidth === 0 ||
-        video.videoHeight === 0 ||
-        canvas.width === 0 ||
-        canvas.height === 0
+        video.videoHeight === 0
       ) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
+        if (runId === livenessRunIdRef.current && isRunningRef.current) {
+          animationFrameRef.current = requestAnimationFrame(processFrame)
+        }
         return
       }
 
       if (frameInFlightRef.current) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
+        if (runId === livenessRunIdRef.current && isRunningRef.current) {
+          animationFrameRef.current = requestAnimationFrame(processFrame)
+        }
         return
+      }
+
+      if (!livenessCanvasRef.current) {
+        livenessCanvasRef.current = document.createElement("canvas")
+      }
+      const canvas = livenessCanvasRef.current
+      const scale = Math.min(1, LIVENESS_FRAME_MAX_WIDTH / video.videoWidth)
+      const frameWidth = Math.round(video.videoWidth * scale)
+      const frameHeight = Math.round(video.videoHeight * scale)
+      if (canvas.width !== frameWidth || canvas.height !== frameHeight) {
+        canvas.width = frameWidth
+        canvas.height = frameHeight
       }
 
       const ctx = canvas.getContext("2d")
       if (!ctx) return
 
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(video, 0, 0, frameWidth, frameHeight)
 
       try {
         frameInFlightRef.current = true
@@ -215,19 +253,24 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
         })
 
-        if (!isRunningRef.current || !blob) {
+        if (runId !== livenessRunIdRef.current || !isRunningRef.current || !blob) {
           frameInFlightRef.current = false
           return
         }
 
         const formData = new FormData()
         formData.append("frame", blob, "frame.jpg")
+        if (livenessSessionIdRef.current) {
+          formData.append("session_id", livenessSessionIdRef.current)
+        }
 
         const controller = new AbortController()
         abortControllerRef.current = controller
 
+        const authToken = localStorage.getItem("auth_token")
         const response = await fetch("/api/student/liveness-detect", {
           method: "POST",
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
           body: formData,
           signal: controller.signal,
         })
@@ -235,23 +278,30 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
         if (response.ok && isRunningRef.current) {
           const data = await response.json()
           setLivenessData(data)
+        } else if (response.status === 429) {
+          // Respect the limiter instead of hammering it; resume after the window.
+          const retryAfter = Number(response.headers.get("Retry-After")) || 1
+          nextFrameDelayMs = Math.min(retryAfter, 10) * 1000
         }
       } catch (err: any) {
-        if (err.name !== "AbortError") {
+        if (runId === livenessRunIdRef.current && err.name !== "AbortError") {
           console.error("Liveness detection error:", err)
         }
       } finally {
+        if (runId !== livenessRunIdRef.current) return
+
         frameInFlightRef.current = false
         abortControllerRef.current = null
       }
 
-      if (isRunningRef.current) {
+      if (runId === livenessRunIdRef.current && isRunningRef.current) {
         // 120ms throttle keeps mobile CPU cool and network smooth (~8 FPS)
-        setTimeout(() => {
-          if (isRunningRef.current) {
+        frameTimeoutRef.current = setTimeout(() => {
+          frameTimeoutRef.current = null
+          if (runId === livenessRunIdRef.current && isRunningRef.current) {
             animationFrameRef.current = requestAnimationFrame(processFrame)
           }
-        }, 120)
+        }, nextFrameDelayMs)
       }
     }
 
@@ -345,14 +395,14 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           onSuccess(selfieDataUrl)
         }, 2000)
       } else {
-        throw new Error(data.error || "Identity mismatch.")
+        throw new Error(data.error || t("liveness.err_identity_mismatch"))
       }
     } catch (err: any) {
       const newRetryCount = retryCount + 1
       setRetryCount(newRetryCount)
 
       if (newRetryCount >= 3) {
-        setError("Too many failed attempts. Restarting liveness test...")
+        setError(t("liveness.err_too_many_attempts"))
         setStep("error")
         setTimeout(() => {
           setAnchorImage(null)
@@ -362,7 +412,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
           startCamera() // Restart liveness
         }, 3000)
       } else {
-        setError(`${err.message} (Attempt ${newRetryCount}/3)`)
+        setError(`${err.message} (${t("liveness.attempt")} ${newRetryCount}/3)`)
         setStep("error")
         setTimeout(() => {
           setError(null)
@@ -375,21 +425,21 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
   return (
     <div className="flex flex-col items-center justify-center p-6 space-y-6 max-w-md mx-auto bg-card rounded-2xl border shadow-xl">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Identity Guard</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t("liveness.title")}</h2>
         <p className="text-sm text-muted-foreground min-h-[40px]">
-          {step === "start" && "Prove you're human to secure your account."}
+          {step === "start" && t("liveness.step_start_desc")}
           {step === "liveness" && (
             <span className="flex items-center justify-center gap-2 font-medium text-primary">
               <currentChallenge.icon className="w-4 h-4 animate-pulse" />
-              {currentChallenge.label}
+              {t(currentChallenge.labelKey)}
             </span>
           )}
-          {step === "capture-selfie" && "Liveness Verified! Look straight and pose."}
-          {step === "verifying" && "Checking identity..."}
-          {step === "success" && "Identity Verified Successfully!"}
+          {step === "capture-selfie" && t("liveness.step_capture_desc")}
+          {step === "verifying" && t("liveness.step_verifying_desc")}
+          {step === "success" && t("liveness.step_success_desc")}
           {step === "error" && (
             <span className="text-destructive font-semibold">
-              {error || "Verification failed."}
+              {error || t("liveness.step_error_desc")}
             </span>
           )}
         </p>
@@ -437,7 +487,7 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
               {step === "liveness" && livenessData && (
                 <div className="absolute bottom-5 left-0 right-0 z-20 flex justify-center">
                   <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-xs ${livenessData.face_detected ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
-                    {livenessData.face_detected ? "Face Detected" : "No Face"}
+                    {livenessData.face_detected ? t("liveness.face_detected") : t("liveness.no_face")}
                   </span>
                 </div>
               )}
@@ -492,26 +542,32 @@ export function IdentityVerification({ onSuccess, onCancel }: IdentityVerificati
 
         {step === "start" && (
           <Button onClick={startCamera} className="w-full h-12 text-base font-bold">
-            Start Verification
+            {t("liveness.btn_start")}
           </Button>
         )}
 
         {step === "capture-selfie" && (
           <Button onClick={captureFinalSelfie} className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700">
-            <Camera className="mr-2 w-5 h-5" /> Capture Final Selfie
+            <Camera className="mr-2 w-5 h-5" /> {t("liveness.btn_capture")}
+          </Button>
+        )}
+
+        {step === "liveness" && (
+          <Button onClick={() => { stopCamera(); onCancel() }} variant="outline" className="w-full h-10">
+            <StopCircle className="mr-2 w-4 h-4" /> {t("liveness.btn_stop")}
           </Button>
         )}
       </div>
 
       {(step === "start" || step === "capture-selfie") && (
         <button onClick={() => { stopCamera(); onCancel() }} className="text-xs text-muted-foreground hover:underline font-medium">
-          Cancel and return
+          {t("liveness.btn_cancel")}
         </button>
       )}
 
       <UploadLoader
         isVisible={step === "verifying"}
-        message="Verifying your identity..."
+        message={t("liveness.loader_verifying")}
       />
     </div>
   )

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { deleteFolderFromCloudinary } from "@/lib/cloudinary"
+import { deleteFolderFromStorage } from "@/lib/storage"
 import { getUserFromRequest } from "@/lib/auth"
 
 // Get single event
@@ -59,6 +59,7 @@ export async function PATCH(
     if (body.location !== undefined) dataToUpdate.location = body.location;
     if (body.description !== undefined) dataToUpdate.description = body.description;
     if (body.status !== undefined) dataToUpdate.status = body.status;
+    if (body.expiresAt !== undefined) dataToUpdate.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
 
     const updatedEvent = await prisma.event.update({
       where: { id: p.id },
@@ -95,7 +96,7 @@ export async function DELETE(
     });
 
     // 1. Delete physical folder from Cloudinary instantly (much faster than individual deletion)
-    await deleteFolderFromCloudinary(p.id);
+    await deleteFolderFromStorage(p.id);
 
     // 2. Delete the event from Database
     // Thanks to Prisma's onDelete: cascade, this single command instantly wipes:

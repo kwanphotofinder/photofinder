@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal } from "lucide-react"
+import { Search, Plus, Calendar, Image as ImageIcon, Trash2, BarChart3, Users, Bell, Shield, AlertCircle, CheckCircle2, Pencil, UserPlus, Crown, Camera, Inbox, Ban, Unlock, UserMinus, ChevronDown, Loader2, FileText, Download, Filter, RefreshCw, Activity, SlidersHorizontal, Sliders, ExternalLink, Clock, HardDrive, CheckSquare, Square, LayoutGrid, List, Eye, Check } from "lucide-react"
 import { SystemHealth } from "@/components/system-health"
 import { LogTapDashboard } from "@/components/log-tap-dashboard"
 import { apiClient } from "@/lib/api-client"
@@ -19,7 +19,7 @@ import { ConfirmationModal } from "@/components/confirmation-modal"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [adminName, setAdminName] = useState("")
   const [events, setEvents] = useState<any[]>([])
   const [photos, setPhotos] = useState<any[]>([])
@@ -33,10 +33,9 @@ export default function AdminDashboardPage() {
   const [lowConfidenceLoading, setLowConfidenceLoading] = useState(false)
   const [selectedLowConfidencePhoto, setSelectedLowConfidencePhoto] = useState<any | null>(null)
   const [isLowConfidenceModalOpen, setIsLowConfidenceModalOpen] = useState(false)
-  const [biometricConfidence, setBiometricConfidence] = useState(50)
-  const [biometricConfidenceDraft, setBiometricConfidenceDraft] = useState("50")
-  const [isSavingBiometricConfidence, setIsSavingBiometricConfidence] = useState(false)
-  const [biometricConfidenceMessage, setBiometricConfidenceMessage] = useState<string | null>(null)
+  const [showApproveAllLowConfidenceModal, setShowApproveAllLowConfidenceModal] = useState(false)
+  const [showDeleteAllLowConfidenceModal, setShowDeleteAllLowConfidenceModal] = useState(false)
+  const [isBulkLowConfidenceAction, setIsBulkLowConfidenceAction] = useState(false)
 
   // User management state
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -60,6 +59,44 @@ export default function AdminDashboardPage() {
   const [auditPage, setAuditPage] = useState(1)
   const [auditTotalPages, setAuditTotalPages] = useState(1)
   const [isExportingCsv, setIsExportingCsv] = useState(false)
+
+  // Low-Value Image Detector state (Super Admin Only)
+  const [lowValuePhotos, setLowValuePhotos] = useState<any[]>([])
+  const [lowValueSummary, setLowValueSummary] = useState<{
+    totalCount: number
+    noFacesCount: number
+    failedCount: number
+    estimatedStorageMb: string
+  }>({
+    totalCount: 0,
+    noFacesCount: 0,
+    failedCount: 0,
+    estimatedStorageMb: "0",
+  })
+  const [lowValueLoading, setLowValueLoading] = useState(false)
+  const [lowValueReasonFilter, setLowValueReasonFilter] = useState("ALL")
+  const [lowValueSearchQuery, setLowValueSearchQuery] = useState("")
+  const [selectedLowValuePhotoIds, setSelectedLowValuePhotoIds] = useState<string[]>([])
+  const [showPurgeAllLowValueModal, setShowPurgeAllLowValueModal] = useState(false)
+  const [showPurgeSelectedLowValueModal, setShowPurgeSelectedLowValueModal] = useState(false)
+  const [isPurgingLowValue, setIsPurgingLowValue] = useState(false)
+  const [lowValueActionMessage, setLowValueActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [lowValueViewMode, setLowValueViewMode] = useState<"grid" | "table">("grid")
+  const [inspectingLowValuePhoto, setInspectingLowValuePhoto] = useState<any | null>(null)
+  const [isInspectModalOpen, setIsInspectModalOpen] = useState(false)
+
+  const filteredLowValuePhotos = useMemo(() => {
+    let list = lowValuePhotos
+    if (lowValueSearchQuery.trim()) {
+      const q = lowValueSearchQuery.toLowerCase()
+      list = list.filter(
+        (p) =>
+          (p.eventName?.toLowerCase() || "").includes(q) ||
+          p.id.toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [lowValuePhotos, lowValueSearchQuery])
 
   const filteredAndSortedUsers = useMemo(() => {
     let result = allUsers
@@ -135,15 +172,6 @@ export default function AdminDashboardPage() {
           apiClient.getLowConfidencePhotos(lowConfidenceThreshold),
         ])
 
-        if (userRole === "super_admin") {
-          const confidenceRes = await apiClient.getBiometricConfidence()
-          if (confidenceRes.data) {
-            const percentage = confidenceRes.data.percentage
-            setBiometricConfidence(percentage)
-            setBiometricConfidenceDraft(String(percentage))
-          }
-        }
-
         if (eventsRes.data && Array.isArray(eventsRes.data)) {
           setEvents(eventsRes.data)
         }
@@ -164,13 +192,27 @@ export default function AdminDashboardPage() {
           setCallerRole(usersRes.data.callerRole || "")
           setCallerEmail(usersRes.data.callerEmail || "")
 
-          // Fetch initial audit logs if caller is SUPER_ADMIN
+          // Fetch initial audit logs and low-value photos if caller is SUPER_ADMIN
           if (usersRes.data.callerRole === "SUPER_ADMIN") {
-            const auditRes = await apiClient.getAuditLogs({ page: 1, limit: 25 })
+            const [auditRes, lowValueRes] = await Promise.all([
+              apiClient.getAuditLogs({ page: 1, limit: 25 }),
+              apiClient.getLowValuePhotos("ALL"),
+            ])
             if (auditRes.data) {
               setAuditLogs(auditRes.data.logs || [])
               setAuditLogsTotal(auditRes.data.total || 0)
               setAuditTotalPages(auditRes.data.totalPages || 1)
+            }
+            if (lowValueRes.data) {
+              setLowValuePhotos(lowValueRes.data.items || [])
+              setLowValueSummary(
+                lowValueRes.data.summary || {
+                  totalCount: 0,
+                  noFacesCount: 0,
+                  failedCount: 0,
+                  estimatedStorageMb: "0",
+                }
+              )
             }
           }
         }
@@ -183,26 +225,6 @@ export default function AdminDashboardPage() {
 
     fetchData()
   }, [router, lowConfidenceThreshold])
-
-  const saveBiometricConfidence = async () => {
-    const percentage = Number(biometricConfidenceDraft)
-    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
-      setBiometricConfidenceMessage(t("settings.confidence_save_error"))
-      return
-    }
-
-    setIsSavingBiometricConfidence(true)
-    setBiometricConfidenceMessage(null)
-    const response = await apiClient.updateBiometricConfidence(percentage)
-    if (response.data) {
-      setBiometricConfidence(response.data.percentage)
-      setBiometricConfidenceDraft(String(response.data.percentage))
-      setBiometricConfidenceMessage(t("settings.confidence_saved"))
-    } else {
-      setBiometricConfidenceMessage(response.error || t("settings.confidence_save_error"))
-    }
-    setIsSavingBiometricConfidence(false)
-  }
 
   const fetchAuditLogs = async (cat = auditCategoryFilter, search = auditSearchQuery, page = auditPage) => {
     setAuditLogsLoading(true)
@@ -258,6 +280,132 @@ export default function AdminDashboardPage() {
     }
   }
 
+  const fetchLowValuePhotos = async (reason = lowValueReasonFilter) => {
+    if (callerRole !== "SUPER_ADMIN") return
+    setLowValueLoading(true)
+    try {
+      const res = await apiClient.getLowValuePhotos(reason)
+      if (res.data) {
+        setLowValuePhotos(res.data.items || [])
+        setLowValueSummary(
+          res.data.summary || {
+            totalCount: 0,
+            noFacesCount: 0,
+            failedCount: 0,
+            estimatedStorageMb: "0",
+          }
+        )
+      }
+    } catch (err) {
+      console.error("fetchLowValuePhotos error:", err)
+    } finally {
+      setLowValueLoading(false)
+    }
+  }
+
+  const handlePurgeAllLowValue = async () => {
+    setIsPurgingLowValue(true)
+    setLowValueActionMessage(null)
+    try {
+      const res = await apiClient.purgeLowValuePhotos({ reasonFilter: lowValueReasonFilter })
+      if (res.data?.status === "success") {
+        const count = res.data.deletedCount ?? 0
+        setLowValueActionMessage({
+          type: "success",
+          text: t("low_value.purge_success").replace("{count}", count.toString()),
+        })
+        setSelectedLowValuePhotoIds([])
+        setShowPurgeAllLowValueModal(false)
+        await fetchLowValuePhotos(lowValueReasonFilter)
+      } else {
+        setLowValueActionMessage({
+          type: "error",
+          text: res.error || t("low_value.purge_error"),
+        })
+      }
+    } catch (err: any) {
+      setLowValueActionMessage({
+        type: "error",
+        text: err?.message || t("low_value.purge_error"),
+      })
+    } finally {
+      setIsPurgingLowValue(false)
+    }
+  }
+
+  const handlePurgeSelectedLowValue = async () => {
+    if (selectedLowValuePhotoIds.length === 0) return
+    setIsPurgingLowValue(true)
+    setLowValueActionMessage(null)
+    try {
+      const res = await apiClient.purgeLowValuePhotos({ photoIds: selectedLowValuePhotoIds })
+      if (res.data?.status === "success") {
+        const count = res.data.deletedCount ?? 0
+        setLowValueActionMessage({
+          type: "success",
+          text: t("low_value.purge_success").replace("{count}", count.toString()),
+        })
+        setSelectedLowValuePhotoIds([])
+        setShowPurgeSelectedLowValueModal(false)
+        await fetchLowValuePhotos(lowValueReasonFilter)
+      } else {
+        setLowValueActionMessage({
+          type: "error",
+          text: res.error || t("low_value.purge_error"),
+        })
+      }
+    } catch (err: any) {
+      setLowValueActionMessage({
+        type: "error",
+        text: err?.message || t("low_value.purge_error"),
+      })
+    } finally {
+      setIsPurgingLowValue(false)
+    }
+  }
+
+  const handleDeleteSingleLowValue = async (photoId: string) => {
+    setIsPurgingLowValue(true)
+    setLowValueActionMessage(null)
+    try {
+      const res = await apiClient.purgeLowValuePhotos({ photoIds: [photoId] })
+      if (res.data?.status === "success") {
+        setLowValueActionMessage({
+          type: "success",
+          text: t("low_value.purge_success").replace("{count}", "1"),
+        })
+        setSelectedLowValuePhotoIds((prev) => prev.filter((id) => id !== photoId))
+        await fetchLowValuePhotos(lowValueReasonFilter)
+      } else {
+        setLowValueActionMessage({
+          type: "error",
+          text: res.error || t("low_value.purge_error"),
+        })
+      }
+    } catch (err: any) {
+      setLowValueActionMessage({
+        type: "error",
+        text: err?.message || t("low_value.purge_error"),
+      })
+    } finally {
+      setIsPurgingLowValue(false)
+    }
+  }
+
+  const toggleSelectAllLowValue = () => {
+    if (selectedLowValuePhotoIds.length === filteredLowValuePhotos.length) {
+      setSelectedLowValuePhotoIds([])
+    } else {
+      setSelectedLowValuePhotoIds(filteredLowValuePhotos.map((p) => p.id))
+    }
+  }
+
+  const toggleSelectOneLowValue = (id: string) => {
+    setSelectedLowValuePhotoIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
   // Confirmation Modal States
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null)
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false)
@@ -309,6 +457,58 @@ export default function AdminDashboardPage() {
       alert("Failed to refresh low-confidence queue")
     } finally {
       setLowConfidenceLoading(false)
+    }
+  }
+
+  const confirmApproveAllLowConfidence = async () => {
+    setIsBulkLowConfidenceAction(true)
+    try {
+      const res = await apiClient.approveAllLowConfidencePhotos(lowConfidenceThreshold)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      setShowApproveAllLowConfidenceModal(false)
+      await refreshLowConfidenceQueue()
+
+      const photosRes = await apiClient.getAllPhotos()
+      if (photosRes.error) {
+        throw new Error(photosRes.error)
+      }
+      if (photosRes.data && Array.isArray(photosRes.data)) {
+        setPhotos(photosRes.data)
+      }
+    } catch (error) {
+      console.error("Failed to approve all low-confidence photos", error)
+      alert("Failed to approve all queue items")
+    } finally {
+      setIsBulkLowConfidenceAction(false)
+    }
+  }
+
+  const confirmDeleteAllLowConfidence = async () => {
+    setIsBulkLowConfidenceAction(true)
+    try {
+      const res = await apiClient.deleteAllLowConfidencePhotos(lowConfidenceThreshold)
+      if (res.error) {
+        throw new Error(res.error)
+      }
+
+      setShowDeleteAllLowConfidenceModal(false)
+      await refreshLowConfidenceQueue()
+
+      const photosRes = await apiClient.getAllPhotos()
+      if (photosRes.error) {
+        throw new Error(photosRes.error)
+      }
+      if (photosRes.data && Array.isArray(photosRes.data)) {
+        setPhotos(photosRes.data)
+      }
+    } catch (error) {
+      console.error("Failed to delete all low-confidence photos", error)
+      alert("Failed to delete all queue items")
+    } finally {
+      setIsBulkLowConfidenceAction(false)
     }
   }
 
@@ -619,9 +819,15 @@ export default function AdminDashboardPage() {
                 <Button
                   variant="outline"
                   onClick={() => router.push("/admin/settings")}
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm rounded h-9 px-3.5 bg-white flex items-center gap-1.5"
                 >
-                  {t("dash.btn.settings")}
+                  <Sliders className="h-3.5 w-3.5 text-[#82181a]" />
+                  <span>{t("dash.btn.settings")}</span>
+                  {callerRole === "SUPER_ADMIN" && (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded ml-0.5">
+                      SUPER
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>
@@ -679,8 +885,8 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Tabs defaultValue="events" orientation="vertical" className="flex w-full flex-col gap-6 md:flex-row md:items-start">
             {/* REG MFU / Ant Design Style Left Navigation Menu */}
-            <TabsList className="!inline-flex !h-auto sticky top-20 w-full shrink-0 flex-col items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64">
-              <div className="mb-2 px-3 py-2 border-b border-slate-100">
+            <TabsList className="!inline-flex !h-auto md:sticky md:top-20 w-full shrink-0 flex-row overflow-x-auto items-stretch gap-1 rounded border border-slate-200 bg-white p-2 shadow-2xs md:w-64 md:flex-col md:overflow-x-visible">
+              <div className="mb-2 px-3 py-2 border-b border-slate-100 hidden md:block">
                 <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   {t("menu.title")}
                 </h3>
@@ -694,13 +900,16 @@ export default function AdminDashboardPage() {
                 { value: "health", icon: BarChart3, label: t("menu.health") },
                 { value: "log-tap", icon: Activity, label: t("menu.log_tap") },
                 ...(callerRole === "SUPER_ADMIN"
-                  ? [{ value: "audit", icon: FileText, label: t("menu.audit_logs"), badge: auditLogsTotal > 0 ? auditLogsTotal : undefined }]
+                  ? [
+                      { value: "audit", icon: FileText, label: t("menu.audit_logs"), badge: auditLogsTotal > 0 ? auditLogsTotal : undefined },
+                      { value: "low-value", icon: Trash2, label: t("menu.low_value_detector"), badge: lowValueSummary.totalCount > 0 ? lowValueSummary.totalCount : undefined },
+                    ]
                   : []),
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="group flex items-center justify-between w-full rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
+                  className="group flex items-center justify-between w-auto shrink-0 md:w-full whitespace-nowrap rounded px-3 py-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 border-b-2 md:border-b-0 md:border-l-4 border-transparent data-[state=active]:border-[#82181a] data-[state=active]:bg-[#82181a]/8 data-[state=active]:text-[#82181a] data-[state=active]:font-bold data-[state=active]:shadow-none"
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <tab.icon className="w-4 h-4 shrink-0 text-slate-500 group-data-[state=active]:text-[#82181a]" />
@@ -745,45 +954,6 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  {callerRole === "SUPER_ADMIN" && (
-                    <CardContent className="border-b border-slate-200 bg-white p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                          <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-[#82181a]" />
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{t("settings.confidence_title")}</p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">{t("settings.confidence_desc")}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 sm:min-w-80">
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            step="1"
-                            value={biometricConfidenceDraft}
-                            onChange={(event) => setBiometricConfidenceDraft(event.target.value.replace(/\D/g, "").slice(0, 3))}
-                            className="h-8 w-20 rounded border border-slate-300 px-2 text-center text-sm"
-                            aria-label={t("settings.confidence_title")}
-                          />
-                          <span className="w-12 text-right text-sm font-bold text-[#82181a]">{biometricConfidenceDraft || "-"}%</span>
-                          <Button
-                            size="sm"
-                            disabled={isSavingBiometricConfidence || Number(biometricConfidenceDraft) === biometricConfidence}
-                            onClick={saveBiometricConfidence}
-                            className="h-8 rounded bg-[#82181a] px-3 text-xs text-white hover:bg-[#9c1f22]"
-                          >
-                            {isSavingBiometricConfidence ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("settings.confidence_save")}
-                          </Button>
-                        </div>
-                      </div>
-                      {biometricConfidenceMessage && (
-                        <p className={`mt-2 text-[11px] ${biometricConfidenceMessage === t("settings.confidence_saved") ? "text-emerald-600" : "text-destructive"}`}>
-                          {biometricConfidenceMessage}
-                        </p>
-                      )}
-                    </CardContent>
-                  )}
                   <CardContent className="p-0">
                     {isLoading ? (
                       <div className="text-center py-12 text-slate-500 text-xs">{t("events.loading")}</div>
@@ -892,7 +1062,8 @@ export default function AdminDashboardPage() {
                               alt="Event photo"
                               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                             />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                            {/* Desktop: reveal delete on hover */}
+                            <div className="absolute inset-0 hidden md:flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -903,6 +1074,16 @@ export default function AdminDashboardPage() {
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
+                            {/* Mobile/touch: always-visible delete button (no hover) */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setPhotoToDelete(photo.id)}
+                              className="md:hidden absolute top-1.5 right-1.5 z-10 h-7 w-7 p-0 rounded-full shadow"
+                              title="Delete Photo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                             <div className="absolute bottom-0 left-0 right-0 truncate bg-black/70 p-1.5 text-[11px] text-white">
                               {photo.event?.name || new Date(photo.createdAt).toLocaleDateString()}
                             </div>
@@ -947,6 +1128,23 @@ export default function AdminDashboardPage() {
                           className="h-8 border-slate-300 text-xs rounded bg-white"
                         >
                           {lowConfidenceLoading ? t("lc.refreshing") : t("lc.refresh")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowApproveAllLowConfidenceModal(true)}
+                          disabled={lowConfidenceLoading || isBulkLowConfidenceAction || lowConfidencePhotos.length === 0}
+                          className="h-8 rounded bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                        >
+                          {t("lc.approve_all")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setShowDeleteAllLowConfidenceModal(true)}
+                          disabled={lowConfidenceLoading || isBulkLowConfidenceAction || lowConfidencePhotos.length === 0}
+                          className="h-8 rounded text-xs"
+                        >
+                          {t("lc.delete_all")}
                         </Button>
                       </div>
                     </div>
@@ -1027,7 +1225,7 @@ export default function AdminDashboardPage() {
                           <img
                             src={selectedLowConfidencePhoto.storageUrl}
                             alt="Low confidence preview"
-                            className="h-[360px] w-full object-contain"
+                            className="max-h-[45vh] w-full object-contain"
                           />
                         </div>
 
@@ -1048,25 +1246,36 @@ export default function AdminDashboardPage() {
                       </div>
                     )}
 
-                    <DialogFooter className="gap-2 sm:justify-between border-t border-slate-100 pt-3 mt-3">
-                      <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
-                        {t("lc.modal.preview_btn")}
-                      </Button>
-                      <div className="flex gap-2">
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-100 pt-3 mt-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handlePreviewFromModal} className="h-8 text-xs rounded border-slate-300">
+                          <Eye className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                          {t("lc.modal.preview_btn")}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs text-slate-600 hover:text-slate-900">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          {t("lc.modal.goto_event")}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeleteFromModal}
+                          className="h-8 text-xs rounded border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          {t("lc.modal.delete_btn")}
+                        </Button>
                         <Button
                           variant="default"
                           size="sm"
                           onClick={handleDismissFromModal}
                           disabled={lowConfidenceLoading}
-                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="h-8 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4"
                         >
+                          <Check className="mr-1.5 h-3.5 w-3.5" />
                           {lowConfidenceLoading ? t("lc.modal.approving") : t("lc.modal.approve_btn")}
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteFromModal} className="h-8 text-xs rounded">
-                          {t("lc.modal.delete_btn")}
-                        </Button>
-                        <Button size="sm" onClick={handleGoToEventEditFromModal} className="h-8 text-xs rounded bg-[#82181a] hover:bg-[#9c1f22] text-white">
-                          {t("lc.modal.goto_event")}
                         </Button>
                       </div>
                     </DialogFooter>
@@ -1873,10 +2082,593 @@ export default function AdminDashboardPage() {
                   </div>
                 </TabsContent>
               )}
+
+              {/* TAB: LOW-VALUE IMAGE DETECTOR (Super Admin Only) */}
+              {callerRole === "SUPER_ADMIN" && (
+                <TabsContent value="low-value" className="mt-0">
+                  <div className="space-y-4">
+                    <Card className="border border-slate-200 bg-white rounded shadow-2xs overflow-hidden">
+                      {/* Top Header */}
+                      <CardHeader className="bg-slate-50/70 border-b border-slate-200 p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <Trash2 className="w-4 h-4 text-rose-600" />
+                                {t("low_value.title")}
+                              </CardTitle>
+                            </div>
+                            <CardDescription className="text-xs text-slate-500 mt-1">
+                              {t("low_value.desc")}
+                            </CardDescription>
+                          </div>
+
+                          {/* Top Actions */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => fetchLowValuePhotos(lowValueReasonFilter)}
+                              disabled={lowValueLoading}
+                              className="h-8 text-xs border-slate-300 rounded bg-white hover:bg-slate-50"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${lowValueLoading ? "animate-spin text-[#82181a]" : "text-slate-500"}`} />
+                              {t("low_value.refresh_btn")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setShowPurgeAllLowValueModal(true)}
+                              disabled={lowValueLoading || lowValuePhotos.length === 0}
+                              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium rounded shadow-xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                              {t("low_value.purge_all")} ({lowValueSummary.totalCount})
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      {/* Stat Metrics Grid (Clickable to quickly filter) */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50/40 border-b border-slate-200">
+                        {/* Stat 1: Total */}
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("ALL")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("ALL")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "ALL"
+                              ? "border-rose-400 ring-2 ring-rose-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-slate-500 text-xs">
+                            <span className="font-medium">{t("low_value.stat_total")}</span>
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          </div>
+                          <div className="text-xl font-bold text-slate-800 mt-1">
+                            {lowValueSummary.totalCount}
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{t("low_value.stat_total_sub")}</p>
+                        </div>
+
+                        {/* Stat 2: 0 Faces */}
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("NO_FACES")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("NO_FACES")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "NO_FACES"
+                              ? "border-amber-400 ring-2 ring-amber-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-slate-500 text-xs">
+                            <span className="font-medium">{t("low_value.stat_no_faces")}</span>
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                          </div>
+                          <div className="text-xl font-bold text-slate-800 mt-1">
+                            {lowValueSummary.noFacesCount}
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{t("low_value.stat_no_faces_sub")}</p>
+                        </div>
+
+                        {/* Stat 3: Failed */}
+                        <div
+                          onClick={() => {
+                            setLowValueReasonFilter("FAILED")
+                            setSelectedLowValuePhotoIds([])
+                            fetchLowValuePhotos("FAILED")
+                          }}
+                          className={`p-3 bg-white border rounded shadow-2xs cursor-pointer transition-all ${
+                            lowValueReasonFilter === "FAILED"
+                              ? "border-red-400 ring-2 ring-red-200/50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-slate-500 text-xs">
+                            <span className="font-medium">{t("low_value.stat_failed")}</span>
+                            <Ban className="w-3.5 h-3.5 text-red-500" />
+                          </div>
+                          <div className="text-xl font-bold text-slate-800 mt-1">
+                            {lowValueSummary.failedCount}
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{t("low_value.stat_failed_sub")}</p>
+                        </div>
+
+                        {/* Stat 4: Storage Reclaim */}
+                        <div className="p-3 bg-white border border-slate-200 rounded shadow-2xs">
+                          <div className="flex items-center justify-between text-slate-500 text-xs">
+                            <span className="font-medium">{t("low_value.stat_storage_saved")}</span>
+                            <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
+                          </div>
+                          <div className="text-xl font-bold text-emerald-700 mt-1">
+                            ~{lowValueSummary.estimatedStorageMb} <span className="text-xs font-normal text-emerald-600">MB</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{t("low_value.stat_storage_saved_sub")}</p>
+                        </div>
+                      </div>
+
+                      {/* Action message banner */}
+                      {lowValueActionMessage && (
+                        <div
+                          className={`p-3 border-b text-xs flex items-center justify-between ${
+                            lowValueActionMessage.type === "success"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-rose-50 text-rose-800 border-rose-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {lowValueActionMessage.type === "success" ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                            )}
+                            <span className="font-medium">{lowValueActionMessage.text}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLowValueActionMessage(null)}
+                            className="text-xs text-slate-500 hover:text-slate-800 ml-2"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Filter & Selection Bar */}
+                      <div className="px-4 py-3 bg-white border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        {/* Left: Search & Filter Tabs */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1">
+                          {/* Search */}
+                          <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              type="search"
+                              placeholder={t("low_value.search_placeholder")}
+                              value={lowValueSearchQuery}
+                              onChange={(e) => setLowValueSearchQuery(e.target.value)}
+                              className="h-8 pl-8 text-xs border-slate-300 rounded bg-white w-full"
+                            />
+                          </div>
+
+                          {/* Filter Segmented Pills */}
+                          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 self-start sm:self-auto overflow-x-auto">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("ALL")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("ALL")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "ALL"
+                                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_all")} ({lowValueSummary.totalCount})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("NO_FACES")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("NO_FACES")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "NO_FACES"
+                                  ? "bg-white text-amber-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_no_faces")} ({lowValueSummary.noFacesCount})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLowValueReasonFilter("FAILED")
+                                setSelectedLowValuePhotoIds([])
+                                fetchLowValuePhotos("FAILED")
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
+                                lowValueReasonFilter === "FAILED"
+                                  ? "bg-white text-red-900 shadow-2xs font-bold"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              {t("low_value.filter_failed")} ({lowValueSummary.failedCount})
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Right: Select All & View Toggle */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={toggleSelectAllLowValue}
+                            disabled={filteredLowValuePhotos.length === 0}
+                            className="h-8 text-xs border-slate-300 rounded text-slate-700 bg-white"
+                          >
+                            {selectedLowValuePhotoIds.length > 0 && selectedLowValuePhotoIds.length === filteredLowValuePhotos.length ? (
+                              <>
+                                <Square className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                                {t("low_value.deselect_all")}
+                              </>
+                            ) : (
+                              <>
+                                <CheckSquare className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                                {t("low_value.select_all")}
+                              </>
+                            )}
+                          </Button>
+
+                          {/* View Switcher (Grid vs Table) */}
+                          <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => setLowValueViewMode("grid")}
+                              className={`p-1.5 rounded transition-all ${
+                                lowValueViewMode === "grid"
+                                  ? "bg-white text-[#82181a] shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700"
+                              }`}
+                              title={t("low_value.view_grid")}
+                            >
+                              <LayoutGrid className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLowValueViewMode("table")}
+                              className={`p-1.5 rounded transition-all ${
+                                lowValueViewMode === "table"
+                                  ? "bg-white text-[#82181a] shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700"
+                              }`}
+                              title={t("low_value.view_table")}
+                            >
+                              <List className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Main Content Area */}
+                      <CardContent className="p-4">
+                        {lowValueLoading ? (
+                          <div className="py-16 text-center text-slate-500 text-xs">
+                            <Loader2 className="w-7 h-7 animate-spin mx-auto text-[#82181a] mb-2" />
+                            <p className="font-semibold text-slate-700">Scanning catalog for zero-utility photos...</p>
+                          </div>
+                        ) : filteredLowValuePhotos.length === 0 ? (
+                          <div className="py-16 text-center text-slate-500 p-6">
+                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                              <CheckCircle2 className="w-7 h-7" />
+                            </div>
+                            <p className="font-bold text-slate-800 text-base">{t("low_value.empty_title")}</p>
+                            <p className="text-slate-500 text-xs mt-1.5 max-w-md mx-auto">{t("low_value.empty_desc")}</p>
+                          </div>
+                        ) : lowValueViewMode === "grid" ? (
+                          /* GALLERY / GRID VIEW */
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                            {filteredLowValuePhotos.map((photo) => {
+                              const isSelected = selectedLowValuePhotoIds.includes(photo.id)
+                              const isFailed = photo.reason === "FAILED"
+
+                              return (
+                                <div
+                                  key={photo.id}
+                                  className={`group relative aspect-[4/3] rounded border overflow-hidden bg-slate-100 transition-all shadow-2xs hover:shadow cursor-pointer ${
+                                    isSelected
+                                      ? "border-[#82181a] ring-2 ring-[#82181a]"
+                                      : "border-slate-200 hover:border-slate-400"
+                                  }`}
+                                  onClick={() => toggleSelectOneLowValue(photo.id)}
+                                >
+                                  {/* Photo Image */}
+                                  <img
+                                    src={photo.thumbnailUrl || photo.storageUrl}
+                                    alt={photo.id}
+                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      ;(e.currentTarget as HTMLElement).style.display = "none"
+                                    }}
+                                  />
+
+                                  {/* Selection Checkbox (Top Left) */}
+                                  <div
+                                    className={`absolute top-2 left-2 z-10 w-5 h-5 rounded flex items-center justify-center transition-all ${
+                                      isSelected
+                                        ? "bg-[#82181a] text-white shadow-xs"
+                                        : "bg-black/40 text-white hover:bg-black/60 opacity-80 group-hover:opacity-100"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleSelectOneLowValue(photo.id)
+                                    }}
+                                  >
+                                    {isSelected ? (
+                                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                    ) : (
+                                      <div className="w-3 h-3 rounded-xs border border-white" />
+                                    )}
+                                  </div>
+
+                                  {/* Issue Badge (Top Right) */}
+                                  <div className="absolute top-2 right-2 z-10">
+                                    {isFailed ? (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white shadow-xs">
+                                        <Ban className="w-2.5 h-2.5" />
+                                        Failed
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-xs">
+                                        <AlertCircle className="w-2.5 h-2.5" />
+                                        0 Faces
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Desktop Hover Quick Action Toolbar (Center) */}
+                                  <div
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setInspectingLowValuePhoto(photo)
+                                        setIsInspectModalOpen(true)
+                                      }}
+                                      className="h-8 w-8 p-0 rounded-full bg-white text-slate-800 hover:bg-slate-100 shadow-md border-0"
+                                      title={t("low_value.quick_preview")}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDeleteSingleLowValue(photo.id)}
+                                      disabled={isPurgingLowValue}
+                                      className="h-8 w-8 p-0 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-md border-0"
+                                      title={t("low_value.delete_single")}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+
+                                  {/* Bottom Info Overlay */}
+                                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-2 text-white pointer-events-none">
+                                    <p className="text-[11px] font-semibold truncate leading-tight" title={photo.eventName}>
+                                      {photo.eventName}
+                                    </p>
+                                    <div className="flex items-center justify-between text-[9px] text-slate-300 mt-0.5">
+                                      <span className="font-mono truncate max-w-[90px]">ID: {photo.id.slice(0, 8)}...</span>
+                                      <span>{photo.width && photo.height ? `${photo.width}×${photo.height}` : ""}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          /* TABLE VIEW */
+                          <div className="overflow-x-auto border border-slate-200 rounded">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-slate-50 border-b border-slate-200">
+                                  <TableHead className="w-10 px-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        filteredLowValuePhotos.length > 0 &&
+                                        selectedLowValuePhotoIds.length === filteredLowValuePhotos.length
+                                      }
+                                      onChange={toggleSelectAllLowValue}
+                                      className="rounded border-slate-300 text-[#82181a] focus:ring-[#82181a] cursor-pointer"
+                                    />
+                                  </TableHead>
+                                  <TableHead className="w-[12%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_preview")}</TableHead>
+                                  <TableHead className="w-[28%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_event")}</TableHead>
+                                  <TableHead className="w-[22%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_reason")}</TableHead>
+                                  <TableHead className="w-[18%] text-xs font-bold text-slate-700 uppercase h-10 px-3">{t("low_value.col_dimensions")}</TableHead>
+                                  <TableHead className="w-[20%] text-xs font-bold text-slate-700 uppercase h-10 px-3 text-right">{t("low_value.col_actions")}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody className="divide-y divide-slate-100">
+                                {filteredLowValuePhotos.map((photo) => {
+                                  const isSelected = selectedLowValuePhotoIds.includes(photo.id)
+                                  const isFailed = photo.reason === "FAILED"
+
+                                  return (
+                                    <TableRow
+                                      key={photo.id}
+                                      className={`hover:bg-slate-50/70 text-xs transition-colors cursor-pointer ${
+                                        isSelected ? "bg-rose-50/40" : ""
+                                      }`}
+                                      onClick={() => toggleSelectOneLowValue(photo.id)}
+                                    >
+                                      <TableCell className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => toggleSelectOneLowValue(photo.id)}
+                                          className="rounded border-slate-300 text-[#82181a] focus:ring-[#82181a] cursor-pointer"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2">
+                                        <div className="w-16 h-12 rounded bg-slate-100 overflow-hidden relative border border-slate-200 shrink-0">
+                                          <img
+                                            src={photo.thumbnailUrl || photo.storageUrl}
+                                            alt={photo.id}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2">
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="font-semibold text-slate-800 truncate text-xs" title={photo.eventName}>
+                                            {photo.eventName}
+                                          </span>
+                                          <span className="text-[10px] text-slate-400 font-mono truncate">ID: {photo.id}</span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2">
+                                        {isFailed ? (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                            <Ban className="w-3 h-3 text-rose-600" />
+                                            {t("low_value.reason_failed")}
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                            <AlertCircle className="w-3 h-3 text-amber-600" />
+                                            {t("low_value.reason_no_faces")}
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2 text-slate-500">
+                                        <div className="flex flex-col">
+                                          <span className="font-mono text-[11px] text-slate-700">
+                                            {photo.width && photo.height ? `${photo.width} × ${photo.height}` : "—"}
+                                          </span>
+                                          <span className="text-[10px] text-slate-400">
+                                            {new Date(photo.createdAt).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              setInspectingLowValuePhoto(photo)
+                                              setIsInspectModalOpen(true)
+                                            }}
+                                            className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900 rounded"
+                                          >
+                                            <Eye className="w-3.5 h-3.5 mr-1" />
+                                            Inspect
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteSingleLowValue(photo.id)}
+                                            disabled={isPurgingLowValue}
+                                            className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Floating Batch Selection Bar */}
+                    {selectedLowValuePhotoIds.length > 0 && (
+                      <div className="sticky bottom-4 z-20 mx-auto max-w-xl bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 border border-slate-800">
+                        <div className="flex items-center gap-2 text-xs">
+                          <div className="w-5 h-5 rounded-full bg-[#82181a] flex items-center justify-center font-bold text-[11px]">
+                            {selectedLowValuePhotoIds.length}
+                          </div>
+                          <span className="font-medium">
+                            {t("low_value.selected_count_bar")
+                              .replace("{count}", selectedLowValuePhotoIds.length.toString())
+                              .replace("{mb}", (selectedLowValuePhotoIds.length * 2.5).toFixed(1))}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedLowValuePhotoIds([])}
+                            className="h-7 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                          >
+                            {t("low_value.deselect_all")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setShowPurgeSelectedLowValueModal(true)}
+                            disabled={isPurgingLowValue}
+                            className="h-7 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 rounded shadow-xs"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                            {t("low_value.purge_selected").replace(
+                              "{count}",
+                              selectedLowValuePhotoIds.length.toString()
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              )}
             </div>
           </Tabs>
         </div>
       </main>
+
+      <ConfirmationModal
+        open={showApproveAllLowConfidenceModal}
+        onOpenChange={setShowApproveAllLowConfidenceModal}
+        title={t("lc.approve_all")}
+        description="Are you sure you want to approve all photos matching the current AI review threshold?"
+        confirmText={t("lc.approve_all")}
+        cancelText="Cancel"
+        variant="default"
+        isLoading={isBulkLowConfidenceAction}
+        onConfirm={confirmApproveAllLowConfidence}
+      />
+
+      <ConfirmationModal
+        open={showDeleteAllLowConfidenceModal}
+        onOpenChange={setShowDeleteAllLowConfidenceModal}
+        title={t("lc.delete_all")}
+        description="Are you sure you want to permanently delete all photos matching the current AI review threshold? This cannot be undone."
+        confirmText={t("lc.delete_all")}
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isBulkLowConfidenceAction}
+        onConfirm={confirmDeleteAllLowConfidence}
+      />
 
       {/* Delete Photo Confirmation Modal */}
       <ConfirmationModal
@@ -2002,6 +2794,175 @@ export default function AdminDashboardPage() {
         matchPlaceholder="Type REMOVE to confirm"
         onConfirm={confirmRemoveUser}
       />
+
+      {/* Purge All Low-Value Photos Modal */}
+      <ConfirmationModal
+        open={showPurgeAllLowValueModal}
+        onOpenChange={setShowPurgeAllLowValueModal}
+        title={t("low_value.modal_purge_all_title")}
+        description={t("low_value.modal_purge_all_desc").replace(
+          "{count}",
+          lowValuePhotos.length.toString()
+        )}
+        confirmText={t("low_value.purge_all")}
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isPurgingLowValue}
+        requireMatchText="PURGE"
+        matchPlaceholder="Type PURGE to confirm"
+        onConfirm={handlePurgeAllLowValue}
+      />
+
+      {/* Purge Selected Low-Value Photos Modal */}
+      <ConfirmationModal
+        open={showPurgeSelectedLowValueModal}
+        onOpenChange={setShowPurgeSelectedLowValueModal}
+        title={t("low_value.modal_purge_selected_title")}
+        description={t("low_value.modal_purge_selected_desc").replace(
+          "{count}",
+          selectedLowValuePhotoIds.length.toString()
+        )}
+        confirmText={t("low_value.purge_selected").replace(
+          "{count}",
+          selectedLowValuePhotoIds.length.toString()
+        )}
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isPurgingLowValue}
+        onConfirm={handlePurgeSelectedLowValue}
+      />
+
+      {/* Inspect Low-Value Photo Dialog Modal */}
+      <Dialog
+        open={isInspectModalOpen}
+        onOpenChange={(open) => {
+          setIsInspectModalOpen(open)
+          if (!open) setInspectingLowValuePhoto(null)
+        }}
+      >
+        <DialogContent className="max-w-2xl rounded-lg border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
+          <DialogHeader className="bg-slate-50 border-b border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#82181a]" />
+                {t("low_value.modal_inspect_title")}
+              </DialogTitle>
+              {inspectingLowValuePhoto?.reason === "FAILED" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                  <Ban className="w-3 h-3 text-rose-600" />
+                  {t("low_value.reason_failed")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  <AlertCircle className="w-3 h-3 text-amber-600" />
+                  {t("low_value.reason_no_faces")}
+                </span>
+              )}
+            </div>
+            <DialogDescription className="text-xs text-slate-500 mt-0.5">
+              {inspectingLowValuePhoto?.eventName || "Event Photo"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 space-y-4">
+            {/* Full Image Preview */}
+            <div className="relative aspect-[16/10] w-full rounded bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-200">
+              {inspectingLowValuePhoto && (
+                <img
+                  src={inspectingLowValuePhoto.storageUrl || inspectingLowValuePhoto.thumbnailUrl}
+                  alt="Preview"
+                  className="w-full h-full object-contain"
+                />
+              )}
+            </div>
+
+            {/* Diagnostics & Explanation Box */}
+            <div
+              className={`p-3 rounded border text-xs leading-relaxed ${
+                inspectingLowValuePhoto?.reason === "FAILED"
+                  ? "bg-rose-50/60 border-rose-200 text-rose-900"
+                  : "bg-amber-50/60 border-amber-200 text-amber-900"
+              }`}
+            >
+              <p className="font-semibold text-xs flex items-center gap-1.5 mb-1">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {inspectingLowValuePhoto?.reason === "FAILED"
+                  ? "สาเหตุ: ประมวลผลล้มเหลว (Corrupted / AI Processing Failed)"
+                  : "สาเหตุ: ไม่พบใบหน้ามนุษย์ (0 Detected Faces)"}
+              </p>
+              <p className="text-[11px] opacity-90">
+                {inspectingLowValuePhoto?.reason === "FAILED"
+                  ? t("low_value.reason_expl_failed")
+                  : t("low_value.reason_expl_no_faces")}
+              </p>
+            </div>
+
+            {/* Photo Metadata Details */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded border border-slate-200">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Event</span>
+                <p className="font-medium text-slate-800 truncate" title={inspectingLowValuePhoto?.eventName}>
+                  {inspectingLowValuePhoto?.eventName}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Photo ID</span>
+                <p className="font-mono text-slate-800 truncate text-[11px]" title={inspectingLowValuePhoto?.id}>
+                  {inspectingLowValuePhoto?.id}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Resolution</span>
+                <p className="font-medium text-slate-800">
+                  {inspectingLowValuePhoto?.width && inspectingLowValuePhoto?.height
+                    ? `${inspectingLowValuePhoto.width} × ${inspectingLowValuePhoto.height}`
+                    : "Unknown"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Uploaded</span>
+                <p className="font-medium text-slate-800">
+                  {inspectingLowValuePhoto ? new Date(inspectingLowValuePhoto.createdAt).toLocaleDateString() : "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="bg-slate-50 border-t border-slate-200 p-3 flex sm:justify-between items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsInspectModalOpen(false)
+                setInspectingLowValuePhoto(null)
+              }}
+              className="h-8 text-xs border-slate-300 rounded"
+            >
+              Close
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isPurgingLowValue}
+              onClick={async () => {
+                if (inspectingLowValuePhoto) {
+                  const id = inspectingLowValuePhoto.id
+                  setIsInspectModalOpen(false)
+                  setInspectingLowValuePhoto(null)
+                  await handleDeleteSingleLowValue(id)
+                }
+              }}
+              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded font-medium shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {t("low_value.purge_this_photo")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
